@@ -1,0 +1,63 @@
+name: Tauri Release Build
+
+on:
+  push:
+    tags:
+      - "v*"  # Example: v1.0.0
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        platform: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      # 1️⃣ Checkout code
+      - uses: actions/checkout@v4
+
+      # 2️⃣ Install Rust
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # 3️⃣ Install Node
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 4️⃣ Install frontend dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 5️⃣ Install Tauri CLI
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli
+
+      # 6️⃣ Build Tauri app
+      - name: Build Tauri app
+        run: npm run tauri build
+
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/**/*
+            src-tauri/target/**/bundle/**/*
+
+      # 7️⃣ Upload final packaged binaries as release assets
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            # macOS builds
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/dmg/*.app
+            # Windows builds
+            src-tauri/target/release/bundle/windows/*.exe
+            src-tauri/target/release/bundle/nsis/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
