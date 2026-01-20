@@ -2,7 +2,7 @@
 
 import { AddGroupDrawer } from "@/components/products/add-group-drawer";
 import AddProductDrawer from "@/components/products/add-product-drawer";
-import PriceTagsPage from "@/components/products/price-tag";
+
 import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -71,7 +71,10 @@ export function ProductsView() {
         groups={productGroups}
         onOpenChange={() => setAddProductDrawerOpen(false)}
         open={addProductDrawerOpen}
-        onSave={(data) => {}}
+        onSave={(data) => {
+          console.log(data);
+          
+        }}
       />
       <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
         <span className="text-sm text-slate-300">Management • Products</span>

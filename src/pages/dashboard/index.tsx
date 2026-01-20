@@ -1,6 +1,6 @@
 import { Switch } from "@/components/ui/switch";
-import { Calendar, ChevronLeft, RefreshCw, X } from "lucide-react";
-import React, { useState } from "react";
+import { Calendar,  RefreshCw,  } from "lucide-react";
+import { useState } from "react";
 import { Calendar as ShadCalendar } from "@/components/ui/calendar";
 import {
   BarChart,
@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { DayPicker } from "react-day-picker";
+
 import {
   format,
   startOfWeek,
@@ -25,7 +25,7 @@ import {
   addDays,
 } from "date-fns";
 // import "react-day-picker/dist/style.css";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 const monthlySales = [
   { month: "Jan", sales: 1200 },
@@ -136,8 +136,9 @@ const Dashboard = () => {
               {/* Calendar */}
               <div className="col-span-12 md:col-span-8">
                 <ShadCalendar
+                  required
                   mode="range"
-                  selected={range}
+                  selected={range as any}
                   onSelect={setRange}
                   numberOfMonths={2}
                   pagedNavigation

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { addDays } from "date-fns";
+
 
 import {
   startOfWeek,
-  endOfWeek,
+
   startOfMonth,
-  endOfMonth,
+
   startOfYear,
-  endOfYear,
+ 
   subDays,
   subWeeks,
   subMonths,
@@ -25,14 +25,14 @@ const presets = {
   "Last month": () => startOfMonth(subMonths(new Date(), 1)),
   "This year": () => startOfYear(new Date()),
   "Last year": () => startOfYear(subYears(new Date(), 1)),
-};
+} as any;
 
 
 export default function MovingAveragePrice() {
     const [date, setDate] = useState<Date | undefined>(new Date());
   const [mode, setMode] = useState("groups");
   const [updateType, setUpdateType] = useState("markup");
-    const [selectedDate, setSelectedDate] = useState(19);
+  
     const navigate = useNavigate()
 
   return (
@@ -152,7 +152,7 @@ export default function MovingAveragePrice() {
                 "Last month",
                 "This year",
                 "Last year",
-              ].map((label) => (
+              ].map((label:any) => (
                 <button
                   key={label}
                   onClick={() => setDate(presets[label]())}

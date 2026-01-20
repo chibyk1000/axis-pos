@@ -1,4 +1,4 @@
-import * as React from "react";
+
 import {
   addDays,
   subWeeks,
@@ -121,7 +121,7 @@ export function DateRangeModal({
           <div className="col-span-12 md:col-span-8">
             <ShadCalendar
               mode="range"
-              selected={value}
+              selected={value as any}
               onSelect={onChange}
               numberOfMonths={2}
               pagedNavigation

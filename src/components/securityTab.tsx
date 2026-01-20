@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import  { useState } from "react";
 import { RefreshCw, Check, HelpCircle, Minus, Plus } from "lucide-react";
 
 interface PermissionItem {

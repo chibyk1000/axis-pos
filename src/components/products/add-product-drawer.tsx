@@ -20,7 +20,7 @@ import {
   DrawerFooter,
 } from "../ui/drawer";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Info, Minus, Plus, Trash } from "lucide-react";
+import { Info, Plus, Trash } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
 
 interface AddProductDrawerProps {

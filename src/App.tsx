@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { invoke } from "@tauri-apps/api/core";
+// import { invoke } from "@tauri-apps/api/core";
 import { Route, Routes } from "react-router";
 import Home from "./pages/home";
 import { db } from "./db/database";
-import * as schema from "./db/schema";
+// import * as schema from "./db/schema";
 import Applayout from "./layouts/app-layout";
 import Dashboard from "./pages/dashboard";
 import { DocumentsView } from "./pages/dashboard/documents";
@@ -30,8 +30,8 @@ import SalesHistory from "./pages/sales-history";
 import ViewOpenSales from "./pages/open-sales";
 
 function App() {
-  const [ ,setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+
+
   const [ ,setUsers] = useState<{ id: number; name: string | null }[]>([]);
 
 
@@ -62,10 +62,6 @@ function App() {
       });
   };
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
 
   return (
     <main className="container">

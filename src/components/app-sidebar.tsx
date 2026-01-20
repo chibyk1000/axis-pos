@@ -6,10 +6,10 @@ import {
   ArrowLeft,
   AudioWaveform,
   BadgeDollarSign,
-  BookOpen,
+
   BookText,
-  Bot,
-  Building,
+
+
   Building2,
   ChartBar,
   CirclePercent,
@@ -38,7 +38,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { useLocation, useNavigate } from "react-router"
+import { useNavigate } from "react-router"
 import { Button } from "./ui/button"
 
 

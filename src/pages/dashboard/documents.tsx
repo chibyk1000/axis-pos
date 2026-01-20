@@ -11,21 +11,10 @@ import {
   Eye,
   FileDown,
 } from "lucide-react";
-import { useState } from "react";
+
 
 export function DocumentsView() {
-  const [filters, setFilters] = useState({
-    product: "All products",
-    customer: "All customers",
-    documentNumber: "",
-    user: "All users",
-    documentType: "All document types",
-    externalDocument: "",
-    cashRegister: "All cash registers",
-    paidStatus: "All transactions",
-    periodStart: "09/01/2026",
-    periodEnd: "09/01/2026",
-  });
+ 
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-slate-200">

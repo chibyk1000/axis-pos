@@ -37,7 +37,7 @@ const mockCustomers: Customer[] = [
 
 export default function CustomersSuppliersClient() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+ 
 
   const filteredCustomers = mockCustomers.filter(
     (customer) =>

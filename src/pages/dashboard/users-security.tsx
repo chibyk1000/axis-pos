@@ -21,7 +21,7 @@ interface User {
 }
 
 export default function UsersSecurityClient() {
-  const [users, setUsers] = useState<User[]>([
+  const [users, ] = useState<User[]>([
     {
       firstName: "chibuike",
       lastName: "Okorie",
