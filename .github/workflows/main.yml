@@ -1,10 +1,9 @@
-name: Tauri Release Build
+name: axis pos Release Build
 
 on:
   push:
     tags:
       - "v*"  # Example: v1.0.0
-
 jobs:
   build-and-release:
     strategy:
