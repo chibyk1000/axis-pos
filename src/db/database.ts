@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import Database from '@tauri-apps/plugin-sql';
-import * as schema from "../db/schema";
+import * as schema from "./schema/index";
 
 /**
  * Represents the result of a SELECT query.
@@ -31,7 +31,7 @@ export const db = drizzle<typeof schema>(
     } else {
       // Otherwise, use the execute method
       rows = await sqlite.execute(sql, params).catch((e) => {
-        console.log("SQL Error:", e);
+        console.log("SQL Error:", e, sql);
         return [];
       });
       return { rows: [] };
@@ -59,3 +59,7 @@ function isSelectQuery(sql: string): boolean {
   const selectRegex = /^\s*SELECT\b/i;
   return selectRegex.test(sql);
 }
+
+
+
+

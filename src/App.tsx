@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+
 
 // import { invoke } from "@tauri-apps/api/core";
 import { Route, Routes } from "react-router";
 import Home from "./pages/home";
-import { db } from "./db/database";
+ import { ToastContainer, } from "react-toastify";
 // import * as schema from "./db/schema";
 import Applayout from "./layouts/app-layout";
 import Dashboard from "./pages/dashboard";
@@ -28,39 +28,30 @@ import CreditPaymentsModal from "./pages/credit-payments";
 import EndOfDayModal from "./pages/endofday";
 import SalesHistory from "./pages/sales-history";
 import ViewOpenSales from "./pages/open-sales";
+import { ensureRootNode, } from "./hooks/controllers/nodes";
+import { useEffect, useRef } from "react";
+import { seedCountriesIfEmpty } from "./hooks/controllers/countries";
 
 function App() {
+const initialized = useRef(false);
 
-
-  const [ ,setUsers] = useState<{ id: number; name: string | null }[]>([]);
+  
 
 
   useEffect(() => {
+      if (initialized.current) return;
+      initialized.current = true;
+
     async function init() {
-      loadUsers();
-      loadASingleUser();
+      await ensureRootNode()
+      await seedCountriesIfEmpty()
+
+
     }
     init();
   }, []);
 
-  const loadUsers = async () => {
-    db.query.users
-      .findMany()
-      .execute()
-      .then((results) => {
-        console.log("🚀 ~ FindMany response from Drizzle:", results);
-        setUsers(results);
-      });
-  };
 
-  const loadASingleUser = async () => {
-    db.query.users
-      .findFirst()
-      .execute()
-      .then((result) => {
-        console.log("🚀 ~ FindFirst response from Drizzle:", result);
-      });
-  };
 
 
   return (
@@ -92,6 +83,17 @@ function App() {
           <Route path="tax-rates" element={<TaxRates />} />
         </Route>
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+       
+        pauseOnHover={false}
+      />
     </main>
   );
 }

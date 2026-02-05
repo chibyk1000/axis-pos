@@ -1,67 +1,63 @@
-"use client";
-
 import { useState } from "react";
+
 import {
-  RefreshCw as Refresh,
   Plus,
   Pencil,
   Trash2,
+  RefreshCw,
   HelpCircle,
   Check,
 } from "lucide-react";
 
-interface PaymentType {
-  name: string;
-  position: number;
-  code: string;
-  enabled: boolean;
-  quickPayment: boolean;
-  customerRequired: boolean;
-  changeAllowed: boolean;
-  markTransactionAsPaid: boolean;
-  printReceipt: boolean;
-}
-
-const paymentTypes: PaymentType[] = [
-  {
-    name: "Cash",
-    position: 1,
-    code: "",
-    enabled: true,
-    quickPayment: true,
-    customerRequired: false,
-    changeAllowed: true,
-    markTransactionAsPaid: true,
-    printReceipt: true,
-  },
-  {
-    name: "Card",
-    position: 2,
-    code: "",
-    enabled: true,
-    quickPayment: true,
-    customerRequired: false,
-    changeAllowed: false,
-    markTransactionAsPaid: true,
-    printReceipt: true,
-  },
-];
+import {
+  usePaymentTypes,
+  useCreatePaymentType,
+  useUpdatePaymentType,
+  useDeletePaymentType,
+} from "@/hooks/controllers/paymentTypes";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import PaymentTypeDrawer from "@/components/payment-types-drawer";
 
 export default function PaymentTypesClient() {
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeRow, setActiveRow] = useState<number | null>(null);
+  const [activeRow, setActiveRow] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { data: paymentTypes = [], refetch, isFetching } = usePaymentTypes();
+  const createType = useCreatePaymentType();
+  const updateType = useUpdatePaymentType();
+  const deleteType = useDeletePaymentType();
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
+  const selected = paymentTypes.find((p) => p.id === activeRow);
+
+  const handleSave = async (data: any) => {
+    if (selected) {
+      await updateType.mutateAsync({ id: selected.id, data });
+    } else {
+      await createType.mutateAsync(data);
+    }
+    refetch();
+  };
+
+  const handleDelete = async () => {
+    if (!selected) return;
+    const ok = await confirm(`Delete ${selected.name}?`);
+    if (!ok) return;
+    await deleteType.mutateAsync(selected.id);
+    setActiveRow(null);
+    refetch();
   };
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-slate-100">
       {/* Toolbar */}
+      <PaymentTypeDrawer
+        open={drawerOpen}
+        setOpen={setDrawerOpen}
+        initialData={selected}
+        onSave={handleSave}
+      />
       <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-900">
         <button
-          onClick={handleRefresh}
+          onClick={() => refetch()}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
             text-slate-400
@@ -70,16 +66,21 @@ export default function PaymentTypesClient() {
             transition-colors
           "
         >
-          <Refresh className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`w-5 h-5 ${isFetching ? "animate-spin" : ""}`}
+          />
           <span className="text-sm">Refresh</span>
         </button>
 
         <button
+          onClick={() => {
+            setDrawerOpen(true);
+          }}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            bg-primary text-primary-foreground
-            hover:bg-primary/90
-            active:bg-primary/80
+            text-slate-400
+            hover:bg-slate-800 hover:text-slate-100
+            active:bg-slate-700
             transition-colors
           "
         >
@@ -88,6 +89,8 @@ export default function PaymentTypesClient() {
         </button>
 
         <button
+          disabled={!selected}
+          onClick={() => setDrawerOpen(true)}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
             text-slate-400
@@ -101,6 +104,8 @@ export default function PaymentTypesClient() {
         </button>
 
         <button
+          disabled={!selected}
+          onClick={handleDelete}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
             text-slate-400
@@ -157,20 +162,44 @@ export default function PaymentTypesClient() {
             </thead>
 
             <tbody>
-              {paymentTypes.map((type, index) => {
-                const isActive = activeRow === index;
+              {paymentTypes.map((type) => (
+                <tr
+                  key={type.id}
+                  onClick={() => setActiveRow(type.id)}
+                  className={`cursor-pointer ${activeRow === type.id ? "bg-slate-700" : ""}`}
+                >
+                  <td>{type.name}</td>
+                  <td>{type.position}</td>
+                  <td>{type.code || "-"}</td>
+                  {[
+                    type.enabled,
+                    type.quickPayment,
+                    type.customerRequired,
+                    type.changeAllowed,
+                    type.markTransactionAsPaid,
+                    type.printReceipt,
+                  ].map((v, i) => (
+                    <td key={i} className="text-center">
+                      {v && <Check className="w-4 h-4 mx-auto text-primary" />}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
 
+            <tbody>
+              {/* {paymentTypes.map((type, index) => {
                 return (
                   <tr
                     key={index}
-                    onClick={() => setActiveRow(index)}
+                    onClick={() => setActiveRow(type.id)}
                     className={`
                       border-b border-slate-800 cursor-pointer transition-colors
                       hover:bg-slate-800
                       ${isActive ? "bg-slate-700" : ""}
                     `}
                   >
-                    {/* Active indicator */}
+                   
                     <td className="relative px-4 py-3 text-sm">
                       {isActive && (
                         <span className="absolute left-0 top-0 h-full w-1 bg-primary" />
@@ -199,7 +228,7 @@ export default function PaymentTypesClient() {
                     ))}
                   </tr>
                 );
-              })}
+              })} */}
             </tbody>
           </table>
         </div>

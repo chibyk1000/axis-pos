@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import {
   Table,
@@ -10,40 +12,49 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, RefreshCcw, Pencil, Trash2 } from "lucide-react";
-
-const countries = [
-  { name: "Afghanistan", code: "AF" },
-  { name: "Albania", code: "AL" },
-  { name: "Algeria", code: "DZ" },
-  { name: "American Samoa", code: "AS" },
-  { name: "Andorra", code: "AD" },
-  { name: "Angola", code: "AO" },
-  { name: "Anguilla", code: "AI" },
-  { name: "Antarctica", code: "AQ" },
-  { name: "Antigua And Barbuda", code: "AG" },
-  { name: "Argentina", code: "AR" },
-  { name: "Armenia", code: "AM" },
-  { name: "Aruba", code: "AW" },
-  { name: "Australia", code: "AU" },
-  { name: "Austria", code: "AT" },
-  { name: "Azerbaijan", code: "AZ" },
-  { name: "Bahamas", code: "BS" },
-  { name: "Bahrain", code: "BH" },
-  { name: "Bangladesh", code: "BD" },
-];
+import {
+  useCountries,
+  useCreateCountry,
+  useUpdateCountry,
+  useDeleteCountry,
+} from "@/hooks/controllers/countries";
+import { confirm } from "@tauri-apps/plugin-dialog";
+import CountryDrawer from "@/components/country-drawer";
 
 export default function CountriesTable() {
-  const [selected, setSelected] = useState<number | null>(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const { data: countries = [], refetch } = useCountries();
+  const createCountry = useCreateCountry();
+  const updateCountry = useUpdateCountry();
+  const deleteCountry = useDeleteCountry();
+
+  const selectedCountry = countries.find((c) => c.id === selected);
 
   return (
     <div className="h-screen bg-slate-900 text-slate-100 p-4">
+      {/* Drawer */}
+      <CountryDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        initialData={selectedCountry ?? null}
+        onSave={async (data) => {
+          if (selectedCountry) {
+            await updateCountry.mutateAsync({
+              id: selectedCountry.id,
+              data,
+            });
+          } else {
+            await createCountry.mutateAsync(data);
+          }
+          refetch();
+        }}
+      />
+
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-slate-300 hover:text-white hover:bg-slate-800"
-        >
+        <Button variant="ghost" size="sm" onClick={()=>refetch()}>
           <RefreshCcw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -51,7 +62,10 @@ export default function CountriesTable() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-slate-300 hover:text-white hover:bg-slate-800"
+          onClick={() => {
+            setSelected(null);
+            setDrawerOpen(true);
+          }}
         >
           <Plus className="w-4 h-4 mr-2" />
           New country
@@ -60,8 +74,8 @@ export default function CountriesTable() {
         <Button
           variant="ghost"
           size="sm"
-          disabled={selected === null}
-          className="text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40"
+          disabled={!selectedCountry}
+          onClick={() => setDrawerOpen(true)}
         >
           <Pencil className="w-4 h-4 mr-2" />
           Edit
@@ -70,15 +84,25 @@ export default function CountriesTable() {
         <Button
           variant="ghost"
           size="sm"
-          disabled={selected === null}
-          className="text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-40"
+          disabled={!selectedCountry}
+          onClick={async () => {
+            if (!selectedCountry) return;
+            const ok = await confirm(`Delete ${selectedCountry.name}?`, {
+              title: "Confirm delete",
+            });
+            if (!ok) return;
+
+            await deleteCountry.mutateAsync(selectedCountry.id);
+            setSelected(null);
+            refetch();
+          }}
         >
           <Trash2 className="w-4 h-4 mr-2" />
           Delete
         </Button>
       </div>
 
-      {/* Table container */}
+      {/* Table */}
       <div className="border border-slate-700 rounded-md bg-slate-800 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-110px)]">
           <Table>
@@ -90,23 +114,21 @@ export default function CountriesTable() {
             </TableHeader>
 
             <TableBody>
-              {countries.map((country, index) => (
+              {countries.map((country) => (
                 <TableRow
-                  key={country.code}
-                  onClick={() => setSelected(index)}
+                  key={country.id}
+                  onClick={() => setSelected(country.id)}
                   className={`
                     cursor-pointer transition-colors
                     ${
-                      selected === index
+                      selected === country.id
                         ? "bg-slate-700 text-white"
                         : "hover:bg-slate-700/50"
                     }
                   `}
                 >
-                  <TableCell className="text-slate-100">
-                    {country.name}
-                  </TableCell>
-                  <TableCell className="text-slate-300">
+                  <TableCell>{country.name}</TableCell>
+                  <TableCell className="text-slate-400">
                     {country.code}
                   </TableCell>
                 </TableRow>

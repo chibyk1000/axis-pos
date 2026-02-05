@@ -12,42 +12,33 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import CustomerSupplierDrawer from "@/components/customer-drawer";
+import { useCustomers, useDeleteCustomer,  } from "@/hooks/controllers/customers";
+import { confirm, message } from "@tauri-apps/plugin-dialog";
+import { Customer } from "@/db/schema";
 
-interface Customer {
-  code: string;
-  name: string;
-  taxNumber: string;
-  address: string;
-  country: string;
-  phoneNumber: string;
-  email: string;
-}
 
-const mockCustomers: Customer[] = [
-  {
-    code: "",
-    name: "Walk-in customer",
-    taxNumber: "(none)",
-    address: "(none)",
-    country: "",
-    phoneNumber: "(none)",
-    email: "(none)",
-  },
-];
+
+
 
 export default function CustomersSuppliersClient() {
   const [searchQuery, setSearchQuery] = useState("");
- 
+  const [open, setOpen] = useState(false)
+  const {data=[],  } = useCustomers()
+const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+  null,
+);
+const deleteCustomer = useDeleteCustomer();
+console.log(selectedCustomer)
 
-  const filteredCustomers = mockCustomers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase())
+ 
+  const filteredCustomers = data?.filter(
+    (customer) =>JSON.stringify(customer).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-900 text-slate-200">
+      <CustomerSupplierDrawer onOpenChange={setOpen} open={open}   initialData={selectedCustomer}  />
       {/* Header */}
       <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-3">
         <h2 className="text-lg font-semibold text-slate-100">
@@ -59,16 +50,65 @@ export default function CustomersSuppliersClient() {
       <div className="border-b border-slate-800 px-6 py-3 flex items-center gap-2 bg-slate-800">
         {[
           { icon: RotateCw, label: "Refresh" },
-          { icon: Plus, label: "Add" },
-          { icon: Pencil, label: "Edit", disabled: true },
-          { icon: Trash2, label: "Delete", disabled: true },
+          {
+            icon: Plus,
+            label: "Add",
+            onClick: () => {
+              setSelectedCustomer(null)
+              setOpen(true);
+            },
+          },
+          {
+            icon: Pencil,
+            label: "Edit",
+            disabled: !selectedCustomer,
+            onClick: () => {
+          
+              
+              if (!selectedCustomer) return;
+              // open drawer and pass selected customer
+              const customer = data.find((c) => c.id === selectedCustomer.id);
+              if (customer) setOpen(true);
+            },
+          },
+       {
+  icon: Trash2,
+  label: "Delete",
+  disabled: !selectedCustomer,
+  onClick: async () => {
+    if (!selectedCustomer) return;
+
+    const userConfirmed = await confirm(
+      "Are you sure you want to delete this customer?",
+      { title: "Confirm Delete" }
+    );
+
+    if (!userConfirmed) return;
+
+    try {
+      await deleteCustomer.mutateAsync(selectedCustomer.id);
+      setSelectedCustomer(null); // clear selection
+    } catch (error) {
+      console.error(error);
+      // Optional: show a Tauri dialog for errors
+  
+      await message("Failed to delete customer", {
+           kind:"error"
+        })
+ 
+    }
+  },
+},
+
+
           { icon: Download, label: "Import" },
           { icon: Upload, label: "Export" },
           { icon: HelpCircle, label: "Help", mlAuto: true },
-        ].map(({ icon: Icon, label, disabled, mlAuto }, idx) => (
+        ].map(({ icon: Icon, label, disabled, mlAuto, onClick }, idx) => (
           <button
             key={idx}
             disabled={disabled}
+            onClick={onClick}
             className={`flex items-center justify-center gap-2 px-3 py-2 rounded text-sm transition-colors
               ${
                 disabled
@@ -113,7 +153,9 @@ export default function CustomersSuppliersClient() {
                   "Country",
                   "Phone number",
                   "Email",
-                  "Actions",
+                  "Active",
+                  "Customer",
+                  "Tax exempt",
                 ].map((col) => (
                   <th
                     key={col}
@@ -126,10 +168,13 @@ export default function CustomersSuppliersClient() {
             </thead>
             <tbody>
               {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer, index) => (
+                filteredCustomers.map((customer, ) => (
                   <tr
-                    key={index}
-                    className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors"
+                    key={customer.id}
+                    className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors cursor-pointer ${
+                      selectedCustomer?.id === customer.id ? "bg-slate-700" : ""
+                    }`}
+                    onClick={() => setSelectedCustomer(customer)}
                   >
                     <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
                       {customer.code}
@@ -141,7 +186,7 @@ export default function CustomersSuppliersClient() {
                       {customer.taxNumber}
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
-                      {customer.address}
+                      {customer.streetName}
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
                       {customer.country}
@@ -152,10 +197,14 @@ export default function CustomersSuppliersClient() {
                     <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
                       {customer.email}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400">
-                      <button className="hover:text-sky-500 transition-colors">
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                      {customer.active ? "✓" : "X"}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                      {customer.customer ? "✓" : "✕"}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                      {customer.taxExempt ? "✓" : "✕"}
                     </td>
                   </tr>
                 ))
