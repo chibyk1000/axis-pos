@@ -7,6 +7,7 @@ export const paymentTypes = sqliteTable("payment_types", {
   name: text("name").notNull(),
   position: integer("position").notNull(),
   code: text("code").notNull().default(""),
+  
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   quickPayment: integer("quick_payment", { mode: "boolean" })
     .notNull()

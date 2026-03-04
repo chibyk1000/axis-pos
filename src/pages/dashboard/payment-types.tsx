@@ -7,6 +7,7 @@ import {
   RefreshCw,
   HelpCircle,
   Check,
+  X,
 } from "lucide-react";
 
 import {
@@ -136,7 +137,7 @@ export default function PaymentTypesClient() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="border border-slate-800 rounded-lg overflow-hidden">
+        <div className="border border-slate-800 rounded-lg overflow-hidden p-4">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-900">
@@ -162,15 +163,16 @@ export default function PaymentTypesClient() {
             </thead>
 
             <tbody>
-              {paymentTypes.map((type) => (
+              {paymentTypes.map((type, index, arr) => (
                 <tr
                   key={type.id}
                   onClick={() => setActiveRow(type.id)}
-                  className={`cursor-pointer ${activeRow === type.id ? "bg-slate-700" : ""}`}
+                  className={`cursor-pointer ${activeRow === type.id ? "bg-slate-700 " : ""}  ${index === arr.length - 1 ? "" : "border-b border-slate-700"}  `}
                 >
-                  <td>{type.name}</td>
-                  <td>{type.position}</td>
-                  <td>{type.code || "-"}</td>
+
+                  <td className=" py-2">{type.name}</td>
+                  <td className=" py-2">{type.position}</td>
+                  <td className=" py-2">{type.code || "-"}</td>
                   {[
                     type.enabled,
                     type.quickPayment,
@@ -179,8 +181,8 @@ export default function PaymentTypesClient() {
                     type.markTransactionAsPaid,
                     type.printReceipt,
                   ].map((v, i) => (
-                    <td key={i} className="text-center">
-                      {v && <Check className="w-4 h-4 mx-auto text-primary" />}
+                    <td key={i} className="text-center py-2" >
+                      {v ? <Check className="w-4 h-4 mx-auto " />: <X className="w-4 h-4 mx-auto text--primary" />}
                     </td>
                   ))}
                 </tr>

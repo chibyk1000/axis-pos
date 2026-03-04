@@ -6,4 +6,5 @@ export * from "./productTaxes"
 export * from "./products"
 export * from "./taxes"
 export * from "./users"
-
+export * from "./documentItems"
+export * from "./documents"

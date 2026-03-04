@@ -137,7 +137,7 @@ const switchTax = useSwitchTax();
       </div>
 
       {/* Table */}
-      <div className="border border-slate-700 bg-slate-800 rounded-md overflow-hidden">
+      <div className="border border-slate-700 bg-slate- rounded-md overflow-hidden">
         <ScrollArea className="h-[calc(100vh-120px)]">
           <Table>
             <TableHeader className="  bg-slate-700 border-b border-slate-100">
