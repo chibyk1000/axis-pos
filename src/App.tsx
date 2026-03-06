@@ -1,9 +1,7 @@
-
-
 // import { invoke } from "@tauri-apps/api/core";
 import { Route, Routes } from "react-router";
 import Home from "./pages/home";
- import { ToastContainer, } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 // import * as schema from "./db/schema";
 import Applayout from "./layouts/app-layout";
 import Dashboard from "./pages/dashboard";
@@ -28,34 +26,27 @@ import CreditPaymentsModal from "./pages/credit-payments";
 import EndOfDayModal from "./pages/endofday";
 import SalesHistory from "./pages/sales-history";
 import ViewOpenSales from "./pages/open-sales";
-import { ensureRootNode, } from "./hooks/controllers/nodes";
+import { ensureRootNode } from "./hooks/controllers/nodes";
 import { useEffect, useRef } from "react";
 import { seedCountriesIfEmpty } from "./hooks/controllers/countries";
 
 function App() {
-const initialized = useRef(false);
-
-  
-
+  const initialized = useRef(false);
 
   useEffect(() => {
-      if (initialized.current) return;
-      initialized.current = true;
+    if (initialized.current) return;
+    initialized.current = true;
 
     async function init() {
-      await ensureRootNode()
-      await seedCountriesIfEmpty()
-
-
+      await ensureRootNode();
+      await seedCountriesIfEmpty();
     }
     init();
   }, []);
 
-
-
-
   return (
     <main className="container">
+   
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/price-tags" element={<PriceTagsPage />} />
@@ -91,7 +82,6 @@ const initialized = useRef(false);
         closeOnClick
         rtl={false}
         pauseOnFocusLoss={false}
-       
         pauseOnHover={false}
       />
     </main>

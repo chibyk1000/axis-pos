@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
 import { documents, documentItems, documentPayments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { randomUUID } from "crypto";
+
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
@@ -63,7 +63,7 @@ export function useCreateDocument() {
       payments?: DocumentPayment[];
     }) => {
       await db.transaction(async (tx) => {
-        const docId = randomUUID();
+        const docId = crypto.randomUUID();
 
         await tx.insert(documents).values({
           ...data.document,
@@ -75,7 +75,7 @@ export function useCreateDocument() {
           await tx.insert(documentItems).values(
             data.items.map((item) => ({
               ...item,
-              id: randomUUID(),
+              id: crypto.randomUUID(),
               documentId: docId,
             })),
           );
@@ -85,7 +85,7 @@ export function useCreateDocument() {
           await tx.insert(documentPayments).values(
             data.payments.map((p) => ({
               ...p,
-              id: randomUUID(),
+              id: crypto.randomUUID(),
               documentId: docId,
             })),
           );
@@ -128,7 +128,7 @@ export function useUpdateDocument() {
           await tx.insert(documentItems).values(
             data.items.map((item) => ({
               ...item,
-              id: randomUUID(),
+              id: crypto.randomUUID(),
               documentId: data.id,
             })),
           );
@@ -138,7 +138,7 @@ export function useUpdateDocument() {
           await tx.insert(documentPayments).values(
             data.payments.map((p) => ({
               ...p,
-              id: randomUUID(),
+              id: crypto.randomUUID(),
               documentId: data.id,
             })),
           );

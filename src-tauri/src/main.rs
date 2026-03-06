@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    aronium_clone_lib::run()
+    axis_pos_lib::run()
 }

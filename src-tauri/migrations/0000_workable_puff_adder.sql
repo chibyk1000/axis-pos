@@ -74,6 +74,49 @@ CREATE TABLE `loyalty_cards` (
 	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `document_items` (
+	`id` text PRIMARY KEY NOT NULL,
+	`document_id` text NOT NULL,
+	`product_id` text NOT NULL,
+	`name` text NOT NULL,
+	`unit` text,
+	`quantity` real NOT NULL,
+	`price_before_tax` real NOT NULL,
+	`tax_rate` real DEFAULT 0,
+	`discount` real DEFAULT 0,
+	`total` real NOT NULL,
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `docmentPayments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`document_id` text NOT NULL,
+	`payment_id` text NOT NULL,
+	`status` text DEFAULT 'pending',
+	`payment_type` text,
+	`amount` real NOT NULL,
+	`date` integer NOT NULL,
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`payment_id`) REFERENCES `payment_types`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `documents` (
+	`id` text PRIMARY KEY NOT NULL,
+	`number` text NOT NULL,
+	`external_number` text,
+	`customer_id` text NOT NULL,
+	`date` integer NOT NULL,
+	`due_date` integer,
+	`stock_date` integer,
+	`paid` integer DEFAULT false,
+	`status` text DEFAULT 'draft',
+	`total_before_tax` real DEFAULT 0,
+	`tax_total` real DEFAULT 0,
+	`total` real DEFAULT 0,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
 CREATE TABLE `nodes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,

@@ -35,7 +35,7 @@ import {
 import { useState } from "react";
 import { useCustomers } from "@/hooks/controllers/customers";
 
-import { randomUUID } from "crypto";
+
 import { useMemo } from "react";
 import { useCreateDocument } from "@/hooks/controllers/documents";
 
@@ -293,22 +293,16 @@ const [internalNote, setInternalNote] = useState("");
             <div className="grid grid-cols-12 gap-4">
               {/* LEFT SIDEBAR */}
               <div className="col-span-2 bg-slate-800 border border-slate-700 rounded-md p-3">
-                <Button className="w-full bg-sky-600 hover:bg-sky-700">
-                  Products
-                </Button>
+                <Input type="text" placeholder="Search prodct" />
+                
+                
               </div>
 
               {/* RIGHT CONTENT */}
               <div className="col-span-10 space-y-4">
                 {/* Top Toolbar */}
                 <div className="flex items-center justify-between gap-4">
-                  <div className="relative w-80">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder="Product name"
-                      className="pl-9 bg-slate-800 border-slate-700"
-                    />
-                  </div>
+        
 
                   <div className="flex gap-2">
                     <Button

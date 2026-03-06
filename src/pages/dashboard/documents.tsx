@@ -15,7 +15,6 @@ import SelectDocumentTypeModal, {
 } from "./selectDocumentTypeModal";
 import NewDocument from "@/components/products/new-document";
 import { useProducts } from "@/hooks/controllers/products";
-import { Product } from "@/db/schema";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
@@ -150,9 +149,14 @@ export function DocumentsView() {
       {documents.length > 0 ? (
         documents.map((doc) => {
           return (
+
+
+            <>
+            
             <NewDocument
               title={`${new Date().getFullYear()} - ${doc.code} - ??????`}
             />
+            </>
           );
         })
       ) : (

@@ -8,7 +8,7 @@ pub fn run() {
     let migrations = vec![Migration {
         version: 1,
         description: "create_initial_tables",
-        sql: include_str!("../migrations/0000_curved_mongu.sql"),
+        sql: include_str!("../migrations/0000_workable_puff_adder.sql"),
         kind: MigrationKind::Up,
     }];
     tauri::Builder::default()
