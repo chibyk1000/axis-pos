@@ -90,6 +90,7 @@ export function ProductsView() {
       id: group.id,
       name: group.name,
       isSelectable: true,
+      type:"group",
       children: group.children ? mapGroupsToTree(group.children) : [],
     }));
 

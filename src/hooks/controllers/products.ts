@@ -154,3 +154,19 @@ export function useDeleteProduct() {
     },
   });
 }
+
+export function useProductById(id:string) {
+  
+  return useQuery({
+    queryKey: ["product"],
+    queryFn: async() => {
+          const productList = await db.query.products.findFirst({
+        where:eq(products.id, id )
+      })
+
+      return productList; 
+
+    }
+  })
+ 
+}

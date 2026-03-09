@@ -2,7 +2,7 @@
 import { db } from "@/db/database";
 import { eq,  } from "drizzle-orm";
 import { nodes } from "@/db/schema/nodes";
-import type { Node, NewNode } from "@/db/schema/index";
+import { type Node, type NewNode, products, Product } from "@/db/schema/index";
 import { ROOT_NODE_ID } from "@/db/constants";
 // hooks/nodes/useRootNodes.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,10 @@ export function useRootNodes() {
       // 1️⃣ Fetch all nodes from the database
       const allNodes = await db.query.nodes.findMany({
         orderBy: (nodes) => nodes.position, // keep ordering
+        with: {
+          products: true,
+          
+        }
       });
 
       // 2️⃣ Build tree recursively
@@ -81,7 +85,76 @@ export function useNodeById(id: string) {
 }
 
 
+type TreeElement =
+  | {
+      id: string;
+      name: string;
+      type: "group";
+      children: TreeElement[];
+    }
+  | {
+      id: string;
+      name: string;
+      type: "product";
+      product: Product;
+    };
 
+function buildTree(nodes: Node[], products: Product[]): TreeElement[] {
+  const map = new Map<string, TreeElement>();
+
+  // create group nodes
+  nodes.forEach((node) => {
+    map.set(node.id, {
+      id: node.id,
+      name: node.name,
+      type: "group",
+      children: [],
+    });
+  });
+
+  // attach groups to parents
+  const roots: TreeElement[] = [];
+
+  nodes.forEach((node) => {
+    const current = map.get(node.id)!;
+
+    if (node.parentId) {
+      const parent = map.get(node.parentId);
+      // @ts-ignore
+      parent?.children.push(current);
+    } else {
+      roots.push(current);
+    }
+  });
+
+  // attach products to their node
+  products.forEach((product) => {
+    const parent = map.get(product.nodeId);
+    if (!parent) return;
+    // @ts-ignore
+    parent.children.push({
+      id: product.id,
+      name: product.title,
+      type: "product",
+      product,
+    });
+  });
+
+  return roots;
+}
+export function useNodeTree() {
+  return useQuery({
+    queryKey: ["node-tree"],
+    queryFn: async () => {
+      const [allNodes, allProducts] = await Promise.all([
+        db.select().from(nodes).orderBy(nodes.position),
+        db.select().from(products),
+      ]);
+      // @ts-ignore
+      return buildTree(allNodes, allProducts);
+    },
+  });
+}
 
 export function useCreateNode() {
   const qc = useQueryClient();

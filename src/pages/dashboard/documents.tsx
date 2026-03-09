@@ -105,7 +105,7 @@ export function DocumentsView() {
                   key={doc.code}
                   className={`
             flex items-center justify-between
-            min-w-[140px] max-w-[180px]
+            min-w-35 max-w-45
             px-3 py-2 text-xs rounded-t-md
             border border-slate-800 border-b-0
             transition cursor-pointer

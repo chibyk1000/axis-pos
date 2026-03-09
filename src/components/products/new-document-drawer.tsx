@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -21,21 +21,76 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, setOpen: (val:boolean)=>void}) {
-  const [quantity, setQuantity] = useState(0);
+import { Product } from "@/db/schema";
+import { useCreateDocumentItem } from "@/hooks/controllers/useDocumentItems";
+import { toast } from "react-toastify";
+
+
+type Props = {
+  open: boolean;
+  setOpen: (val: boolean) => void;
+  product: Product | undefined;
+  editingItem?: any | null;
+  onAddItem: (item: any) => void;
+};
+
+export default function DocumentProductDrawer({
+  open,
+  setOpen,
+  product,
+  onAddItem,
+editingItem
+}: Props) {
+  const createItem = useCreateDocumentItem();
+
+  const [quantity, setQuantity] = useState(1);
   const [priceBeforeTax, setPriceBeforeTax] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState("percent");
+
+useEffect(() => {
+  if (editingItem) {
+    setQuantity(editingItem.quantity);
+    setPriceBeforeTax(editingItem.priceBeforeTax);
+    setDiscount(editingItem.discount ?? 0);
+  } else if (product) {
+    setPriceBeforeTax(product.salePrice ?? 0);
+    setQuantity(1);
+    setDiscount(0);
+  }
+}, [product, editingItem]);
 
   const totalBeforeTax = quantity * priceBeforeTax;
-  const total = totalBeforeTax - (discount / 100) * totalBeforeTax;
+
+  const total =
+    discountType === "percent"
+      ? totalBeforeTax - (discount / 100) * totalBeforeTax
+      : totalBeforeTax - discount;
+
+function handleAddItem() {
+  if (!product) return;
+
+  onAddItem({
+    ...editingItem,
+    productId: product.id,
+    name: product.title,
+    unit: product.unit,
+    quantity,
+    priceBeforeTax,
+    taxRate: 0,
+    discount,
+    total,
+  });
+
+  setOpen(false);
+}
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
       <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-700 bg-slate-900 text-slate-200">
-        {/* Header */}
         <DrawerHeader className="border-b border-slate-700">
           <DrawerTitle className="text-lg font-medium text-slate-100">
-            prid11
+            {product?.title}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -61,7 +116,6 @@ export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, s
               onChange={(e) => setPriceBeforeTax(Number(e.target.value))}
             />
           </div>
-
           {/* Tax */}
           <div className="space-y-2">
             <Label className="text-slate-400">Tax</Label>
@@ -69,23 +123,15 @@ export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, s
               Add taxes
             </Button>
           </div>
-
-          {/* Price */}
-          <div className="space-y-1">
-            <Label className="text-slate-400">Price</Label>
-            <Input
-              disabled
-              value={totalBeforeTax.toFixed(2)}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
-
           {/* Discount */}
           <div className="space-y-2">
-            <Label className="text-slate-400">Discount (after tax)</Label>
+            <Label className="text-slate-400">Discount</Label>
 
             <div className="flex gap-2">
-              <Select defaultValue="percent">
+              <Select
+                defaultValue="percent"
+                onValueChange={(v) => setDiscountType(v)}
+              >
                 <SelectTrigger className="w-42.5 bg-slate-800 border-slate-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -103,12 +149,14 @@ export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, s
                 onChange={(e) => setDiscount(Number(e.target.value))}
               />
 
-              <div className="flex items-center text-slate-400">%</div>
+              {discountType === "percent" && (
+                <div className="flex items-center text-slate-400">%</div>
+              )}
             </div>
           </div>
 
+          {/* Totals */}
           <div className="border-t border-slate-700 pt-4 space-y-4">
-            {/* Total before tax */}
             <div className="space-y-1">
               <Label className="text-slate-400">Total before tax</Label>
               <Input
@@ -118,7 +166,6 @@ export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, s
               />
             </div>
 
-            {/* Total */}
             <div className="space-y-1">
               <Label className="text-slate-400">Total</Label>
               <Input
@@ -130,9 +177,14 @@ export default function DocumentProductDrawer({ open, setOpen }:{open:boolean, s
           </div>
         </div>
 
-        {/* Footer */}
         <DrawerFooter className="flex-row gap-3 border-t border-slate-700 p-4">
-          <Button className="flex-1 bg-slate-700 hover:bg-slate-600">OK</Button>
+          <Button
+            className="flex-1 bg-slate-700 hover:bg-slate-600"
+            onClick={handleAddItem}
+            disabled={!product || createItem.isPending}
+          >
+            OK
+          </Button>
 
           <Button
             variant="outline"

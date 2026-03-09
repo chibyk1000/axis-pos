@@ -15,11 +15,12 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 type TreeViewElement = {
-  id: string
-  name: string
-  isSelectable?: boolean
-  children?: TreeViewElement[]
-}
+  id: string;
+  name: string;
+  type: "group" | "product";
+  isSelectable?: boolean;
+  children?: TreeViewElement[];
+};
 
 type TreeContextProps = {
   selectedId: string | undefined

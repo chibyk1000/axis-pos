@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -28,22 +28,69 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { CalendarIcon, Check } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { Switch } from "../ui/switch";
 
+type PaymentType = "cash" | "card" | "transfer";
+
+interface Payment {
+  id?: string;
+  type: PaymentType;
+  date?: Date;
+  amount: number;
+  status: boolean;
+}
+
+interface PaymentDrawerProps {
+  open: boolean;
+  setOpen: (val: boolean) => void;
+  payment?: Payment | null;
+  onSubmit?: (data: Payment) => void;
+}
 export default function PaymentDrawer({
   open,
   setOpen,
-}: {
-  open: boolean;     
-  setOpen: (val: boolean) => void;
-}) {
+    onSubmit,
+  payment
+}: PaymentDrawerProps) {
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState(315);
+  const [amount, setAmount] = useState<number>(315);
+  const [type, setType] = useState<PaymentType>("cash");
+  const [status, setStatus] = useState<boolean>(true);
+
+  const resetForm = () => {
+    setType("cash");
+    setDate(new Date());
+    setAmount(315);
+    setStatus(true);
+  };
+useEffect(() => {
+  if (payment) {
+    setType(payment.type);
+    setDate(payment.date);
+    setAmount(payment.amount);
+    setStatus(payment.status);
+  }
+}, [payment]);
+const handleSubmit = () => {
+  const payload = {
+    ...payment,
+    type,
+    date,
+    amount,
+    status,
+  };
+
+  onSubmit?.(payload);
+
+  resetForm();
+  setOpen(false);
+};
 
   return (
-    <Drawer open={open} onOpenChange={setOpen} >
-      <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-700 bg-slate-900 text-slate-200">
+    <Drawer open={open} onOpenChange={setOpen} direction="right">
+      <DrawerContent className="ml-auto h-full w-[380px] rounded-none border-l border-slate-700 bg-slate-900 text-slate-200">
         {/* Header */}
         <DrawerHeader className="border-b border-slate-700 flex flex-row items-center justify-between">
           <DrawerTitle className="text-slate-100 text-lg">
@@ -56,23 +103,20 @@ export default function PaymentDrawer({
           <div className="space-y-1">
             <Label className="text-slate-400">Payment type</Label>
 
-            <div className="flex items-center gap-2">
-              <Select defaultValue="cash">
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as PaymentType)}
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue />
+              </SelectTrigger>
 
-                <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600">
-                <Check size={14} className="text-white" />
-              </div>
-            </div>
+              <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Date */}
@@ -96,6 +140,18 @@ export default function PaymentDrawer({
             </Popover>
           </div>
 
+          {/* Status */}
+          <div className="space-y-2">
+            <Label className="text-slate-400">Status</Label>
+
+            <div className="flex items-center gap-3">
+              <Switch checked={status} onCheckedChange={setStatus} />
+              <span className="text-sm text-slate-300">
+                {status ? "Completed" : "Pending"}
+              </span>
+            </div>
+          </div>
+
           {/* Amount */}
           <div className="space-y-1">
             <Label className="text-slate-400">Amount</Label>
@@ -111,7 +167,10 @@ export default function PaymentDrawer({
 
         {/* Footer */}
         <DrawerFooter className="flex-row gap-3 border-t border-slate-700 p-4">
-          <Button className="flex-1 bg-slate-700 hover:bg-slate-600">
+          <Button
+            onClick={handleSubmit}
+            className="flex-1 bg-slate-700 hover:bg-slate-600"
+          >
             ✓ OK
           </Button>
 

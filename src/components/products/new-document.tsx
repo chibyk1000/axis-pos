@@ -38,20 +38,112 @@ import { useCustomers } from "@/hooks/controllers/customers";
 
 import { useMemo } from "react";
 import { useCreateDocument } from "@/hooks/controllers/documents";
+import { File, Folder, Tree, TreeViewElement } from "../ui/file-tree";
+import { useNodeTree, useRootNodes } from "@/hooks/controllers/nodes";
+
+import { confirm } from "@tauri-apps/plugin-dialog";
+import { FaFile, FaRegFileAlt } from "react-icons/fa";
+import { useProduct, useProductById } from "@/hooks/controllers/products";
+import DocumentProductDrawer from "./new-document-drawer";
+import { Product } from "@/db/schema";
+import PaymentDrawer from "./new-payment-drawer";
 
 export default function NewDocument( {title}:{title:string}) {
       const [date, setDate] = useState<Date | undefined>(new Date());
       const [dueDate, setDueDate] = useState<Date | undefined>(
         new Date(),
       );
-    const [paid, setPaid] = useState(false);
+  const [openNewDocument, setOpenNewDocument] = useState(false)
+   const [selectedId, setSelectedId] = useState("");
+  const [paid, setPaid] = useState(false);
+  
+  const { data: rootGroups = [] } = useRootNodes();
+  // const { data } = useNodeTree()
+
+  const [selectedDocumentProduct, setSelectedDocumentProduct] = useState<string>("")
+const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+   const { data: product } = useProductById(selectedDocumentProduct);
     const [stockDate, setStockDate] = useState<Date>(new Date());
 const [externalNumber, setExternalNumber] = useState("");
 const [customerId, setCustomerId] = useState<string | undefined>();
 const createDocument = useCreateDocument();
-const [items, setItems] = useState<any[]>([]);
-const [payments, setPayments] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [selectedPaymentIndex, setSelectedPaymentIndex] = useState<
+    number | null
+  >(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [openPayment, setOpenPayment] = useState(false)
+const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(
+  null,
+);
 
+const [editingPayment, setEditingPayment] = useState<any | null>(null);
+const mapGroupsToTree = (groups: any[]): TreeViewElement[] => {
+  return groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    type: "group",
+    isSelectable: true,
+    children: [
+      ...(group.children ? mapGroupsToTree(group.children) : []),
+
+      ...(group.products ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.title,
+        type: "product",
+        isSelectable: true,
+      })),
+    ],
+  }));
+};
+    const treeElements = mapGroupsToTree(rootGroups);
+function RenderTree({ elements }: { elements: TreeViewElement[] }) {
+  return (
+    <>
+      {elements.map((el) => {
+        const isFolder = el.type === "group";
+
+        return (
+          <div
+            key={el.id}
+            className={cn(
+              "px-2 rounded-md transition-colors cursor-pointer",
+              selectedId === el.id ? "bg-white/10" : "hover:bg-white/5",
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedId(el.id);
+            }}
+          >
+            {isFolder ? (
+              <Folder value={el.id} element={el.name}>
+                <RenderTree elements={el.children ?? []} />
+              </Folder>
+            ) : (
+              <File
+                value={el.id}
+                onDoubleClick={() => {
+
+
+                  setSelectedDocumentProduct(el.id)
+                 setOpenNewDocument(true)
+                  
+                }}
+                  fileIcon={<FaRegFileAlt/>}
+              >
+                {el.name}
+              </File>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+
+ 
 const [internalNote, setInternalNote] = useState("");
   const [note, setNote] = useState("");
   
@@ -82,6 +174,53 @@ const [internalNote, setInternalNote] = useState("");
     
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-6">
+      <DocumentProductDrawer
+        open={openNewDocument}
+        setOpen={(val) => {
+          setOpenNewDocument(val);
+          if (!val) setEditingItemIndex(null);
+        }}
+        product={product as Product}
+        editingItem={editingItemIndex !== null ? items[editingItemIndex] : null}
+        onAddItem={(item) => {
+          if (editingItemIndex !== null) {
+            setItems((prev) =>
+              prev.map((i, index) => (index === editingItemIndex ? item : i)),
+            );
+            setEditingItemIndex(null);
+          } else {
+            setItems((prev) => [...prev, item]);
+          }
+        }}
+      />
+      <PaymentDrawer
+        open={openPayment}
+        setOpen={(val) => {
+          setOpenPayment(val);
+          if (!val) setEditingPaymentIndex(null);
+        }}
+        payment={
+          editingPaymentIndex !== null ? payments[editingPaymentIndex] : null
+        }
+        onSubmit={(payment) => {
+          if (editingPaymentIndex !== null) {
+            setPayments((prev) =>
+              prev.map((p, index) =>
+                index === editingPaymentIndex ? { ...p, ...payment } : p,
+              ),
+            );
+            setEditingPaymentIndex(null);
+          } else {
+            setPayments((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                ...payment,
+              },
+            ]);
+          }
+        }}
+      />
       {/* Top Section */}
       <div className="w-full bg-slate-900 text-slate-100 p-6 rounded-xl shadow-lg border border-slate-800">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -271,18 +410,25 @@ const [internalNote, setInternalNote] = useState("");
         </div>
       </div>
 
-      <div className="bg-slate-900 text-slate-100 border border-slate-800 rounded-xl p-4 space-y-4">
+      <div className="bg-sla text-slate-100 border border-slate-800 rounded-xl p-4 space-y-4">
         <Tabs defaultValue="items" className="w-full">
-          <TabsList className="bg-slate-800 border border-slate-700">
+          <TabsList className="flex gap-6 border-none border-slate-700 bg-transparent ">
             <TabsTrigger
               value="items"
-              className="data-[state=active]:bg-sky-600 data-[state=active]:text-white"
+              className="relative pb-2 text-slate-400 hover:text-white data-[state=active]:bg-transparent data-[state=active]:text-white 
+    after:absolute after:left-0 after:-bottom-[1px] after:h-[2px] after:w-full 
+    after:bg-sky-500 after:scale-x-0 after:transition-transform 
+    data-[state=active]:after:scale-x-100"
             >
               Document items
             </TabsTrigger>
+
             <TabsTrigger
               value="payments"
-              className="data-[state=active]:bg-sky-600 data-[state=active]:text-white"
+              className="relative pb-2 text-slate-400 hover:text-white data-[state=active]:bg-transparent data-[state=active]:text-white 
+    after:absolute after:left-0 after:-bottom-[1px] after:h-[2px] after:w-full 
+    after:bg-sky-500 after:scale-x-0 after:transition-transform 
+    data-[state=active]:after:scale-x-100"
             >
               Payments
             </TabsTrigger>
@@ -294,20 +440,38 @@ const [internalNote, setInternalNote] = useState("");
               {/* LEFT SIDEBAR */}
               <div className="col-span-2 bg-slate-800 border border-slate-700 rounded-md p-3">
                 <Input type="text" placeholder="Search prodct" />
-                
-                
+
+                <div className="w-56 border-r border-slate-800 overflow-y-auto">
+                  <div className="w-56  border-r border-slate-800 pt-3">
+                    <Tree
+                      elements={treeElements}
+                      initialExpandedItems={rootGroups.map((g: any) => g.id)}
+                      className="h-full"
+                    >
+                      <RenderTree elements={treeElements} />
+                    </Tree>
+                  </div>
+                </div>
               </div>
 
               {/* RIGHT CONTENT */}
               <div className="col-span-10 space-y-4">
                 {/* Top Toolbar */}
                 <div className="flex items-center justify-between gap-4">
-        
-
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       className="border-slate-700 bg-slate-800"
+                      disabled={selectedItemIndex === null}
+                      onClick={() => {
+                        if (selectedItemIndex === null) return;
+
+                        const item = items[selectedItemIndex];
+
+                        setEditingItemIndex(selectedItemIndex);
+                        setSelectedDocumentProduct(item.productId);
+                        setOpenNewDocument(true);
+                      }}
                     >
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
@@ -315,6 +479,18 @@ const [internalNote, setInternalNote] = useState("");
                     <Button
                       variant="outline"
                       className="border-slate-700 bg-slate-800 text-red-400"
+                      disabled={selectedItemIndex === null}
+                      onClick={async () => {
+                        if (selectedItemIndex === null) return;
+
+                        const ok = await confirm("Delete this item?");
+                        if (!ok) return;
+
+                        setItems((prev) =>
+                          prev.filter((_, i) => i !== selectedItemIndex),
+                        );
+                        setSelectedItemIndex(null);
+                      }}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -327,30 +503,69 @@ const [internalNote, setInternalNote] = useState("");
                   <Table>
                     <TableHeader className="bg-slate-800 border-b border-sky-600">
                       <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Code</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Unit</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead>Price before tax</TableHead>
-                        <TableHead>Tax</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Total before tax</TableHead>
-                        <TableHead>Total</TableHead>
+                        <TableHead className="text-slate-300">ID</TableHead>
+                        <TableHead className="text-slate-300">Code</TableHead>
+                        <TableHead className="text-slate-300">Name</TableHead>
+                        <TableHead className="text-slate-300">Unit</TableHead>
+                        <TableHead className="text-slate-300">Qty</TableHead>
+                        <TableHead className="text-slate-300">
+                          Price before tax
+                        </TableHead>
+                        <TableHead className="text-slate-300">Tax</TableHead>
+                        <TableHead className="text-slate-300">Price</TableHead>
+                        <TableHead className="text-slate-300">
+                          Discount
+                        </TableHead>
+                        <TableHead className="text-slate-300">
+                          Total before tax
+                        </TableHead>
+                        <TableHead className="text-slate-300">Total</TableHead>
                       </TableRow>
                     </TableHeader>
 
-                    <TableBody>
-                      <TableRow className="hover:bg-slate-800">
-                        <TableCell
-                          colSpan={11}
-                          className="text-center text-slate-500 h-40"
-                        >
-                          No items added
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
+                    <>
+                      <TableBody>
+                        {items.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={11}
+                              className="text-center text-slate-500 h-40"
+                            >
+                              No items added
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          items.map((item, i) => (
+                            <TableRow
+                              key={i}
+                              onClick={() => setSelectedItemIndex(i)}
+                              className={cn(
+                                "cursor-pointer hover:bg-slate-800",
+                                selectedItemIndex === i && "bg-slate-700",
+                              )}
+                            >
+                              <TableCell>{i + 1}</TableCell>
+                              <TableCell>{item.productId}</TableCell>
+                              <TableCell>{item.name}</TableCell>
+                              <TableCell>{item.unit}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{item.priceBeforeTax}</TableCell>
+                              <TableCell>{item.taxRate}</TableCell>
+                              <TableCell>
+                                {(item.quantity * item.priceBeforeTax).toFixed(
+                                  2,
+                                )}
+                              </TableCell>
+                              <TableCell>{item.discount}</TableCell>
+                              <TableCell>
+                                {item.quantity * item.priceBeforeTax}
+                              </TableCell>
+                              <TableCell>{item.total}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </>
                   </Table>
                 </div>
 
@@ -429,69 +644,20 @@ const [internalNote, setInternalNote] = useState("");
                 </div>
 
                 {/* FOOTER ACTIONS */}
-                <div className="flex justify-between items-center pt-6 border-t border-slate-700">
-                  <Button
-                    variant="outline"
-                    className="border-slate-700 bg-slate-800 text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="border-slate-700 bg-slate-800"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Save as PDF
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="border-slate-700 bg-slate-800"
-                    >
-                      <Printer className="h-4 w-4 mr-2" />
-                      Print preview
-                    </Button>
-                    <Button
-                      className="bg-sky-600 hover:bg-sky-700"
-                      onClick={() => {
-                        if (!customerId) return;
-
-                        createDocument.mutate({
-                          document: {
-                            number: title,
-                            externalNumber,
-                            customerId,
-                            date: date ?? new Date(),
-                            dueDate: dueDate ?? null,
-                            stockDate,
-                            paid,
-                            totalBeforeTax: totals.totalBeforeTax,
-                            taxTotal: totals.taxTotal,
-                            total: totals.total,
-                            createdAt: new Date(),
-                        id: crypto.randomUUID()
-                          },
-                          items,
-                          payments,
-                        });
-                      }}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
-                </div>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="payments">
-            <div className="bg-slate-900 text-slate-100 border border-slate-800 rounded-xl p-4 flex flex-col min-h-[500px]">
+            <div className="bg-slate-900 text-slate-100 border border-slate-800 rounded-xl p-4 flex flex-col min-h-125">
               {/* ================= TOP TOOLBAR ================= */}
               <div className="flex items-center gap-3 border-b border-slate-700 pb-3">
-                <Button className="bg-sky-600 hover:bg-sky-700">
+                <Button
+                  className="bg-sky-600 hover:bg-sky-700"
+                  onClick={() => {
+                    setOpenPayment(true);
+                  }}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   New
                 </Button>
@@ -499,6 +665,13 @@ const [internalNote, setInternalNote] = useState("");
                 <Button
                   variant="outline"
                   className="border-slate-700 bg-slate-800"
+                  disabled={selectedPaymentIndex === null}
+                  onClick={() => {
+                    if (selectedPaymentIndex === null) return;
+
+                    setEditingPaymentIndex(selectedPaymentIndex);
+                    setOpenPayment(true);
+                  }}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit
@@ -507,6 +680,19 @@ const [internalNote, setInternalNote] = useState("");
                 <Button
                   variant="outline"
                   className="border-slate-700 bg-slate-800 text-red-400"
+                  disabled={selectedPaymentIndex === null}
+                  onClick={async () => {
+                    if (selectedPaymentIndex === null) return;
+
+                    const ok = await confirm("Delete this payment?");
+                    if (!ok) return;
+
+                    setPayments((prev) =>
+                      prev.filter((_, i) => i !== selectedPaymentIndex),
+                    );
+
+                    setSelectedPaymentIndex(null);
+                  }}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
@@ -518,23 +704,65 @@ const [internalNote, setInternalNote] = useState("");
                 <Table>
                   <TableHeader className="bg-slate-800 border-b border-sky-600">
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
+                      <TableHead className="text-slate-300">ID</TableHead>
+                      <TableHead className="text-slate-300">Status</TableHead>
+                      <TableHead className="text-slate-300">
+                        Payment type
+                      </TableHead>
+                      <TableHead className="text-slate-300">Date</TableHead>
+                      <TableHead className="text-slate-300">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
 
                   <TableBody>
-                    <TableRow className="hover:bg-slate-800">
-                      <TableCell
-                        colSpan={5}
-                        className="text-center text-slate-500 h-64"
-                      >
-                        No payments added
-                      </TableCell>
-                    </TableRow>
+                    {payments.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="text-center text-slate-500 h-64"
+                        >
+                          No payments added
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      payments.map((payment, i) => (
+                        <TableRow
+                          key={payment.id}
+                          onClick={() => setSelectedPaymentIndex(i)}
+                          className={cn(
+                            "cursor-pointer hover:bg-slate-800",
+                            selectedPaymentIndex === i && "bg-slate-700",
+                          )}
+                        >
+                          <TableCell>{i + 1}</TableCell>
+
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "px-2 py-1 rounded text-xs",
+                                payment.status
+                                  ? "bg-emerald-600/20 text-emerald-400"
+                                  : "bg-yellow-600/20 text-yellow-400",
+                              )}
+                            >
+                              {payment.status ? "Completed" : "Pending"}
+                            </span>
+                          </TableCell>
+
+                          <TableCell className="capitalize">
+                            {payment.type}
+                          </TableCell>
+
+                          <TableCell>
+                            {payment.date
+                              ? format(new Date(payment.date), "M/d/yyyy")
+                              : "-"}
+                          </TableCell>
+
+                          <TableCell>{payment.amount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -554,41 +782,72 @@ const [internalNote, setInternalNote] = useState("");
               </div>
 
               {/* ================= FOOTER ACTIONS ================= */}
-              <div className="flex justify-between items-center pt-6 border-t border-slate-700 mt-6">
-                <Button
-                  variant="outline"
-                  className="border-slate-700 bg-slate-800 text-red-400"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="border-slate-700 bg-slate-800"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Save as PDF
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="border-slate-700 bg-slate-800"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print preview
-                  </Button>
-
-                  <Button className="bg-sky-600 hover:bg-sky-700">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                </div>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
+
+        <div className="flex justify-between items-center pt-6 border-t border-slate-700">
+          <Button
+            variant="outline"
+            className="border-slate-700 bg-slate-800 text-red-400"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+
+          <div className="flex gap-3">
+            <Button variant="outline" className="border-slate-700 bg-slate-800">
+              <FileText className="h-4 w-4 mr-2" />
+              Save as PDF
+            </Button>
+            <Button variant="outline" className="border-slate-700 bg-slate-800">
+              <Printer className="h-4 w-4 mr-2" />
+              Print preview
+            </Button>
+            <Button
+              className="bg-sky-600 hover:bg-sky-700"
+              onClick={() => {
+                if (!customerId) {
+                  alert("Select a customer");
+                  return;
+                }
+
+                if (items.length === 0) {
+                  alert("Add at least one item");
+                  return;
+                }
+
+                const documentId = crypto.randomUUID();
+
+                createDocument.mutate({
+                  document: {
+                    id: documentId,
+                    number: title,
+                    externalNumber,
+                    customerId,
+                    date: date ?? new Date(),
+                    dueDate: dueDate ?? null,
+                    stockDate,
+                    paid,
+                    totalBeforeTax: totals.totalBeforeTax,
+                    taxTotal: totals.taxTotal,
+                    total: totals.total,
+                    createdAt: new Date(),
+                  },
+                  items: items.map((item) => ({
+                    ...item,
+                    documentId,
+                    id: crypto.randomUUID(),
+                  })),
+                  payments,
+                });
+              }}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Save
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
