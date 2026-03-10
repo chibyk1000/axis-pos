@@ -160,7 +160,7 @@ const handleSubmit = () => {
               type="number"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="bg-slate-800 border-slate-700 text-white text-right"
+              className="bg-slate-800 border-slate-700 text-white "
             />
           </div>
         </div>

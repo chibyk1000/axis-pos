@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
+import ReactSelect from "react-select";
 import {
   Select,
   SelectContent,
@@ -22,9 +22,8 @@ import {
 } from "@/components/ui/select";
 
 import { Product } from "@/db/schema";
-import { useCreateDocumentItem } from "@/hooks/controllers/useDocumentItems";
-import { toast } from "react-toastify";
-
+import { useTaxes } from "@/hooks/controllers/taxes";
+import { Plus, Minus } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -39,51 +38,83 @@ export default function DocumentProductDrawer({
   setOpen,
   product,
   onAddItem,
-editingItem
+  editingItem,
 }: Props) {
-  const createItem = useCreateDocumentItem();
+  const { data: taxes = [] } = useTaxes();
 
   const [quantity, setQuantity] = useState(1);
   const [priceBeforeTax, setPriceBeforeTax] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState("percent");
+  
+  const [selectedTax, setSelectedTax] = useState<any | null>(null);
+  const [selectedTaxId, setSelectedTaxId] = useState<string | null>(null);
+  const [isAddingTax, setIsAddingTax] = useState(false);
 
-useEffect(() => {
-  if (editingItem) {
-    setQuantity(editingItem.quantity);
-    setPriceBeforeTax(editingItem.priceBeforeTax);
-    setDiscount(editingItem.discount ?? 0);
-  } else if (product) {
-    setPriceBeforeTax(product.salePrice ?? 0);
-    setQuantity(1);
-    setDiscount(0);
-  }
-}, [product, editingItem]);
+  const taxOptions = taxes.map((tax) => ({
+    value: tax.id,
+    label: `${tax.name} (${tax.rate}%)`,
+  }));
+
+  const addTax = () => {
+    if (!selectedTaxId) return;
+
+    const tax = taxes.find((t) => t.id === selectedTaxId);
+    if (!tax) return;
+
+    setSelectedTax(tax);
+    setSelectedTaxId(null);
+    setIsAddingTax(false);
+  };
+
+  const removeTax = () => {
+    setSelectedTax(null);
+  };
+
+  useEffect(() => {
+    if (editingItem) {
+      setQuantity(editingItem.quantity);
+      setPriceBeforeTax(editingItem.priceBeforeTax);
+      setDiscount(editingItem.discount ?? 0);
+      setSelectedTax(editingItem.tax ?? null);
+    } else if (product) {
+      setPriceBeforeTax(product.salePrice ?? 0);
+      setQuantity(1);
+      setDiscount(0);
+      setSelectedTax(null);
+    }
+  }, [product, editingItem]);
 
   const totalBeforeTax = quantity * priceBeforeTax;
 
-  const total =
+  const totalAfterDiscount =
     discountType === "percent"
       ? totalBeforeTax - (discount / 100) * totalBeforeTax
       : totalBeforeTax - discount;
 
-function handleAddItem() {
-  if (!product) return;
+  const taxTotal = selectedTax
+    ? (selectedTax.rate / 100) * totalAfterDiscount
+    : 0;
 
-  onAddItem({
-    ...editingItem,
-    productId: product.id,
-    name: product.title,
-    unit: product.unit,
-    quantity,
-    priceBeforeTax,
-    taxRate: 0,
-    discount,
-    total,
-  });
+  const total = totalAfterDiscount + taxTotal;
 
-  setOpen(false);
-}
+  function handleAddItem() {
+    if (!product) return;
+
+    onAddItem({
+      ...editingItem,
+      productId: product.id,
+      name: product.title,
+      unit: product.unit,
+      quantity,
+      priceBeforeTax,
+      tax: selectedTax,
+      discount,
+      total,
+    });
+
+    setOpen(false);
+  }
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
@@ -106,7 +137,7 @@ function handleAddItem() {
             />
           </div>
 
-          {/* Price before tax */}
+          {/* Price */}
           <div className="space-y-1">
             <Label className="text-slate-400">Price before tax</Label>
             <Input
@@ -116,23 +147,101 @@ function handleAddItem() {
               onChange={(e) => setPriceBeforeTax(Number(e.target.value))}
             />
           </div>
+
           {/* Tax */}
           <div className="space-y-2">
-            <Label className="text-slate-400">Tax</Label>
-            <Button className="bg-green-600 hover:bg-green-700 text-white">
-              Add taxes
-            </Button>
+            <p>Tax</p>
+
+            {selectedTax && (
+              <div className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded">
+                <span>
+                  {selectedTax.name} ({selectedTax.rate}%)
+                </span>
+
+                <button onClick={removeTax} className="text-red-400">
+                  <Minus size={16} />
+                </button>
+              </div>
+            )}
+
+            {!selectedTax && !isAddingTax && (
+              <Button
+                variant="ghost"
+                disabled={taxOptions.length < 1}
+                onClick={() => setIsAddingTax(true)}
+                className="flex items-center gap-2 text-sm bg-sky-500"
+              >
+                <Plus size={16} />
+                Add tax
+              </Button>
+            )}
+
+            {isAddingTax && (
+              <div className="flex items-center gap-2">
+                <ReactSelect
+                  options={taxOptions}
+                  value={
+                    taxOptions.find((o) => o.value === selectedTaxId) ?? null
+                  }
+                  onChange={(opt) => setSelectedTaxId(opt?.value ?? null)}
+                  className="flex-1"
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      backgroundColor: "#1e293b",
+                      borderColor: "#334155",
+                      color: "white",
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      backgroundColor: "#1e293b",
+                    }),
+                    option: (base) => ({
+                      ...base,
+                      backgroundColor: "transparent",
+                    }),
+                    input: (base) => ({
+                      ...base,
+                      color: "white",
+                    }),
+                    singleValue: (base) => ({
+                      ...base,
+                      color: "white",
+                    }),
+                  }}
+                />
+
+                <button
+                  onClick={addTax}
+                  disabled={!selectedTaxId}
+                  className="p-2 bg-slate-700 rounded"
+                >
+                  <Plus size={16} />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsAddingTax(false);
+                    setSelectedTaxId(null);
+                  }}
+                  className="p-2 text-slate-400"
+                >
+                  <Minus size={16} />
+                </button>
+              </div>
+            )}
           </div>
+
           {/* Discount */}
           <div className="space-y-2">
             <Label className="text-slate-400">Discount</Label>
 
             <div className="flex gap-2">
               <Select
-                defaultValue="percent"
+                value={discountType}
                 onValueChange={(v) => setDiscountType(v)}
               >
-                <SelectTrigger className="w-42.5 bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="w-40 bg-slate-800 border-slate-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
 
@@ -181,7 +290,7 @@ function handleAddItem() {
           <Button
             className="flex-1 bg-slate-700 hover:bg-slate-600"
             onClick={handleAddItem}
-            disabled={!product || createItem.isPending}
+            disabled={!product}
           >
             OK
           </Button>

@@ -91,13 +91,11 @@ CREATE TABLE `document_items` (
 CREATE TABLE `docmentPayments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`document_id` text NOT NULL,
-	`payment_id` text NOT NULL,
 	`status` text DEFAULT 'pending',
 	`payment_type` text,
 	`amount` real NOT NULL,
 	`date` integer NOT NULL,
-	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`payment_id`) REFERENCES `payment_types`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `documents` (

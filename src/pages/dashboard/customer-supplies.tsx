@@ -31,7 +31,7 @@ const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
 const deleteCustomer = useDeleteCustomer();
 console.log(selectedCustomer)
 
- 
+   console.log("cust", data);
   const filteredCustomers = data?.filter(
     (customer) =>JSON.stringify(customer).toLowerCase().includes(searchQuery.toLowerCase())
   );

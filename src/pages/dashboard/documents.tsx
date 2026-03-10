@@ -35,7 +35,10 @@ export function DocumentsView() {
     null,
   );
   const products = useProducts();
-  const customers = useCustomers();
+  const { data: customers = []
+  } = useCustomers();
+
+
   const onAdd = () => {
     setOpen(true);
   };
@@ -149,13 +152,10 @@ export function DocumentsView() {
       {documents.length > 0 ? (
         documents.map((doc) => {
           return (
-
-
             <>
-            
-            <NewDocument
-              title={`${new Date().getFullYear()} - ${doc.code} - ??????`}
-            />
+              <NewDocument
+                title={`${new Date().getFullYear()} - ${doc.code} - ??????`}
+              />
             </>
           );
         })
@@ -176,7 +176,7 @@ export function DocumentsView() {
               <FilterSelect
                 label="Product"
                 items={[
-                  { id: "all", value: "All users" },
+                  { id: "all", value: "All products" },
                   ...(products?.data?.map((item) => ({
                     id: item.id,
                     value: item.title,
@@ -198,11 +198,11 @@ export function DocumentsView() {
                   {
                     id: "all",
                     value: "All customers",
-                    ...customers.data?.map((item) => ({
-                      id: item.id,
-                      value: item.name,
-                    })),
                   },
+                  ...customers?.map((item) => ({
+                    id: item.id ,
+                    value: item.name,
+                  })),
                 ]}
               />
               <FilterSelect

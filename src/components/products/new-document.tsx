@@ -47,6 +47,7 @@ import { useProduct, useProductById } from "@/hooks/controllers/products";
 import DocumentProductDrawer from "./new-document-drawer";
 import { Product } from "@/db/schema";
 import PaymentDrawer from "./new-payment-drawer";
+import { toast } from "react-toastify";
 
 export default function NewDocument( {title}:{title:string}) {
       const [date, setDate] = useState<Date | undefined>(new Date());
@@ -170,6 +171,7 @@ const [internalNote, setInternalNote] = useState("");
     };
   }, [items, payments]);
     const { data: customers } = useCustomers()
+
   
     
   return (
@@ -550,7 +552,7 @@ const [internalNote, setInternalNote] = useState("");
                               <TableCell>{item.unit}</TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>{item.priceBeforeTax}</TableCell>
-                              <TableCell>{item.taxRate}</TableCell>
+                              <TableCell>{item?.tax?.rate  || 0}%</TableCell>
                               <TableCell>
                                 {(item.quantity * item.priceBeforeTax).toFixed(
                                   2,
@@ -806,41 +808,47 @@ const [internalNote, setInternalNote] = useState("");
             </Button>
             <Button
               className="bg-sky-600 hover:bg-sky-700"
-              onClick={() => {
-                if (!customerId) {
-                  alert("Select a customer");
-                  return;
+              onClick={async() => {
+                
+                try {
+                  if (!customerId) {
+                     toast.error("Select a customer");
+                    return;
+                  }
+  
+                  if (items.length === 0) {
+                    toast.error("Add at least one item");
+                    return;
+                  }
+  
+                  const documentId = crypto.randomUUID();
+  
+                await  createDocument.mutateAsync({
+                    document: {
+                      id: documentId,
+                      number: title,
+                      externalNumber,
+                      customerId,
+                      date: date ?? new Date(),
+                      dueDate: dueDate ?? null,
+                      stockDate,
+                      paid,
+                      totalBeforeTax: totals.totalBeforeTax,
+                      taxTotal: totals.taxTotal,
+                      total: totals.total,
+                      createdAt: new Date(),
+                    },
+                    items: items.map((item) => ({
+                      ...item,
+                      documentId,
+                      id: crypto.randomUUID(),
+                    })),
+                    payments,
+                  });
+                  
+                } catch (error) {
+                  toast.error("Error creating document")
                 }
-
-                if (items.length === 0) {
-                  alert("Add at least one item");
-                  return;
-                }
-
-                const documentId = crypto.randomUUID();
-
-                createDocument.mutate({
-                  document: {
-                    id: documentId,
-                    number: title,
-                    externalNumber,
-                    customerId,
-                    date: date ?? new Date(),
-                    dueDate: dueDate ?? null,
-                    stockDate,
-                    paid,
-                    totalBeforeTax: totals.totalBeforeTax,
-                    taxTotal: totals.taxTotal,
-                    total: totals.total,
-                    createdAt: new Date(),
-                  },
-                  items: items.map((item) => ({
-                    ...item,
-                    documentId,
-                    id: crypto.randomUUID(),
-                  })),
-                  payments,
-                });
               }}
             >
               <Save className="h-4 w-4 mr-2" />
