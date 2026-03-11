@@ -29,12 +29,12 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 
-import { NavUser } from "@/components/nav-user"
+// import { NavUser } from "@/components/nav-user"
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
+  // SidebarFooter,
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
@@ -153,9 +153,9 @@ const navigate = useNavigate()
       <SidebarContent className="bg-slate-950">
         <NavMain items={data.navMain} />
       </SidebarContent>
-      <SidebarFooter className="bg-transparent">
+      {/* <SidebarFooter className="bg-transparent">
         <NavUser user={data.user} />
-      </SidebarFooter>
+      </SidebarFooter> */}
       <SidebarRail />
     </Sidebar>
   );

@@ -10,7 +10,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { useState } from "react";
-import { getPrinters, printPdf } from "tauri-plugin-printer-v2";
+
 import SelectDocumentTypeModal, {
   DocumentType,
 } from "./selectDocumentTypeModal";
@@ -36,7 +36,7 @@ export function DocumentsView() {
   const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(
     null,
   );
-  const [printers, setPrinters] = useState<any[]>([]);
+  
   const [editingDocument, setEditingDocument] = useState<any>(null);
   const products = useProducts();
   const { data: customers = [] } = useCustomers();
@@ -56,15 +56,7 @@ export function DocumentsView() {
     setOpen(true);
   };
   const [selectedSavedDocument, setSelectedSavedDocument] = useState<any>(null);
-const loadPrinters = async () => {
-  try {
-    const list = await getPrinters();
-    setPrinters(list as any);
-    console.log("Printers:", list);
-  } catch (err) {
-    console.error("Failed to load printers", err);
-  }
-};
+
   
 const handlePrint = async () => {
   if (!selectedSavedDocument) return alert("Select a document first");
@@ -127,7 +119,7 @@ const handlePrint = async () => {
     });
   };
   const filteredDocuments = savedDocuments.filter((doc) => {
-    const customer = customers.find((c) => c.id === doc.customerId);
+   customers.find((c) => c.id === doc.customerId);
 
     if (filters.customer !== "all" && doc.customerId !== filters.customer)
       return false;
@@ -260,7 +252,7 @@ const handlePrint = async () => {
       </div>
 
       {documents.length > 0 ? (
-        documents.map((doc) => {
+        documents.map(() => {
           return (
             <>
               <NewDocument
@@ -686,7 +678,7 @@ function FilterDateRange({
   value?: DateRange;
   onChange?: (value: DateRange | undefined) => void;
 }) {
-  const [date, setDate] = useState<DateRange | undefined>();
+  const [date, ] = useState<DateRange | undefined>();
 
   return (
     <div className="flex flex-col">

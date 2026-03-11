@@ -40,7 +40,6 @@
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
-    "tauri-plugin-printer-v2": "^0.2.4",
     "vaul": "^1.1.2"
   },
   "devDependencies": {

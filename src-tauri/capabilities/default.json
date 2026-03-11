@@ -12,9 +12,6 @@
     "fs:default",
     "sql:default",
     "sql:allow-execute",
-    "shell:default",
-    "printer:allow-get-printers",
-    "printer:allow-print-pdf",
-    "printer:allow-print-html"
+    "shell:default"
   ]
 }

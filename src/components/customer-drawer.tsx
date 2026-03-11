@@ -218,6 +218,7 @@ export default function CustomerSupplierDrawer({
       name: group.name,
       isSelectable: true,
       children: group.children ? mapGroupsToTree(group.children) : [],
+      type:"group"
     }));
   // General info state
   const [form, setForm] = useState({
