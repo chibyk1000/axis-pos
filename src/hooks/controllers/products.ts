@@ -90,7 +90,6 @@ export function useCreateProduct() {
     mutationFn: async (data: NewProduct) => {
       const res =  db.insert(products).values(data).returning();
 
-    console.log(res);
     
 
       return res;

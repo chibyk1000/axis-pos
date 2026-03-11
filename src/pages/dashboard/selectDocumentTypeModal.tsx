@@ -20,6 +20,7 @@ type Props = {
 export type DocumentType = {
   code: number;
   label: string;
+  category?:string
 };
 
 type Category = {

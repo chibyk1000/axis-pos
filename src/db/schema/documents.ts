@@ -2,7 +2,7 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 import { customers } from ".";
-
+import { paymentTypes } from "./paymentTypes";
 import { documentItems } from "./documentItems";
 
 export const documents = sqliteTable("documents", {
@@ -38,7 +38,9 @@ export const documentPayments = sqliteTable("docmentPayments", {
   documentId: text("document_id")
     .notNull()
     .references(() => documents.id, { onDelete: "cascade" }),
-
+  paymentId: text("payment_id")
+    .notNull()
+    .references(() => paymentTypes.id, { onDelete: "cascade" }),
 
   status: text("status")
     .$type<"pending" | "paid" | "failed">()

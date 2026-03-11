@@ -2,23 +2,20 @@
 mod commands;
 use crate::commands::greet;
 use tauri_plugin_sql::{Migration, MigrationKind};
-
+use tauri_plugin_printer_v2::init;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = vec![
-        
-        Migration {
+    let migrations = vec![Migration {
         version: 1,
         description: "create_initial_tables",
-        sql: include_str!("../migrations/0000_awesome_lethal_legion.sql"),
+        sql: include_str!("../migrations/0000_yummy_puck.sql"),
         kind: MigrationKind::Up,
-    },
-     
-    
-    ];
+    }];
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+            .plugin(init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:file:data.db", migrations)
@@ -29,4 +26,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
- 

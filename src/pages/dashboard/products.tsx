@@ -46,12 +46,13 @@ import {
 import { UploadedImage } from "@/helpers/image";
 import { Product } from "@/db/schema";
 import { useDeleteTax } from "@/hooks/controllers/taxes";
+import { FaRegFileAlt } from "react-icons/fa";
 
 export function ProductsView() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState("root");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product>();
   const [addProductDrawerOpen, setAddProductDrawerOpen] = useState(false);
@@ -85,27 +86,38 @@ export function ProductsView() {
 
   const deleteProductTaxes = useDeleteTax();
 
-  const mapGroupsToTree = (groups: any[]): TreeViewElement[] =>
-    groups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      isSelectable: true,
-      type:"group",
-      children: group.children ? mapGroupsToTree(group.children) : [],
-    }));
+const mapGroupsToTree = (groups: any[]): TreeViewElement[] => {
+  return groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    type: "group",
+    isSelectable: true,
+    children: [
+      ...(group.children ? mapGroupsToTree(group.children) : []),
+
+      ...(group.products ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.title,
+        type: "product",
+        isSelectable: true,
+      })),
+    ],
+  }));
+};
 
   const treeElements = mapGroupsToTree(rootGroups);
   function RenderTree({ elements }: { elements: TreeViewElement[] }) {
     return (
       <>
         {elements.map((el) => {
-          const isFolder = el.children && el.children.length > 0;
+            const isFolder = el.type === "group";
+ 
           const isRoot = el.id === "root";
           const Node = (
             <div
               className={cn(
                 "px-2 rounded-md transition-colors cursor-pointer",
-                selectedId === el.id ? "bg-white/10" : "hover:bg-white/5",
+                // selectedId === el.id ? "bg-white/10" : "",
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -113,11 +125,21 @@ export function ProductsView() {
               }}
             >
               {isFolder ? (
-                <Folder value={el.id} element={el.name}>
+                <Folder
+                  value={el.id}
+                  element={el.name}
+                  isSelect={selectedId === el.id}
+                >
                   <RenderTree elements={el.children!} />
                 </Folder>
               ) : (
-                <File value={el.id}>{el.name}</File>
+                <File
+                  value={el.id}
+                  isSelect={selectedId === el.id}
+                  fileIcon={<FaRegFileAlt />}
+                >
+                  {el.name}
+                </File>
               )}
             </div>
           );
@@ -465,7 +487,7 @@ export function ProductsView() {
             <Tree
               elements={treeElements}
               initialExpandedItems={rootGroups.map((g: any) => g.id)}
-              className="h-full"
+              className="h-full hover:bg-transparent!"
             >
               <RenderTree elements={treeElements} />
             </Tree>
@@ -539,7 +561,9 @@ export function ProductsView() {
                         <td className="p-3">{product.cost.toFixed(2)}</td>
                         <td className="p-3">{product.salePrice.toFixed(2)}</td>
                         <td className="p-3">
-                          {product?.taxes.map((t) => `${t.tax.name}(${t.tax.rate})% `).join(", ")}
+                          {product?.taxes
+                            .map((t) => `${t.tax.name}(${t.tax.rate})% `)
+                            .join(", ")}
                         </td>
                         <td className="p-3">{product.salePrice.toFixed(2)}</td>
                         <td className="p-3 text-slate-400">{product.active}</td>

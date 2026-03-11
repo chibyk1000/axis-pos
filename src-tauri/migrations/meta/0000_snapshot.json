@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "82845297-2fe6-4f28-8fe9-c2add2db1760",
+  "id": "25caeff1-a2de-4fd5-94a6-034aa7f220f7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "barcodes": {
@@ -636,6 +636,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "payment_id": {
+          "name": "payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -674,6 +681,19 @@
           "tableTo": "documents",
           "columnsFrom": [
             "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "docmentPayments_payment_id_payment_types_id_fk": {
+          "name": "docmentPayments_payment_id_payment_types_id_fk",
+          "tableFrom": "docmentPayments",
+          "tableTo": "payment_types",
+          "columnsFrom": [
+            "payment_id"
           ],
           "columnsTo": [
             "id"

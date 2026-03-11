@@ -10,6 +10,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { useState } from "react";
+import { getPrinters, printPdf } from "tauri-plugin-printer-v2";
 import SelectDocumentTypeModal, {
   DocumentType,
 } from "./selectDocumentTypeModal";
@@ -28,20 +29,95 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useDeleteDocument, useDocuments } from "@/hooks/controllers/documents";
 export function DocumentsView() {
   const [open, setOpen] = useState(false);
   const [documents, setDocuments] = useState<DocumentType[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(
     null,
   );
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [editingDocument, setEditingDocument] = useState<any>(null);
   const products = useProducts();
-  const { data: customers = []
-  } = useCustomers();
-
-
+  const { data: customers = [] } = useCustomers();
+  const [filters, setFilters] = useState({
+    product: "all",
+    user: "all",
+    register: "all",
+    customer: "all",
+    documentType: "all",
+    paid: "all",
+    number: "",
+    external: "",
+    period: undefined as DateRange | undefined,
+  });
+  const { data: savedDocuments = [], refetch } = useDocuments();
   const onAdd = () => {
     setOpen(true);
   };
+  const [selectedSavedDocument, setSelectedSavedDocument] = useState<any>(null);
+const loadPrinters = async () => {
+  try {
+    const list = await getPrinters();
+    setPrinters(list as any);
+    console.log("Printers:", list);
+  } catch (err) {
+    console.error("Failed to load printers", err);
+  }
+};
+  
+const handlePrint = async () => {
+  if (!selectedSavedDocument?.pdfPath) {
+    alert("No PDF available to print");
+    return;
+  }
+
+  try {
+    const printers = await getPrinters();
+
+    if (!printers.length) {
+      alert("No printers found");
+      return;
+    }
+
+    const printer = printers[0];
+
+    await printPdf({
+      id: printer.name,
+      printer,
+      path: selectedSavedDocument.pdfPath,
+      remove_after_print: false,
+      print_settings: JSON.stringify({
+        silent: false,
+        copies: 1,
+      }),
+    });
+  } catch (err) {
+    console.error("Print failed:", err);
+  }
+};
+
+  const handlePreview = () => {
+    if (!selectedSavedDocument?.pdfPath) {
+      alert("No PDF available for preview");
+      return;
+    }
+
+    window.open(selectedSavedDocument.pdfPath);
+  };
+
+  const handleSavePdf = () => {
+    if (!selectedSavedDocument?.pdfPath) {
+      alert("No PDF available");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = selectedSavedDocument.pdfPath;
+    link.download = `document-${selectedSavedDocument.number}.pdf`;
+    link.click();
+  };
+  const deleteDocument = useDeleteDocument();
   const documentTypes = [
     { code: 100, label: "Purchase", category: "Expenses" },
     { code: 120, label: "Stock Return", category: "Expenses" },
@@ -54,7 +130,62 @@ export function DocumentsView() {
 
     { code: 400, label: "Loss and damage", category: "Loss" },
   ];
+  const handleFilterChange = (key: string, value: any) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
+  const clearFilters = () => {
+    setFilters({
+      product: "all",
+      user: "all",
+      register: "all",
+      customer: "all",
+      documentType: "all",
+      paid: "all",
+      number: "",
+      external: "",
+      period: undefined,
+    });
+  };
+  const filteredDocuments = savedDocuments.filter((doc) => {
+    const customer = customers.find((c) => c.id === doc.customerId);
+
+    if (filters.customer !== "all" && doc.customerId !== filters.customer)
+      return false;
+
+    if (filters.documentType !== "all" && doc.status !== filters.documentType)
+      return false;
+
+    if (filters.paid === "paid" && !doc.paid) return false;
+    if (filters.paid === "unpaid" && doc.paid) return false;
+
+    if (
+      filters.number &&
+      !doc.number?.toLowerCase().includes(filters.number.toLowerCase())
+    )
+      return false;
+
+    if (
+      filters.external &&
+      !doc.externalNumber
+        ?.toLowerCase()
+        .includes(filters.external.toLowerCase())
+    )
+      return false;
+
+    if (filters.period?.from) {
+      const docDate = new Date(doc.date);
+
+      if (docDate < filters.period.from) return false;
+
+      if (filters.period.to && docDate > filters.period.to) return false;
+    }
+
+    return true;
+  });
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-slate-200">
       {/* Header */}
@@ -66,7 +197,10 @@ export function DocumentsView() {
           <span className="text-sm text-slate-300">Management • Documents</span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="text-slate-400 hover:text-indigo-400 transition">
+          <button
+            onClick={() => refetch()}
+            className="text-slate-400 hover:text-indigo-400 transition"
+          >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button className="text-slate-400 hover:text-rose-400 transition">
@@ -154,7 +288,8 @@ export function DocumentsView() {
           return (
             <>
               <NewDocument
-                title={`${new Date().getFullYear()} - ${doc.code} - ??????`}
+                title={editingDocument?.number ?? "New Document"}
+                document={editingDocument}
               />
             </>
           );
@@ -163,11 +298,44 @@ export function DocumentsView() {
         <>
           <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center gap-4">
             <ToolbarButton icon={Plus} label="Add" onClick={onAdd} />
-            <ToolbarButton icon={Printer} label="Print" />
-            <ToolbarButton icon={Eye} label="Print preview" />
-            <ToolbarButton icon={FileDown} label="Save as PDF" />
-            <ToolbarButton label="Edit" />
-            <ToolbarButton icon={Trash2} label="Delete" danger />
+            <ToolbarButton icon={Printer} label="Print" onClick={handlePrint} />
+
+            <ToolbarButton
+              icon={Eye}
+              label="Print preview"
+              onClick={handlePreview}
+            />
+
+            <ToolbarButton
+              icon={FileDown}
+              label="Save as PDF"
+              onClick={handleSavePdf}
+            />
+            <ToolbarButton
+              label="Edit"
+              onClick={() => {
+                if (!selectedSavedDocument) return;
+                setEditingDocument(selectedSavedDocument);
+                setSelectedDocument({
+                  code: 0,
+                  label: "Edit",
+                  category: "Edit",
+                });
+              }}
+            />
+            <ToolbarButton
+              icon={Trash2}
+              label="Delete"
+              danger
+              onClick={() => {
+                if (!selectedSavedDocument) return;
+
+                if (confirm("Delete this document?")) {
+                  deleteDocument.mutate(selectedSavedDocument.id);
+                  setSelectedSavedDocument(null);
+                }
+              }}
+            />
           </div>
 
           {/* Filters */}
@@ -175,6 +343,8 @@ export function DocumentsView() {
             <div className="grid grid-cols-3 gap-4">
               <FilterSelect
                 label="Product"
+                value={filters.product}
+                onChange={(v) => handleFilterChange("product", v)}
                 items={[
                   { id: "all", value: "All products" },
                   ...(products?.data?.map((item) => ({
@@ -194,13 +364,12 @@ export function DocumentsView() {
 
               <FilterSelect
                 label="Customer"
+                value={filters.customer}
+                onChange={(v) => handleFilterChange("customer", v)}
                 items={[
-                  {
-                    id: "all",
-                    value: "All customers",
-                  },
-                  ...customers?.map((item) => ({
-                    id: item.id ,
+                  { id: "all", value: "All customers" },
+                  ...customers.map((item) => ({
+                    id: item.id,
                     value: item.name,
                   })),
                 ]}
@@ -217,6 +386,8 @@ export function DocumentsView() {
               />
               <FilterSelect
                 label="Paid status"
+                value={filters.paid}
+                onChange={(v) => handleFilterChange("paid", v)}
                 items={[
                   { id: "all", value: "All transactions" },
                   { id: "paid", value: "Paid" },
@@ -224,14 +395,27 @@ export function DocumentsView() {
                 ]}
               />
 
-              <FilterInput label="Document number" />
-              <FilterInput label="External document" />
+              <FilterInput
+                label="Document number"
+                value={filters.number}
+                onChange={(v) => handleFilterChange("number", v)}
+              />
+              <FilterInput
+                label="External document"
+                value={filters.external}
+                onChange={(v) => handleFilterChange("external", v)}
+              />
 
-              <FilterDateRange label="Period" />
+              <FilterDateRange
+                label="Period"
+                value={filters.period}
+                onChange={(v) => handleFilterChange("period", v)}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
               <button
+                onClick={clearFilters}
                 className="flex items-center gap-1 text-sm text-slate-300 px-3 py-1 rounded
             hover:text-indigo-400 hover:bg-indigo-500/10 transition"
               >
@@ -250,7 +434,7 @@ export function DocumentsView() {
           {/* Content */}
           <div className="flex-1 overflow-auto px-6 py-4 space-y-6">
             {/* Documents Table */}
-            <TableWrapper title="Documents (0)">
+            <TableWrapper title={`Documents (${filteredDocuments.length})`}>
               <thead>
                 <tr className="bg-slate-800 border-b border-slate-700">
                   <th className="px-4 py-2">
@@ -281,19 +465,69 @@ export function DocumentsView() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="bg-slate-900">
-                  <td
-                    colSpan={12}
-                    className="px-4 py-12 text-center text-slate-500"
-                  >
-                    No documents found
-                  </td>
-                </tr>
+                {filteredDocuments.length === 0 ? (
+                  <tr className="bg-slate-900">
+                    <td
+                      colSpan={12}
+                      className="px-4 py-12 text-center text-slate-500"
+                    >
+                      No documents found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDocuments.map((doc) => {
+                    const customer = customers.find(
+                      (c) => c.id === doc.customerId,
+                    );
+
+                    return (
+                      <tr
+                        key={doc.id}
+                        onClick={() => setSelectedSavedDocument(doc)}
+                        className="hover:bg-slate-800 cursor-pointer"
+                      >
+                        <td className="px-4 py-2">
+                          <input type="checkbox" />
+                        </td>
+
+                        <td className="px-4 py-2">{doc.id.slice(0, 6)}</td>
+
+                        <td className="px-4 py-2">{doc.number}</td>
+
+                        <td className="px-4 py-2">
+                          {doc.externalNumber || "-"}
+                        </td>
+
+                        <td className="px-4 py-2">{doc.status}</td>
+
+                        <td className="px-4 py-2">
+                          {doc.paid ? "Paid" : "Unpaid"}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {customer?.name ?? "Unknown"}
+                        </td>
+
+                        <td className="px-4 py-2">
+                          {doc.date
+                            ? format(new Date(doc.date), "MM/dd/yyyy")
+                            : "-"}
+                        </td>
+
+                        <td className="px-4 py-2">-</td>
+                        <td className="px-4 py-2">-</td>
+                        <td className="px-4 py-2">-</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </TableWrapper>
 
             {/* Document Items Table */}
-            <TableWrapper title="Document items (0)">
+            <TableWrapper
+              title={`Document items (${selectedSavedDocument?.items?.length ?? 0})`}
+            >
               <thead>
                 <tr className="bg-slate-800 border-b border-slate-700">
                   {[
@@ -316,14 +550,51 @@ export function DocumentsView() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="bg-slate-900">
-                  <td
-                    colSpan={11}
-                    className="px-4 py-12 text-center text-slate-500"
-                  >
-                    No items found
-                  </td>
-                </tr>
+                {!selectedSavedDocument?.items?.length ? (
+                  <tr className="bg-slate-900">
+                    <td
+                      colSpan={11}
+                      className="px-4 py-12 text-center text-slate-500"
+                    >
+                      No items found
+                    </td>
+                  </tr>
+                ) : (
+                  selectedSavedDocument.items.map((item: any) => {
+                    const price =
+                      item.priceBeforeTax * (1 + item.taxRate / 100);
+
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-800">
+                        <td className="px-4 py-2">{item.id.slice(0, 6)}</td>
+
+                        <td className="px-4 py-2">
+                          {item.productId?.slice(0, 6)}
+                        </td>
+
+                        <td className="px-4 py-2">{item.name}</td>
+
+                        <td className="px-4 py-2">{item.unit || "-"}</td>
+
+                        <td className="px-4 py-2">{item.quantity}</td>
+
+                        <td className="px-4 py-2">{item.priceBeforeTax}</td>
+
+                        <td className="px-4 py-2">{item.taxRate}%</td>
+
+                        <td className="px-4 py-2">{price.toFixed(2)}</td>
+
+                        <td className="px-4 py-2">
+                          {(item.quantity * item.priceBeforeTax).toFixed(2)}
+                        </td>
+
+                        <td className="px-4 py-2">{item.discount ?? 0}</td>
+
+                        <td className="px-4 py-2">{item.total}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </TableWrapper>
           </div>
@@ -367,17 +638,27 @@ function ToolbarButton({
 function FilterSelect({
   label,
   items,
+  value,
+  onChange,
 }: {
   label: string;
   items: { id: string; value: string }[];
+  value?: string;
+  onChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-slate-400 mb-1">{label}</label>
-      <select className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500">
-        {items.map((item) => {
-          return <option value={item.id}>{item.value}</option>;
-        })}
+      <select
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
+      >
+        {items.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.value}
+          </option>
+        ))}
       </select>
     </div>
   );
@@ -385,22 +666,24 @@ function FilterSelect({
 
 function FilterInput({
   label,
-  placeholder,
+  value,
+  onChange,
 }: {
   label: string;
-  placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col">
       <label className="text-xs text-slate-400 mb-1">{label}</label>
       <input
-        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
         className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
       />
     </div>
   );
 }
-
 function TableWrapper({
   title,
   children,
@@ -418,7 +701,15 @@ function TableWrapper({
   );
 }
 
-function FilterDateRange({ label }: { label: string }) {
+function FilterDateRange({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: DateRange;
+  onChange?: (value: DateRange | undefined) => void;
+}) {
   const [date, setDate] = useState<DateRange | undefined>();
 
   return (
@@ -458,8 +749,8 @@ function FilterDateRange({ label }: { label: string }) {
             initialFocus
             mode="range"
             defaultMonth={date?.from}
-            selected={date}
-            onSelect={setDate}
+            selected={value}
+            onSelect={onChange}
             numberOfMonths={2}
             className="bg-slate-900 text-slate-200"
           />

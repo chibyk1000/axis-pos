@@ -31,12 +31,11 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Switch } from "../ui/switch";
-
-type PaymentType = "cash" | "card" | "transfer";
+import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 
 interface Payment {
   id?: string;
-  type: PaymentType;
+  type: string;
   date?: Date;
   amount: number;
   status: boolean;
@@ -48,45 +47,52 @@ interface PaymentDrawerProps {
   payment?: Payment | null;
   onSubmit?: (data: Payment) => void;
 }
+
 export default function PaymentDrawer({
   open,
   setOpen,
-    onSubmit,
-  payment
+  onSubmit,
+  payment,
 }: PaymentDrawerProps) {
+  const { data: paymentTypes = [] } = usePaymentTypes();
+
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [amount, setAmount] = useState<number>(315);
-  const [type, setType] = useState<PaymentType>("cash");
+  const [amount, setAmount] = useState<number>(0);
+  const [type, setType] = useState<string>("");
   const [status, setStatus] = useState<boolean>(true);
 
   const resetForm = () => {
-    setType("cash");
+    setType("");
     setDate(new Date());
-    setAmount(315);
+    setAmount(0);
     setStatus(true);
   };
-useEffect(() => {
-  if (payment) {
-    setType(payment.type);
-    setDate(payment.date);
-    setAmount(payment.amount);
-    setStatus(payment.status);
-  }
-}, [payment]);
-const handleSubmit = () => {
-  const payload = {
-    ...payment,
-    type,
-    date,
-    amount,
-    status,
+
+  useEffect(() => {
+    if (payment) {
+      setType(payment.type);
+      setDate(payment.date ?? new Date());
+      setAmount(payment.amount);
+      setStatus(payment.status);
+    } else {
+      resetForm();
+    }
+  }, [payment, open]);
+
+  const handleSubmit = () => {
+    const payload: Payment = {
+      ...payment,
+      type,
+      date,
+      amount,
+      status,
+    };
+
+    onSubmit?.(payload);
+
+    resetForm();
+    setOpen(false);
   };
-
-  onSubmit?.(payload);
-
-  resetForm();
-  setOpen(false);
-};
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
@@ -94,7 +100,7 @@ const handleSubmit = () => {
         {/* Header */}
         <DrawerHeader className="border-b border-slate-700 flex flex-row items-center justify-between">
           <DrawerTitle className="text-slate-100 text-lg">
-            New payment
+            {payment ? "Edit payment" : "New payment"}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -103,18 +109,17 @@ const handleSubmit = () => {
           <div className="space-y-1">
             <Label className="text-slate-400">Payment type</Label>
 
-            <Select
-              value={type}
-              onValueChange={(v) => setType(v as PaymentType)}
-            >
+            <Select value={type} onValueChange={setType}>
               <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                <SelectValue />
+                <SelectValue placeholder="Select payment type" />
               </SelectTrigger>
 
-              <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
+              <SelectContent className="bg-slate-900 border-slate-700 text-white top-10">
+                {paymentTypes.map((p) => (
+                  <SelectItem key={p.id} value={p.name}>
+                    {p.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -146,6 +151,7 @@ const handleSubmit = () => {
 
             <div className="flex items-center gap-3">
               <Switch checked={status} onCheckedChange={setStatus} />
+
               <span className="text-sm text-slate-300">
                 {status ? "Completed" : "Pending"}
               </span>
@@ -160,7 +166,7 @@ const handleSubmit = () => {
               type="number"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="bg-slate-800 border-slate-700 text-white "
+              className="bg-slate-800 border-slate-700 text-white"
             />
           </div>
         </div>

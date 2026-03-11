@@ -4,6 +4,7 @@ import { documents, documentItems, documentPayments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 
+
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentItem = typeof documentItems.$inferInsert;
@@ -13,10 +14,17 @@ export function useDocuments() {
   return useQuery({
     queryKey: ["documents"],
     queryFn: async () => {
-      return await db
-        .select()
-        .from(documents)
-        .orderBy(desc(documents.createdAt));
+      const [docs, items, payments] = await Promise.all([
+        db.select().from(documents).orderBy(desc(documents.createdAt)),
+        db.select().from(documentItems),
+        db.select().from(documentPayments),
+      ]);
+
+      return docs.map((doc) => ({
+        ...doc,
+        items: items.filter((i) => i.documentId === doc.id),
+        payments: payments.filter((p) => p.documentId === doc.id),
+      }));
     },
   });
 }
@@ -62,35 +70,34 @@ export function useCreateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
-      await db.transaction(async (tx) => {
-        const docId = crypto.randomUUID();
+   
+const docId = crypto.randomUUID();
 
-        await tx.insert(documents).values({
-          ...data.document,
-          id: docId,
-          createdAt: new Date(),
-        });
+await db.insert(documents).values({
+  ...data.document,
+  id: docId,
+  createdAt: new Date(),
+});
 
-        if (data.items?.length) {
-          await tx.insert(documentItems).values(
-            data.items.map((item) => ({
-              ...item,
-              id: crypto.randomUUID(),
-              documentId: docId,
-            })),
-          );
-        }
+if (data.items?.length) {
+  await db.insert(documentItems).values(
+    data.items.map((item) => ({
+      ...item,
+      id: crypto.randomUUID(),
+      documentId: docId,
+    })),
+  );
+}
 
-        if (data.payments?.length) {
-          await tx.insert(documentPayments).values(
-            data.payments.map((p) => ({
-              ...p,
-              id: crypto.randomUUID(),
-              documentId: docId,
-            })),
-          );
-        }
-      });
+if (data.payments?.length) {
+  await db.insert(documentPayments).values(
+    data.payments.map((p) => ({
+      ...p,
+      id: crypto.randomUUID(),
+      documentId: docId,
+    })),
+  );
+}
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });

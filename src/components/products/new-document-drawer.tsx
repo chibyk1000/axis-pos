@@ -21,33 +21,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { Product } from "@/db/schema";
+
 import { useTaxes } from "@/hooks/controllers/taxes";
 import { Plus, Minus } from "lucide-react";
+import { useProductById } from "@/hooks/controllers/products";
 
 type Props = {
   open: boolean;
   setOpen: (val: boolean) => void;
-  product: Product | undefined;
+
   editingItem?: any | null;
   onAddItem: (item: any) => void;
+  selectedDocumentProduct:string
 };
 
 export default function DocumentProductDrawer({
   open,
   setOpen,
-  product,
+
   onAddItem,
   editingItem,
+  selectedDocumentProduct
 }: Props) {
   const { data: taxes = [] } = useTaxes();
-
+   const { data: product } = useProductById(selectedDocumentProduct);
+const [price, setPrice] = useState(0)
   const [quantity, setQuantity] = useState(1);
+  const [selectedTaxes, setSelectedTaxes] = useState<any[]>([]);
   const [priceBeforeTax, setPriceBeforeTax] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState("percent");
+
   
-  const [selectedTax, setSelectedTax] = useState<any | null>(null);
   const [selectedTaxId, setSelectedTaxId] = useState<string | null>(null);
   const [isAddingTax, setIsAddingTax] = useState(false);
 
@@ -55,35 +60,40 @@ export default function DocumentProductDrawer({
     value: tax.id,
     label: `${tax.name} (${tax.rate}%)`,
   }));
+const addTax = () => {
+  if (!selectedTaxId) return;
 
-  const addTax = () => {
-    if (!selectedTaxId) return;
+  const tax = taxes.find((t) => t.id === selectedTaxId);
+  if (!tax) return;
 
-    const tax = taxes.find((t) => t.id === selectedTaxId);
-    if (!tax) return;
+  const exists = selectedTaxes.some((t) => t.id === tax.id);
+  if (exists) return; // prevent duplicate
 
-    setSelectedTax(tax);
-    setSelectedTaxId(null);
-    setIsAddingTax(false);
-  };
+  setSelectedTaxes((prev) => [...prev, tax]);
+  setSelectedTaxId(null);
+  setIsAddingTax(false);
+};
 
-  const removeTax = () => {
-    setSelectedTax(null);
-  };
+const removeTax = (taxId: string) => {
+  setSelectedTaxes((prev) => prev.filter((t) => t.id !== taxId));
+};
 
   useEffect(() => {
     if (editingItem) {
       setQuantity(editingItem.quantity);
       setPriceBeforeTax(editingItem.priceBeforeTax);
       setDiscount(editingItem.discount ?? 0);
-      setSelectedTax(editingItem.tax ?? null);
-    } else if (product) {
+      setSelectedTaxes(editingItem.taxes ?? []);
+    } else if (product) { 
+      // This part resets the form for a fresh product selection
       setPriceBeforeTax(product.salePrice ?? 0);
       setQuantity(1);
       setDiscount(0);
-      setSelectedTax(null);
+setSelectedTaxes([]);
+      setIsAddingTax(false); // Clear the tax selection UI
+      setSelectedTaxId(null);
     }
-  }, [product, editingItem]);
+  }, [product, editingItem, open]); // Add 'open' here to trigger when the drawer opens
 
   const totalBeforeTax = quantity * priceBeforeTax;
 
@@ -92,9 +102,9 @@ export default function DocumentProductDrawer({
       ? totalBeforeTax - (discount / 100) * totalBeforeTax
       : totalBeforeTax - discount;
 
-  const taxTotal = selectedTax
-    ? (selectedTax.rate / 100) * totalAfterDiscount
-    : 0;
+const taxTotal = selectedTaxes.reduce((sum, tax) => {
+  return sum + (tax.rate / 100) * totalAfterDiscount;
+}, 0);
 
   const total = totalAfterDiscount + taxTotal;
 
@@ -108,14 +118,28 @@ export default function DocumentProductDrawer({
       unit: product.unit,
       quantity,
       priceBeforeTax,
-      tax: selectedTax,
+      taxes: selectedTaxes,
       discount,
       total,
     });
 
     setOpen(false);
   }
+const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
+  const handlePriceBeforeTaxChange = (value: number) => {
+    setPriceBeforeTax(value);
 
+    const taxMultiplier = 1 + totalTaxRate / 100;
+    setPrice(Number((value * taxMultiplier).toFixed(2)));
+  };
+  const handlePriceChange = (value: number) => {
+    setPrice(value);
+
+    const taxMultiplier = 1 + totalTaxRate / 100;
+    const beforeTax = value / taxMultiplier;
+
+    setPriceBeforeTax(Number(beforeTax.toFixed(2)));
+  };
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
       <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-700 bg-slate-900 text-slate-200">
@@ -144,7 +168,9 @@ export default function DocumentProductDrawer({
               className="bg-slate-800 border-slate-700 text-white"
               type="number"
               value={priceBeforeTax}
-              onChange={(e) => setPriceBeforeTax(Number(e.target.value))}
+              onChange={(e) =>
+                handlePriceBeforeTaxChange(Number(e.target.value))
+              }
             />
           </div>
 
@@ -152,19 +178,25 @@ export default function DocumentProductDrawer({
           <div className="space-y-2">
             <p>Tax</p>
 
-            {selectedTax && (
-              <div className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded">
+            {selectedTaxes.map((tax) => (
+              <div
+                key={tax.id}
+                className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded"
+              >
                 <span>
-                  {selectedTax.name} ({selectedTax.rate}%)
+                  {tax.name} ({tax.rate}%)
                 </span>
 
-                <button onClick={removeTax} className="text-red-400">
+                <button
+                  onClick={() => removeTax(tax.id)}
+                  className="text-red-400"
+                >
                   <Minus size={16} />
                 </button>
               </div>
-            )}
+            ))}
 
-            {!selectedTax && !isAddingTax && (
+            {!isAddingTax && (
               <Button
                 variant="ghost"
                 disabled={taxOptions.length < 1}
@@ -175,7 +207,15 @@ export default function DocumentProductDrawer({
                 Add tax
               </Button>
             )}
-
+            <div className="space-y-1">
+              <Label className="text-slate-400">Price</Label>
+              <Input
+                className="bg-slate-800 border-slate-700 text-white"
+                type="number"
+                value={price}
+                onChange={(e) => handlePriceChange(Number(e.target.value))}
+              />
+            </div>
             {isAddingTax && (
               <div className="flex items-center gap-2">
                 <ReactSelect

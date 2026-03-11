@@ -19,7 +19,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Search, Pencil, Trash2, Save, Printer, FileText } from "lucide-react";
+import { Pencil, Trash2, Save, Printer, FileText } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -35,154 +35,176 @@ import {
 import { useState } from "react";
 import { useCustomers } from "@/hooks/controllers/customers";
 
-
 import { useMemo } from "react";
-import { useCreateDocument } from "@/hooks/controllers/documents";
+import { useCreateDocument, useUpdateDocument } from "@/hooks/controllers/documents";
 import { File, Folder, Tree, TreeViewElement } from "../ui/file-tree";
-import { useNodeTree, useRootNodes } from "@/hooks/controllers/nodes";
+import { useRootNodes } from "@/hooks/controllers/nodes";
 
 import { confirm } from "@tauri-apps/plugin-dialog";
-import { FaFile, FaRegFileAlt } from "react-icons/fa";
-import { useProduct, useProductById } from "@/hooks/controllers/products";
+import { FaRegFileAlt } from "react-icons/fa";
+
 import DocumentProductDrawer from "./new-document-drawer";
-import { Product } from "@/db/schema";
+
 import PaymentDrawer from "./new-payment-drawer";
 import { toast } from "react-toastify";
 
-export default function NewDocument( {title}:{title:string}) {
-      const [date, setDate] = useState<Date | undefined>(new Date());
-      const [dueDate, setDueDate] = useState<Date | undefined>(
-        new Date(),
-      );
-  const [openNewDocument, setOpenNewDocument] = useState(false)
-   const [selectedId, setSelectedId] = useState("");
-  const [paid, setPaid] = useState(false);
+export default function NewDocument({ title, document }: { title: string; document?: any; }) {
+ const [date, setDate] = useState<Date | undefined>(
+   document?.date ? new Date(document.date) : new Date(),
+ );
+
+ const [dueDate, setDueDate] = useState<Date | undefined>(
+   document?.dueDate ? new Date(document.dueDate) : new Date(),
+ );
+  const [openNewDocument, setOpenNewDocument] = useState(false);
+  const [selectedId, setSelectedId] = useState("");
+const [paid, setPaid] = useState(document?.paid ?? false);
   
+  const updateDocument = useUpdateDocument();
   const { data: rootGroups = [] } = useRootNodes();
   // const { data } = useNodeTree()
 
-  const [selectedDocumentProduct, setSelectedDocumentProduct] = useState<string>("")
-const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-   const { data: product } = useProductById(selectedDocumentProduct);
-    const [stockDate, setStockDate] = useState<Date>(new Date());
-const [externalNumber, setExternalNumber] = useState("");
-const [customerId, setCustomerId] = useState<string | undefined>();
-const createDocument = useCreateDocument();
-  const [items, setItems] = useState<any[]>([]);
+  const [selectedDocumentProduct, setSelectedDocumentProduct] =
+    useState<string>("");
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(
+    null,
+  );
+
+const [stockDate, setStockDate] = useState<Date>(
+  document?.stockDate ? new Date(document.stockDate) : new Date(),
+);
+
+const [externalNumber, setExternalNumber] = useState(
+  document?.externalNumber ?? "",
+);
+ const [customerId, setCustomerId] = useState<string | undefined>(
+   document?.customerId,
+ );
+  const createDocument = useCreateDocument();
+const [items, setItems] = useState<any[]>(document?.items ?? []);
+
+const [payments, setPayments] = useState<any[]>(document?.payments ?? []);
+
+const [internalNote, setInternalNote] = useState(document?.internalNote ?? "");
   const [selectedPaymentIndex, setSelectedPaymentIndex] = useState<
     number | null
   >(null);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [openPayment, setOpenPayment] = useState(false)
-const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(
-  null,
-);
 
-const [editingPayment, setEditingPayment] = useState<any | null>(null);
-const mapGroupsToTree = (groups: any[]): TreeViewElement[] => {
-  return groups.map((group) => ({
-    id: group.id,
-    name: group.name,
-    type: "group",
-    isSelectable: true,
-    children: [
-      ...(group.children ? mapGroupsToTree(group.children) : []),
-
-      ...(group.products ?? []).map((p: any) => ({
-        id: p.id,
-        name: p.title,
-        type: "product",
-        isSelectable: true,
-      })),
-    ],
-  }));
-};
-    const treeElements = mapGroupsToTree(rootGroups);
-function RenderTree({ elements }: { elements: TreeViewElement[] }) {
-  return (
-    <>
-      {elements.map((el) => {
-        const isFolder = el.type === "group";
-
-        return (
-          <div
-            key={el.id}
-            className={cn(
-              "px-2 rounded-md transition-colors cursor-pointer",
-              selectedId === el.id ? "bg-white/10" : "hover:bg-white/5",
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedId(el.id);
-            }}
-          >
-            {isFolder ? (
-              <Folder value={el.id} element={el.name}>
-                <RenderTree elements={el.children ?? []} />
-              </Folder>
-            ) : (
-              <File
-                value={el.id}
-                onDoubleClick={() => {
-
-
-                  setSelectedDocumentProduct(el.id)
-                 setOpenNewDocument(true)
-                  
-                }}
-                  fileIcon={<FaRegFileAlt/>}
-              >
-                {el.name}
-              </File>
-            )}
-          </div>
-        );
-      })}
-    </>
+  const [openPayment, setOpenPayment] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(
+    null,
   );
-}
 
+  const mapGroupsToTree = (groups: any[]): TreeViewElement[] => {
+    return groups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      type: "group",
+      isSelectable: true,
+      children: [
+        ...(group.children ? mapGroupsToTree(group.children) : []),
 
- 
-const [internalNote, setInternalNote] = useState("");
-  const [note, setNote] = useState("");
-  
-  const totals = useMemo(() => {
-    const totalBeforeTax = items.reduce(
-      (sum, item) => sum + item.quantity * item.priceBeforeTax,
-      0,
+        ...(group.products ?? []).map((p: any) => ({
+          id: p.id,
+          name: p.title,
+          type: "product",
+          isSelectable: true,
+        })),
+      ],
+    }));
+  };
+  const treeElements = mapGroupsToTree(rootGroups);
+  function RenderTree({ elements }: { elements: TreeViewElement[] }) {
+    return (
+      <>
+        {elements.map((el) => {
+          const isFolder = el.type === "group";
+
+          return (
+            <div
+              key={el.id}
+              className={cn(
+                "px-2 rounded-md transition-colors cursor-pointer",
+                selectedId === el.id ? "" : "",
+              )}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedId(el.id);
+              }}
+            >
+              {isFolder ? (
+                <Folder
+                  value={el.id}
+                  element={el.name}
+                  isSelect={selectedId === el.id}
+                >
+                  <RenderTree elements={el.children ?? []} />
+                </Folder>
+              ) : (
+                <File
+                  value={el.id}
+                  isSelect={selectedId === el.id}
+                  onDoubleClick={() => {
+                    setSelectedDocumentProduct(el.id);
+                    setOpenNewDocument(true);
+                  }}
+                  fileIcon={<FaRegFileAlt />}
+                >
+                  {el.name}
+                </File>
+              )}
+            </div>
+          );
+        })}
+      </>
     );
+  }
 
-    const taxTotal = items.reduce((sum, item) => {
-      const line = item.quantity * item.priceBeforeTax;
-      return sum + line * (item.taxRate / 100);
-    }, 0);
+const [note, setNote] = useState(document?.note ?? "");
 
-    const total = totalBeforeTax + taxTotal;
+const totals = useMemo(() => {
+  let totalBeforeTax = 0;
+  let taxTotal = 0;
 
-    const paymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+  items.forEach((item) => {
+    const line = item.quantity * item.priceBeforeTax;
 
-    return {
-      totalBeforeTax,
-      taxTotal,
-      total,
-      paymentsTotal,
-    };
-  }, [items, payments]);
-    const { data: customers } = useCustomers()
+    totalBeforeTax += line;
 
-  
-    
+    const taxes = item.taxes ?? [];
+
+    taxes.forEach((tax:any) => {
+      taxTotal += (line * tax.rate) / 100;
+    });
+  });
+
+  const total = totalBeforeTax + taxTotal;
+
+  const paymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+
+  return {
+    totalBeforeTax,
+    taxTotal,
+    total,
+    paymentsTotal,
+  };
+}, [items, payments]);
+  const { data: customers } = useCustomers();
+const isEdit = !!document;
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-6">
       <DocumentProductDrawer
+        key={selectedDocumentProduct}
         open={openNewDocument}
+        selectedDocumentProduct={selectedDocumentProduct}
         setOpen={(val) => {
           setOpenNewDocument(val);
-          if (!val) setEditingItemIndex(null);
+          if (!val) {
+            setEditingItemIndex(null);
+            setSelectedDocumentProduct(""); // Clear ID on close
+          }
         }}
-        product={product as Product}
         editingItem={editingItemIndex !== null ? items[editingItemIndex] : null}
         onAddItem={(item) => {
           if (editingItemIndex !== null) {
@@ -552,7 +574,13 @@ const [internalNote, setInternalNote] = useState("");
                               <TableCell>{item.unit}</TableCell>
                               <TableCell>{item.quantity}</TableCell>
                               <TableCell>{item.priceBeforeTax}</TableCell>
-                              <TableCell>{item?.tax?.rate  || 0}%</TableCell>
+                              <TableCell>
+                                {item.taxes?.length
+                                  ? item.taxes
+                                      .map((t: any) => `${t.rate}%`)
+                                      .join(" + ")
+                                  : "0%"}
+                              </TableCell>
                               <TableCell>
                                 {(item.quantity * item.priceBeforeTax).toFixed(
                                   2,
@@ -562,7 +590,9 @@ const [internalNote, setInternalNote] = useState("");
                               <TableCell>
                                 {item.quantity * item.priceBeforeTax}
                               </TableCell>
-                              <TableCell>{item.total}</TableCell>
+                              <TableCell>
+                                {Number(item.total).toFixed(2)}
+                              </TableCell>
                             </TableRow>
                           ))
                         )}
@@ -808,51 +838,83 @@ const [internalNote, setInternalNote] = useState("");
             </Button>
             <Button
               className="bg-sky-600 hover:bg-sky-700"
-              onClick={async() => {
-                
+              onClick={async () => {
                 try {
                   if (!customerId) {
-                     toast.error("Select a customer");
+                    toast.error("Select a customer");
                     return;
                   }
-  
+
                   if (items.length === 0) {
                     toast.error("Add at least one item");
                     return;
                   }
-  
-                  const documentId = crypto.randomUUID();
-  
-                await  createDocument.mutateAsync({
-                    document: {
-                      id: documentId,
-                      number: title,
-                      externalNumber,
-                      customerId,
-                      date: date ?? new Date(),
-                      dueDate: dueDate ?? null,
-                      stockDate,
-                      paid,
-                      totalBeforeTax: totals.totalBeforeTax,
-                      taxTotal: totals.taxTotal,
-                      total: totals.total,
-                      createdAt: new Date(),
-                    },
-                    items: items.map((item) => ({
-                      ...item,
-                      documentId,
-                      id: crypto.randomUUID(),
-                    })),
-                    payments,
-                  });
-                  
+
+                  if (totals.paymentsTotal > totals.total) {
+                    toast.error("Payments exceed document total");
+                    return;
+                  }
+
+                  const documentId = document?.id ?? crypto.randomUUID();
+
+                const payload = {
+                  id: documentId, // <-- top-level id
+                  document: {
+                    number: title,
+                    externalNumber,
+                    customerId,
+                    date: date ?? new Date(),
+                    dueDate: dueDate ?? null,
+                    stockDate,
+                    paid,
+                    totalBeforeTax: totals.totalBeforeTax,
+                    taxTotal: totals.taxTotal,
+                    total: totals.total,
+                  },
+                  items: items.map((item) => ({
+                    ...item,
+                    taxes: item.taxes ?? [],
+                    documentId,
+                    id: item.id ?? crypto.randomUUID(),
+                  })),
+                  payments, // optional
+                };
+
+               if (isEdit) {
+                 await updateDocument.mutateAsync(payload);
+                 toast.success("Document updated");
+               } else {
+                 await createDocument.mutateAsync({
+                   document: {
+                     id: documentId,
+                     number: title,
+                     externalNumber,
+                     customerId,
+                     date: date ?? new Date(),
+                     dueDate: dueDate ?? null,
+                     stockDate,
+                     paid,
+                     totalBeforeTax: totals.totalBeforeTax,
+                     taxTotal: totals.taxTotal,
+                     total: totals.total,
+                     createdAt: new Date(),
+                   },
+                   items: items.map((item) => ({
+                     ...item,
+                     taxes: item.taxes ?? [],
+                     documentId,
+                     id: item.id ?? crypto.randomUUID(),
+                   })),
+                   payments,
+                 });
+               }
                 } catch (error) {
-                  toast.error("Error creating document")
+                  toast.error("Error saving document");
                 }
               }}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save
+              {isEdit ? "Update" : "Save"}
             </Button>
           </div>
         </div>
