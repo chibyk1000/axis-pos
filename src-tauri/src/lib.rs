@@ -2,7 +2,7 @@
 mod commands;
 use crate::commands::greet;
 use tauri_plugin_sql::{Migration, MigrationKind};
-use tauri_plugin_printer_v2::init;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![Migration {
@@ -15,7 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-            .plugin(init())
+  
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:file:data.db", migrations)

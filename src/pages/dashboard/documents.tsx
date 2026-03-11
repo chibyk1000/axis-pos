@@ -67,34 +67,10 @@ const loadPrinters = async () => {
 };
   
 const handlePrint = async () => {
-  if (!selectedSavedDocument?.pdfPath) {
-    alert("No PDF available to print");
-    return;
-  }
-
-  try {
-    const printers = await getPrinters();
-
-    if (!printers.length) {
-      alert("No printers found");
-      return;
-    }
-
-    const printer = printers[0];
-
-    await printPdf({
-      id: printer.name,
-      printer,
-      path: selectedSavedDocument.pdfPath,
-      remove_after_print: false,
-      print_settings: JSON.stringify({
-        silent: false,
-        copies: 1,
-      }),
-    });
-  } catch (err) {
-    console.error("Print failed:", err);
-  }
+  if (!selectedSavedDocument) return alert("Select a document first");
+  // If you fix the Rust printer crate, call it here via invoke('print_document')
+  // Otherwise, we trigger the system print dialog
+  window.print();
 };
 
   const handlePreview = () => {
