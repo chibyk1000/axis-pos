@@ -53,10 +53,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            # macOS builds
+            
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/dmg/*.app
-            # Windows builds
+            
             src-tauri/target/release/bundle/windows/*.exe
             src-tauri/target/release/bundle/nsis/*.exe
         env:
