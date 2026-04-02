@@ -22,6 +22,39 @@ CREATE TABLE `comments` (
 	FOREIGN KEY (`parent_id`) REFERENCES `comments`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `companies` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`tax_number` text,
+	`street_name` text,
+	`building_number` text,
+	`additional_street_name` text,
+	`plot_identification` text,
+	`district` text,
+	`postal_code` text,
+	`city` text,
+	`state_province` text,
+	`country_code` text,
+	`phone` text,
+	`email` text,
+	`bank_account_number` text,
+	`bank_details` text,
+	`logo_path` text,
+	`is_default` integer DEFAULT false NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer
+);
+--> statement-breakpoint
+CREATE TABLE `void_reasons` (
+	`id` text PRIMARY KEY NOT NULL,
+	`company_id` text NOT NULL,
+	`reason` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`enabled` integer DEFAULT true NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `countries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -180,18 +213,131 @@ CREATE TABLE `taxes` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `taxes_code_unique` ON `taxes` (`code`);--> statement-breakpoint
 CREATE TABLE `users` (
+	`id` integer PRIMARY KEY NOT NULL,
+	`name` text,
+	`email` text,
+	`password_hash` text,
+	`access_level` integer DEFAULT 1 NOT NULL,
 	`age` integer DEFAULT 18,
 	`city` text DEFAULT 'NULL',
 	`created_at` text DEFAULT 'CURRENT_TIMESTAMP',
-	`deleted_at` text DEFAULT 'NULL',
-	`email` text,
-	`id` integer PRIMARY KEY NOT NULL,
-	`name` text,
-	`updated_at` text DEFAULT 'CURRENT_TIMESTAMP'
+	`updated_at` text DEFAULT 'CURRENT_TIMESTAMP',
+	`deleted_at` text DEFAULT 'NULL'
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_id_unique` ON `users` (`id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);--> statement-breakpoint
+CREATE TABLE `stock_entries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`product_id` text NOT NULL,
+	`type` text DEFAULT 'in' NOT NULL,
+	`quantity` real NOT NULL,
+	`note` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `promotion_bogo` (
+	`id` text PRIMARY KEY NOT NULL,
+	`promotion_id` text NOT NULL,
+	`buy_product_id` text NOT NULL,
+	`buy_quantity` integer DEFAULT 1 NOT NULL,
+	`get_product_id` text NOT NULL,
+	`get_quantity` integer DEFAULT 1 NOT NULL,
+	FOREIGN KEY (`promotion_id`) REFERENCES `promotions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`buy_product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`get_product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `promotion_customers` (
+	`promotion_id` text NOT NULL,
+	`customer_id` text NOT NULL,
+	FOREIGN KEY (`promotion_id`) REFERENCES `promotions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `promotion_nodes` (
+	`promotion_id` text NOT NULL,
+	`node_id` text NOT NULL,
+	FOREIGN KEY (`promotion_id`) REFERENCES `promotions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`node_id`) REFERENCES `nodes`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `promotion_products` (
+	`promotion_id` text NOT NULL,
+	`product_id` text NOT NULL,
+	FOREIGN KEY (`promotion_id`) REFERENCES `promotions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `promotions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`type` text NOT NULL,
+	`scope` text NOT NULL,
+	`value` real,
+	`min_order_value` real,
+	`min_quantity` integer,
+	`max_uses` integer,
+	`used_count` integer DEFAULT 0 NOT NULL,
+	`starts_at` integer,
+	`ends_at` integer,
+	`enabled` integer DEFAULT true NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer
+);
+--> statement-breakpoint
+CREATE TABLE `cash_entries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` integer,
+	`type` text NOT NULL,
+	`amount` real NOT NULL,
+	`description` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `credit_payments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`customer_id` text NOT NULL,
+	`payment_type_id` text NOT NULL,
+	`amount` real NOT NULL,
+	`note` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `customer_balances` (
+	`id` text PRIMARY KEY NOT NULL,
+	`customer_id` text NOT NULL,
+	`balance` real DEFAULT 0 NOT NULL,
+	`updated_at` integer
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `customer_balances_customer_id_unique` ON `customer_balances` (`customer_id`);--> statement-breakpoint
+CREATE TABLE `open_sale_items` (
+	`id` text PRIMARY KEY NOT NULL,
+	`open_sale_id` text NOT NULL,
+	`product_id` text NOT NULL,
+	`name` text NOT NULL,
+	`unit` text,
+	`quantity` real DEFAULT 1 NOT NULL,
+	`unit_price` real NOT NULL,
+	`discount` real DEFAULT 0,
+	`total` real NOT NULL,
+	FOREIGN KEY (`open_sale_id`) REFERENCES `open_sales`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `open_sales` (
+	`id` text PRIMARY KEY NOT NULL,
+	`user_id` integer,
+	`name` text,
+	`customer_id` text,
+	`note` text,
+	`total` real DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer
+);
+--> statement-breakpoint
 CREATE TABLE `payment_types` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,

@@ -29,6 +29,7 @@ import ViewOpenSales from "./pages/open-sales";
 import { ensureRootNode } from "./hooks/controllers/nodes";
 import { useEffect, useRef } from "react";
 import { seedCountriesIfEmpty } from "./hooks/controllers/countries";
+import PaymentScreen from "./pages/payment";
 
 function App() {
   const initialized = useRef(false);
@@ -55,6 +56,7 @@ function App() {
         <Route path="/cash-in-out" element={<CashInOut />} />
         <Route path="/credit-payments" element={<CreditPaymentsModal />} />
         <Route path="/end-of-day" element={<EndOfDayModal />} />
+        <Route path="/payment" element={<PaymentScreen />} />
         <Route path="/open-sales" element={<ViewOpenSales />} />
         <Route path="/sales-history" element={<SalesHistory />} />
         <Route path="/import" element={<ImportModal />} />

@@ -15,7 +15,7 @@ import {
   Tag,
   HelpCircle,
   Search,
-} from "lucide-react";
+} from "lucide-react";  
 import { useState } from "react";
 
 export function PriceListsView() {

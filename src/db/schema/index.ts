@@ -8,3 +8,8 @@ export * from "./taxes"
 export * from "./users"
 export * from "./documentItems"
 export * from "./documents"
+export * from "./stockEntries"
+export * from "./promotions";
+export * from "./company";
+export * from "./users"
+export * from "./pos"
