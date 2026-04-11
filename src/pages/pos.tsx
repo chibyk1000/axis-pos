@@ -30,11 +30,13 @@ import Select from "react-select";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { SidebarDrawer } from "@/components/sidebar-drawer";
 import { ResponsiveIcon } from "@/components/responsive-icon";
-import { useProducts } from "@/hooks/controllers/products";
+
 import { useCustomers } from "@/hooks/controllers/customers";
 import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
 import { useNavigate } from "react-router";
+import { getProductPrices, useAllPrices,  } from "@/hooks/controllers/priceLists";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1599,7 +1601,7 @@ export default function AroniumLite() {
   const router = useNavigate();
 
   // Remote data
-  const productsQuery = useProducts();
+  // const productsQuery = useProducts();
   const customersQuery = useCustomers();
   const paymentTypesQuery = usePaymentTypes();
   const documentsQuery = useDocuments();
@@ -1611,7 +1613,10 @@ export default function AroniumLite() {
   const [cartDiscount, setCartDiscount] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [dineIn, setDineIn] = useState(false);
+ 
   const [orderNote, setOrderNote] = useState("");
+ 
+  
 
   // UI
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1621,8 +1626,10 @@ export default function AroniumLite() {
 
   // Qty calc state
   const [calcProduct, setCalcProduct] = useState<CartItem | null>(null);
+  const priceList = useAllPrices();
+  console.log(priceList.data)
   const [calcInitialQty, setCalcInitialQty] = useState(1);
-
+// const { data: prices } = useFlatProductsWithPrices();
   // Derived
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
 
@@ -1643,17 +1650,18 @@ export default function AroniumLite() {
 
   const productOptions = useMemo(
     () =>
-      (productsQuery.data ?? []).map((p) => ({
-        value: p.id,
-        label: `${p.title} — ₦${p.cost}`,
-        product: p,
+      (priceList.data ?? []).map((p) => ({
+        value: p.product.id,
+        label: `${p.product.title} — ₦${p.salePrice} - (${p.wholeSale? "Wholesale" : "Retail"})`,
+        product: p.product,
       })),
-    [productsQuery.data],
+    [priceList.data],
   );
 
   // ── Cart helpers ──
 
   const openQtyModal = (product: CartItem, currentQty = 1) => {
+  console.log("Opening qty modal for product", product, "with currentQty", currentQty)
     setCalcProduct(product);
     setCalcInitialQty(currentQty);
     setModal("qty");
@@ -1811,7 +1819,7 @@ export default function AroniumLite() {
       taxRate: i.taxRate ?? 0,
     }));
     setItems(refundItems);
-    if (doc.customer) setSelectedCustomer(doc.customer);
+    // if (doc.customer) setSelectedCustomer(doc.customer); // to be fixed
   };
 
   // ── Transfer ──
@@ -1821,6 +1829,7 @@ export default function AroniumLite() {
     keptItems: CartItem[],
     targetDocId: string | null,
   ) => {
+    console.log("Transferring items", keptItems, "to doc", targetDocId);
     // Update cart to only contain items NOT transferred
     setItems(keptItems);
     if (keptItems.length === 0) {
@@ -1933,7 +1942,7 @@ export default function AroniumLite() {
             <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
               A
             </div>
-            <span className="text-sm font-medium">Aronium Lite</span>
+            <span className="text-sm font-medium">Axis Lite</span>
           </div>
 
           <div className="flex-1 min-w-48 max-w-md">
@@ -1942,15 +1951,27 @@ export default function AroniumLite() {
               placeholder="Search product…"
               isSearchable
               value={null}
-              onChange={(option: any) => {
+              onChange={async (option: any) => {
                 if (!option) return;
                 const p = option.product;
+
+                // 1. Fetch all prices for this product
+                const prices = await getProductPrices(p.id);
+
+                // 2. Find the default price entry
+                const defaultPrice =
+                  prices.find((pr) => pr.isDefault) || prices[0];
+
                 const existing = items.find((i) => i.id === p.id);
+
                 openQtyModal(
                   existing ?? {
                     id: p.id,
                     title: p.title,
-                    cost: p.cost,
+                    // Use the salePrice from the default price list entry
+                    // Fallback to p.cost if no price list entry exists
+                    cost: defaultPrice ? defaultPrice.salePrice : (p.cost ?? 0),
+                 
                     unit: p.unit ?? "",
                     qty: 1,
                     discount: 0,
@@ -2181,39 +2202,10 @@ export default function AroniumLite() {
               </div>
 
               {/* Secondary */}
-              <div className="grid grid-cols-4 gap-2">
-                <button
-                  onClick={() => setShowCashDrawer(true)}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center min-h-18 gap-1 transition-colors"
-                >
-                  <ResponsiveIcon
-                    icon={ImDrawer}
-                    className="size-[clamp(20px,3vw,28px)]"
-                  />
-                  <span className="text-[10px] text-center leading-tight px-1">
-                    Cash drawer
-                  </span>
-                </button>
-                <button
-                  onClick={() => setDineIn((v) => !v)}
-                  className={`border rounded flex flex-col items-center justify-center min-h-18 gap-1 transition-colors ${
-                    dineIn
-                      ? "bg-cyan-950 border-cyan-700 hover:bg-cyan-900 text-cyan-300"
-                      : "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300"
-                  }`}
-                >
-                  <ResponsiveIcon
-                    icon={Accessibility}
-                    className="size-[clamp(20px,3vw,28px)]"
-                  />
-                  <span className="text-[10px] text-center leading-tight px-1">
-                    {dineIn ? "Dine-in" : "Take-away"}
-                  </span>
-                </button>
-              </div>
+       
 
               {/* Middle 4 */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2 mt-auto">
                 <button
                   onClick={() => setModal("discount")}
                   className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-24 relative transition-colors"
@@ -2284,13 +2276,13 @@ export default function AroniumLite() {
 
               {/* Lock / Transfer / Void / More */}
               <div className="grid grid-cols-4 gap-2">
-                <button
+                {/* <button
                   onClick={() => setModal("lock")}
                   className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-20 transition-colors"
                 >
                   <ResponsiveIcon icon={Lock} className="size-7" />
                   <div className="text-xs">Lock</div>
-                </button>
+                </button> */}
                 <button
                   onClick={() => items.length > 0 && setModal("transfer")}
                   disabled={items.length === 0}

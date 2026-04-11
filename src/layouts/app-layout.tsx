@@ -23,7 +23,7 @@ const Applayout = () => {
   return (
     <SidebarProvider className="bg-[#333] w-screen">
       <AppSidebar />
-      <SidebarInset className="bg-slate-900 ">
+      <SidebarInset className="bg-slate-900 flex-1">
         <header className="flex h-16 shrink-0 pr-4  items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
    
           <div className="flex items-center gap-2 px-4">

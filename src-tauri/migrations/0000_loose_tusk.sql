@@ -182,15 +182,6 @@ CREATE TABLE `products` (
 	`service` integer DEFAULT false NOT NULL,
 	`default_quantity` integer DEFAULT false NOT NULL,
 	`age_restriction` integer,
-	`cost` real DEFAULT 0 NOT NULL,
-	`markup` real DEFAULT 0 NOT NULL,
-	`sale_price` real DEFAULT 0 NOT NULL,
-	`price_after_tax` integer DEFAULT false NOT NULL,
-	`price_change_allowed` integer DEFAULT false NOT NULL,
-	`reorder_point` real,
-	`preferred_quantity` real,
-	`low_stock_warning` integer DEFAULT false NOT NULL,
-	`low_stock_warning_quantity` real DEFAULT 0,
 	`description` text,
 	`image` text,
 	`color` text,
@@ -233,8 +224,14 @@ CREATE TABLE `stock_entries` (
 	`type` text DEFAULT 'in' NOT NULL,
 	`quantity` real NOT NULL,
 	`note` text,
+	`supplier_id` text,
+	`reorder_point` real,
+	`preferred_quantity` real,
+	`low_stock_warning` integer DEFAULT false NOT NULL,
+	`low_stock_warning_quantity` real DEFAULT 0,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`supplier_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
 CREATE TABLE `promotion_bogo` (
@@ -336,6 +333,22 @@ CREATE TABLE `open_sales` (
 	`total` real DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
 	`updated_at` integer
+);
+--> statement-breakpoint
+CREATE TABLE `product_prices` (
+	`id` text PRIMARY KEY NOT NULL,
+	`product_id` text NOT NULL,
+	`wholesale` integer DEFAULT false NOT NULL,
+	`cost` real DEFAULT 0 NOT NULL,
+	`markup` real DEFAULT 0 NOT NULL,
+	`sale_price` real DEFAULT 0 NOT NULL,
+	`price_after_tax` integer DEFAULT false NOT NULL,
+	`price_change_allowed` integer DEFAULT false NOT NULL,
+	`is_default` integer DEFAULT false NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	`updated_at` integer,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `payment_types` (

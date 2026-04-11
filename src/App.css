@@ -152,3 +152,24 @@
 .my-custom-toast .Toastify__progress-bar {
   background: #3b82f6; /* same accent as border */
 }
+
+/* scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* track */
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-900 */
+}
+
+/* thumb */
+::-webkit-scrollbar-thumb {
+  background: #475569; /* slate-600 */
+  border-radius: 8px;
+}
+
+/* hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b; /* slate-500 */
+}

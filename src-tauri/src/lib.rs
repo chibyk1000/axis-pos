@@ -8,7 +8,7 @@ pub fn run() {
     let migrations = vec![Migration {
         version: 1,
         description: "create_initial_tables",
-        sql: include_str!("../migrations/0000_wet_blizzard.sql"),
+        sql: include_str!("../migrations/0000_loose_tusk.sql"),
         kind: MigrationKind::Up,
     }];
     tauri::Builder::default()

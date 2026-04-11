@@ -5,7 +5,7 @@ import {
   Settings,
   Maximize2,
   Power,
-  MessageCircle,
+
   CheckCheck,
   Layers,
   Notebook,
@@ -105,12 +105,7 @@ const navigate = useNavigate()
           </div>
 
           {/* Feedback */}
-          <div className="border-b border-slate-700">
-            <div className="px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-slate-700/60 cursor-pointer text-sm">
-              <MessageCircle className="w-5 h-5" />
-              <span>Feedback</span>
-            </div>
-          </div>
+       
         </div>
 
         {/* Footer */}

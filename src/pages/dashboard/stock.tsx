@@ -1,5 +1,3 @@
-
-
 import {
   X,
   ChevronLeftIcon,
@@ -22,6 +20,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { nanoid } from "nanoid";
 
 // PDF
 import {
@@ -48,6 +47,7 @@ import {
   useAllStockHistory,
   useAddStockEntry,
 } from "@/hooks/controllers/stocks";
+import { PriceLabel, useProductPricesByLabel } from "@/hooks/controllers/priceLists";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,16 +114,22 @@ const pdfStyles = StyleSheet.create({
   fvalue: { fontWeight: "bold", fontSize: 10 },
 });
 
+// ─── PDF Doc ──────────────────────────────────────────────────────────────────
+
+type EnrichedProduct = any & { cost: number; salePrice: number };
+
 function StockPdfDoc({
   products,
   stockLevels,
+  label,
   generatedAt,
 }: {
-  products: any[];
+  products: EnrichedProduct[];
   stockLevels: Record<string, number>;
+  label: string;
   generatedAt: string;
 }) {
-  const N = "\u20A6"; // ₦
+  const N = "\u20A6";
   const totalCost = products.reduce(
     (s, p) => s + p.cost * Math.max(0, stockLevels[p.id] ?? 0),
     0,
@@ -136,9 +142,8 @@ function StockPdfDoc({
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={pdfStyles.page}>
-        <Text style={pdfStyles.title}>Stock Report</Text>
+        <Text style={pdfStyles.title}>Stock Report — {label}</Text>
         <Text style={pdfStyles.subtitle}>Generated: {generatedAt}</Text>
-
         <View style={pdfStyles.thead}>
           {[
             { l: "Code", s: pdfStyles.c0 },
@@ -154,7 +159,6 @@ function StockPdfDoc({
             </Text>
           ))}
         </View>
-
         {products.map((p) => {
           const qty = stockLevels[p.id] ?? 0;
           return (
@@ -178,7 +182,6 @@ function StockPdfDoc({
             </View>
           );
         })}
-
         <View style={pdfStyles.footer}>
           <View style={pdfStyles.fblock}>
             <Text style={pdfStyles.flabel}>Stock value (cost)</Text>
@@ -327,7 +330,6 @@ function StockHistoryDialog({
             <X className="w-4 h-4" />
           </button>
         </div>
-
         <div className="px-5 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -348,7 +350,6 @@ function StockHistoryDialog({
             )}
           </div>
         </div>
-
         <div className="flex-1 overflow-auto">
           {isLoading ? (
             <div className="flex items-center justify-center h-full text-slate-500 gap-2 text-sm">
@@ -413,7 +414,6 @@ function StockHistoryDialog({
             </table>
           )}
         </div>
-
         <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
           <button
             onClick={onClose}
@@ -653,7 +653,6 @@ function QuickInventoryDialog({
               {v}
             </button>
           ))}
-          {/* confirm spans 2 rows */}
           <button
             onClick={confirm}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors flex items-center justify-center"
@@ -694,36 +693,34 @@ function ProductPickerDialog({
   onSelect,
   onClose,
 }: {
-  products: any[];
+  products: EnrichedProduct[];
   stockLevels: Record<string, number>;
-  onSelect: (p: any) => void;
+  onSelect: (p: EnrichedProduct) => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = products.filter(
-    (p) =>
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.code.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q),
+    );
+  }, [products, search]);
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span className="font-semibold text-slate-100 text-sm">
-              Quick Inventory — Select Product
-            </span>
-          </div>
+          <span className="font-semibold text-slate-100">Select product</span>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 transition-colors"
+            className="p-1.5 rounded hover:bg-slate-700 text-slate-400"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-4 py-3 border-b border-slate-800">
+        <div className="px-5 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <input
@@ -773,7 +770,56 @@ function ProductPickerDialog({
   );
 }
 
+// ─── Small helpers ────────────────────────────────────────────────────────────
+
+function StatusBadge({
+  color,
+  label,
+  count,
+}: {
+  color: string;
+  label: string;
+  count: number;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-white font-bold shrink-0`}
+      >
+        {count}
+      </span>
+      <span className="text-xs text-slate-300">{label}</span>
+    </div>
+  );
+}
+
+function SummaryBlock({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: [string, string][];
+}) {
+  return (
+    <div>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+        {title}
+      </div>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-8">
+          <span className="text-xs text-slate-400">{label}</span>
+          <span className="text-xs font-medium text-slate-200 font-mono tabular-nums">
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
+
+const PRICE_LABELS = ["Retail", "Wholesale",];
 
 export default function StockView() {
   const navigate = useNavigate();
@@ -783,19 +829,42 @@ export default function StockView() {
   const stockHistoryQuery = useAllStockHistory();
   const addStockEntry = useAddStockEntry();
 
+  // Price label selector — determines which price list's cost/salePrice to show
+  const [selectedLabel, setSelectedLabel] = useState<PriceLabel>("Retail");
+  const { data: labeledPrices = [] } = useProductPricesByLabel(selectedLabel);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [quickInventoryProduct, setQuickInventoryProduct] = useState<
-    any | null
-  >(null);
+  const [quickInventoryProduct, setQuickInventoryProduct] =
+    useState<EnrichedProduct | null>(null);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [savingPdf, setSavingPdf] = useState(false);
   const [savingExcel, setSavingExcel] = useState(false);
 
-  const allProducts = productsQuery.data ?? [];
+  const rawProducts = productsQuery.data ?? [];
   const rootNodes = (nodesQuery.data ?? []) as TreeNode[];
   const stockLevels = stockLevelsQuery.data ?? {};
+
+  // Build productId → { cost, salePrice } from the selected label
+  const priceMap = useMemo(() => {
+    const map: Record<string, { cost: number; salePrice: number }> = {};
+    for (const pp of labeledPrices) {
+      map[pp.productId] = { cost: pp.cost, salePrice: pp.salePrice };
+    }
+    return map;
+  }, [labeledPrices]);
+
+  // Merge pricing into products
+  const allProducts: EnrichedProduct[] = useMemo(
+    () =>
+      rawProducts.map((p) => ({
+        ...p,
+        cost: priceMap[p.id]?.cost ?? 0,
+        salePrice: priceMap[p.id]?.salePrice ?? 0,
+      })),
+    [rawProducts, priceMap],
+  );
 
   const nodeMap = useMemo(() => {
     const map = new Map<string, TreeNode>();
@@ -826,7 +895,7 @@ export default function StockView() {
     );
   }, [filteredByNode, searchQuery]);
 
-  const getStock = (p: any) => stockLevels[p.id] ?? 0;
+  const getStock = (p: EnrichedProduct) => stockLevels[p.id] ?? 0;
 
   const negativeCount = visibleProducts.filter((p) => getStock(p) < 0).length;
   const nonZeroCount = visibleProducts.filter((p) => getStock(p) !== 0).length;
@@ -854,7 +923,7 @@ export default function StockView() {
     nodesQuery.isLoading ||
     stockLevelsQuery.isLoading;
 
-  // ── Actions ──
+  // ── Actions ──────────────────────────────────────────────────────────────
 
   const handleSavePdf = async () => {
     if (savingPdf) return;
@@ -869,6 +938,7 @@ export default function StockView() {
         <StockPdfDoc
           products={visibleProducts}
           stockLevels={stockLevels}
+          label={selectedLabel}
           generatedAt={new Date().toLocaleString()}
         />,
       ).toBlob();
@@ -904,6 +974,7 @@ export default function StockView() {
           "Sale Price": p.salePrice,
           "Stock Value (Sale)": parseFloat((qty * p.salePrice).toFixed(2)),
           Active: p.active ? "Yes" : "No",
+          "Price Label": selectedLabel,
         };
       });
 
@@ -918,10 +989,12 @@ export default function StockView() {
         { wch: 12 },
         { wch: 18 },
         { wch: 8 },
+        { wch: 14 },
       ];
 
       const summaryWs = XLSX.utils.json_to_sheet([
         { Metric: "Total products", Value: visibleProducts.length },
+        { Metric: "Price label", Value: selectedLabel },
         { Metric: "Stock value (cost)", Value: totalCostValue.toFixed(2) },
         { Metric: "Stock value (sale)", Value: totalSaleValue.toFixed(2) },
         { Metric: "Negative stock items", Value: negativeCount },
@@ -961,7 +1034,7 @@ export default function StockView() {
       })
       .join("");
 
-    const html = `<!DOCTYPE html><html><head><title>Stock Report</title>
+    const html = `<!DOCTYPE html><html><head><title>Stock Report — ${selectedLabel}</title>
 <style>
   body{font-family:sans-serif;font-size:11px;color:#1e293b;margin:24px}
   h1{font-size:18px;margin-bottom:2px}
@@ -974,7 +1047,7 @@ export default function StockView() {
   .footer{margin-top:16px;display:flex;gap:32px;justify-content:flex-end;border-top:1px solid #e2e8f0;padding-top:12px}
   .fb{text-align:right}.fl{color:#64748b;font-size:9px}.fv{font-weight:bold;font-size:13px}
 </style></head><body>
-<h1>Stock Report</h1>
+<h1>Stock Report — ${selectedLabel}</h1>
 <div class="sub">Generated: ${new Date().toLocaleString()}</div>
 <table>
   <thead><tr><th>Code</th><th>Name</th><th>Quantity</th><th>Unit</th><th>Cost price</th><th>Stock value</th><th>Sale price</th></tr></thead>
@@ -1002,6 +1075,7 @@ export default function StockView() {
     if (!quickInventoryProduct) return;
     const finalQty = type === "out" ? -Math.abs(qty) : Math.abs(qty);
     await addStockEntry.mutateAsync({
+      id: nanoid(),
       productId: quickInventoryProduct.id,
       type,
       quantity: finalQty,
@@ -1013,6 +1087,8 @@ export default function StockView() {
 
   const tbtn =
     "flex items-center gap-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 px-2.5 py-1.5 rounded transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-slate-200 h-full overflow-hidden">
@@ -1057,7 +1133,22 @@ export default function StockView() {
             <span className="text-slate-400">Management •</span> Stock
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* Price label selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500">Price list:</span>
+            <select
+              value={selectedLabel}
+              onChange={(e:any) => setSelectedLabel(e.target.value)}
+              className="bg-slate-700 border border-slate-600 text-slate-100 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500"
+            >
+              {PRICE_LABELS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={() => {
               productsQuery.refetch();
@@ -1333,53 +1424,6 @@ export default function StockView() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Small helpers ────────────────────────────────────────────────────────────
-
-function StatusBadge({
-  color,
-  label,
-  count,
-}: {
-  color: string;
-  label: string;
-  count: number;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-white font-bold shrink-0`}
-      >
-        {count}
-      </span>
-      <span className="text-xs text-slate-300">{label}</span>
-    </div>
-  );
-}
-
-function SummaryBlock({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: [string, string][];
-}) {
-  return (
-    <div>
-      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
-        {title}
-      </div>
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between gap-8">
-          <span className="text-xs text-slate-400">{label}</span>
-          <span className="text-xs font-medium text-slate-200 font-mono tabular-nums">
-            {value}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }

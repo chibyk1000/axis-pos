@@ -47,15 +47,22 @@ export default function PaymentTypesClient() {
     refetch();
   };
 
+  // Open drawer for new entry — clear selection first
+  const handleNew = () => {
+    setActiveRow(null);
+    setDrawerOpen(true);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-slate-900 text-slate-100">
-      {/* Toolbar */}
       <PaymentTypeDrawer
         open={drawerOpen}
         setOpen={setDrawerOpen}
         initialData={selected}
         onSave={handleSave}
       />
+
+      {/* Toolbar */}
       <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-900">
         <button
           onClick={() => refetch()}
@@ -74,9 +81,7 @@ export default function PaymentTypesClient() {
         </button>
 
         <button
-          onClick={() => {
-            setDrawerOpen(true);
-          }}
+          onClick={handleNew}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
             text-slate-400
@@ -98,6 +103,7 @@ export default function PaymentTypesClient() {
             hover:bg-slate-800 hover:text-slate-100
             active:bg-slate-700
             transition-colors
+            disabled:opacity-40 disabled:cursor-not-allowed
           "
         >
           <Pencil className="w-5 h-5" />
@@ -113,6 +119,7 @@ export default function PaymentTypesClient() {
             hover:bg-slate-800 hover:text-red-400
             active:bg-slate-700
             transition-colors
+            disabled:opacity-40 disabled:cursor-not-allowed
           "
         >
           <Trash2 className="w-5 h-5" />
@@ -163,57 +170,38 @@ export default function PaymentTypesClient() {
             </thead>
 
             <tbody>
-              {paymentTypes.map((type, index, arr) => (
-                <tr
-                  key={type.id}
-                  onClick={() => setActiveRow(type.id)}
-                  className={`cursor-pointer ${activeRow === type.id ? "bg-slate-700 " : ""}  ${index === arr.length - 1 ? "" : "border-b border-slate-700"}  `}
-                >
-
-                  <td className=" py-2">{type.name}</td>
-                  <td className=" py-2">{type.position}</td>
-                  <td className=" py-2">{type.code || "-"}</td>
-                  {[
-                    type.enabled,
-                    type.quickPayment,
-                    type.customerRequired,
-                    type.changeAllowed,
-                    type.markTransactionAsPaid,
-                    type.printReceipt,
-                  ].map((v, i) => (
-                    <td key={i} className="text-center py-2" >
-                      {v ? <Check className="w-4 h-4 mx-auto " />: <X className="w-4 h-4 mx-auto text--primary" />}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-
-            <tbody>
-              {/* {paymentTypes.map((type, index) => {
-                return (
-                  <tr
-                    key={index}
-                    onClick={() => setActiveRow(type.id)}
-                    className={`
-                      border-b border-slate-800 cursor-pointer transition-colors
-                      hover:bg-slate-800
-                      ${isActive ? "bg-slate-700" : ""}
-                    `}
+              {paymentTypes.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-4 py-8 text-center text-xs text-slate-500"
                   >
-                   
-                    <td className="relative px-4 py-3 text-sm">
-                      {isActive && (
-                        <span className="absolute left-0 top-0 h-full w-1 bg-primary" />
+                    No payment types yet. Click "New payment type" to add one.
+                  </td>
+                </tr>
+              ) : (
+                paymentTypes.map((type, index, arr) => (
+                  <tr
+                    key={type.id}
+                    onClick={() =>
+                      setActiveRow(activeRow === type.id ? null : type.id)
+                    }
+                    className={`cursor-pointer transition-colors
+                      ${activeRow === type.id ? "bg-slate-700" : "hover:bg-slate-800/50"}
+                      ${index === arr.length - 1 ? "" : "border-b border-slate-700"}`}
+                  >
+                    <td className="px-4 py-2.5 text-sm">
+                      {activeRow === type.id && (
+                        <span className="inline-block w-1 h-3 bg-sky-500 rounded mr-2 align-middle" />
                       )}
                       {type.name}
                     </td>
-
-                    <td className="px-4 py-3 text-sm">{type.position}</td>
-                    <td className="px-4 py-3 text-sm text-slate-400">
-                      {type.code || "-"}
+                    <td className="px-4 py-2.5 text-sm tabular-nums">
+                      {type.position}
                     </td>
-
+                    <td className="px-4 py-2.5 text-sm text-slate-400">
+                      {type.code || "—"}
+                    </td>
                     {[
                       type.enabled,
                       type.quickPayment,
@@ -221,16 +209,18 @@ export default function PaymentTypesClient() {
                       type.changeAllowed,
                       type.markTransactionAsPaid,
                       type.printReceipt,
-                    ].map((value, i) => (
-                      <td key={i} className="px-4 py-3 text-center">
-                        {value && (
-                          <Check className="w-5 h-5 text-primary mx-auto" />
+                    ].map((v, i) => (
+                      <td key={i} className="px-4 py-2.5 text-center">
+                        {v ? (
+                          <Check className="w-4 h-4 mx-auto text-emerald-400" />
+                        ) : (
+                          <X className="w-4 h-4 mx-auto text-slate-600" />
                         )}
                       </td>
                     ))}
                   </tr>
-                );
-              })} */}
+                ))
+              )}
             </tbody>
           </table>
         </div>

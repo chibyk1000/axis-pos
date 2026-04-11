@@ -1,15 +1,8 @@
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Separator } from "@/components/ui/separator";
 import {
   HelpCircle,
@@ -103,24 +96,24 @@ type FormState = {
   isDefault: boolean;
 };
 
-const EMPTY_FORM: FormState = {
-  name: "",
-  taxNumber: "",
-  streetName: "",
-  buildingNumber: "",
-  additionalStreetName: "",
-  plotIdentification: "",
-  district: "",
-  postalCode: "",
-  city: "",
-  stateProvince: "",
-  countryCode: "",
-  phone: "",
-  email: "",
-  bankAccountNumber: "",
-  bankDetails: "",
-  isDefault: false,
-};
+// const EMPTY_FORM: FormState = {
+//   name: "",
+//   taxNumber: "",
+//   streetName: "",
+//   buildingNumber: "",
+//   additionalStreetName: "",
+//   plotIdentification: "",
+//   district: "",
+//   postalCode: "",
+//   city: "",
+//   stateProvince: "",
+//   countryCode: "",
+//   phone: "",
+//   email: "",
+//   bankAccountNumber: "",
+//   bankDetails: "",
+//   isDefault: false,
+// };
 
 function companyToForm(c: CompanyWithRelations): FormState {
   return {
@@ -277,7 +270,7 @@ function VoidReasonsTab({ company }: { company: CompanyWithRelations }) {
 function LogoTab({
   company,
   onUpdate,
-  isSaving,
+
 }: {
   company: CompanyWithRelations;
   onUpdate: (data: { logoPath: string | null }) => void;

@@ -86,6 +86,7 @@ const removeTax = (taxId: string) => {
       setSelectedTaxes(editingItem.taxes ?? []);
     } else if (product) { 
       // This part resets the form for a fresh product selection
+      // @ts-ignore
       setPriceBeforeTax(product.salePrice ?? 0);
       setQuantity(1);
       setDiscount(0);

@@ -13,3 +13,4 @@ export * from "./promotions";
 export * from "./company";
 export * from "./users"
 export * from "./pos"
+export * from "./priceLists"
