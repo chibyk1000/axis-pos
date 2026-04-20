@@ -127,20 +127,17 @@ export function useCreatePromotion() {
         ...promoData
       } = payload;
 
-      const [created] = await db
-        .insert(promotions)
-        .values(promoData)
-        .returning();
+      const id = promoData.id ?? crypto.randomUUID();
+      await db.insert(promotions).values({ ...promoData, id });
+      const created = { ...promoData, id } as Promotion;
 
       if (productIds.length) {
-        await db
-          .insert(promotionProducts)
-          .values(
-            productIds.map((productId) => ({
-              promotionId: created.id,
-              productId,
-            })),
-          );
+        await db.insert(promotionProducts).values(
+          productIds.map((productId) => ({
+            promotionId: created.id,
+            productId,
+          })),
+        );
       }
 
       if (nodeIds.length) {
@@ -152,14 +149,12 @@ export function useCreatePromotion() {
       }
 
       if (customerIds.length) {
-        await db
-          .insert(promotionCustomers)
-          .values(
-            customerIds.map((customerId) => ({
-              promotionId: created.id,
-              customerId,
-            })),
-          );
+        await db.insert(promotionCustomers).values(
+          customerIds.map((customerId) => ({
+            promotionId: created.id,
+            customerId,
+          })),
+        );
       }
 
       if (bogo) {
@@ -242,14 +237,12 @@ export function useUpdatePromotion() {
           .delete(promotionCustomers)
           .where(eq(promotionCustomers.promotionId, id));
         if (customerIds.length) {
-          await db
-            .insert(promotionCustomers)
-            .values(
-              customerIds.map((customerId) => ({
-                promotionId: id,
-                customerId,
-              })),
-            );
+          await db.insert(promotionCustomers).values(
+            customerIds.map((customerId) => ({
+              promotionId: id,
+              customerId,
+            })),
+          );
         }
       }
 
@@ -280,11 +273,8 @@ export function useTogglePromotion() {
 
   return useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const [updated] = await db
-        .update(promotions)
-        .set({ enabled })
-        .where(eq(promotions.id, id))
-        .returning();
+      await db.update(promotions).set({ enabled }).where(eq(promotions.id, id));
+      const updated = await fetchPromotionById(id);
       return updated;
     },
     onSuccess: (_, { id }) => {

@@ -1,33 +1,28 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   Archive,
   ArrowLeft,
   AudioWaveform,
   BadgeDollarSign,
-
   BookText,
-
-
   Building2,
   ChartBar,
   CirclePercent,
   Command,
   Contact,
   CreditCard,
-
   GalleryVerticalEnd,
   Gift,
   Globe,
   LayoutDashboard,
- 
   Shield,
-
   Tags,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain } from "@/components/nav-main";
+import { useAuth } from "@/App";
 
 // import { NavUser } from "@/components/nav-user"
 
@@ -37,18 +32,18 @@ import {
   // SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { useNavigate } from "react-router"
-import { Button } from "./ui/button"
-
+} from "@/components/ui/sidebar";
+import { useNavigate } from "react-router";
+import { Button } from "./ui/button";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-const navigate = useNavigate()
+  const navigate = useNavigate();
+  const auth = useAuth();
   // This is sample data.
   const data = {
     user: {
-      name: "shadcn",
-      email: "m@example.com",
+      name: auth.user?.username ?? "—",
+      email: "",
       avatar: "/avatars/shadcn.jpg",
     },
     teams: [
@@ -82,11 +77,11 @@ const navigate = useNavigate()
       },
       {
         title: "Products",
-  
+
         icon: Tags,
         url: "/dashboard/products",
       },
-  
+
       {
         title: "Price lists",
         url: "/dashboard/price-lists",
@@ -112,7 +107,7 @@ const navigate = useNavigate()
         url: "/dashboard/promotions",
         icon: Gift,
       },
-  
+
       {
         title: "Users & Security",
         url: "/dashboard/users-security",
@@ -128,7 +123,7 @@ const navigate = useNavigate()
         url: "/dashboard/countries",
         icon: Globe,
       },
-  
+
       {
         title: "Tax rates",
         url: "/dashboard/tax-rates",
@@ -144,18 +139,21 @@ const navigate = useNavigate()
   return (
     <Sidebar collapsible="icon" {...props} className="bg-black">
       <SidebarHeader className="bg-slate-950">
-        <Button size={"icon"} variant={"secondary"} className="rounded-2xl" onClick={() => {
-          navigate("/")
-        }}>
+        <Button
+          size={"icon"}
+          variant={"secondary"}
+          className="rounded-2xl"
+          onClick={() => {
+            navigate("/");
+          }}
+        >
           <ArrowLeft />
         </Button>
       </SidebarHeader>
       <SidebarContent className="bg-slate-950">
         <NavMain items={data.navMain} />
       </SidebarContent>
-      {/* <SidebarFooter className="bg-transparent">
-        <NavUser user={data.user} />
-      </SidebarFooter> */}
+
       <SidebarRail />
     </Sidebar>
   );

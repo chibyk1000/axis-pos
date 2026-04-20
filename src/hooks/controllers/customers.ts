@@ -7,9 +7,7 @@ import { customers, loyaltyCards, customerDiscounts } from "@/db/schema";
 import type {
   Customer,
   NewCustomer,
-
   NewLoyaltyCard,
-
   NewCustomerDiscount,
 } from "@/db/schema";
 
@@ -34,19 +32,16 @@ export function useCustomers() {
   return useQuery({
     queryKey: customerKeys.list(),
     queryFn: async () => {
-      
-   const res =    await  db.query.customers.findMany({
-          orderBy: (c) => c.createdAt,
-          with: {
-            loyaltyCards: true,
-            discounts: true,
-          },
-   })
-      
-     
-      return res
-      
-    }
+      const res = await db.query.customers.findMany({
+        orderBy: (c) => c.createdAt,
+        with: {
+          loyaltyCards: true,
+          discounts: true,
+        },
+      });
+
+      return res;
+    },
   });
 }
 
@@ -76,13 +71,12 @@ export function useCustomerLoyaltyCards(customerId: string) {
     queryKey: customerKeys.loyaltyCards(customerId),
     enabled: !!customerId,
     queryFn: async () => {
-      
-   const res =   await db.query.loyaltyCards.findMany({
+      const res = await db.query.loyaltyCards.findMany({
         where: eq(loyaltyCards.customerId, customerId),
         orderBy: (l) => l.createdAt,
-   })
-      return res
-    }
+      });
+      return res;
+    },
   });
 }
 
@@ -96,7 +90,7 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (data: NewCustomer) => {
-      const created = await db.insert(customers).values(data)
+      const created = await db.insert(customers).values(data);
       return created;
     },
     onSuccess: () => {
@@ -145,7 +139,6 @@ export function useUpdateCustomer() {
   });
 }
 
-
 /** Delete customer */
 export function useDeleteCustomer() {
   const qc = useQueryClient();
@@ -185,9 +178,8 @@ export function useAddLoyaltyCard(customerId: string) {
 
   return useMutation({
     mutationFn: async (data: NewLoyaltyCard) => {
-      const [created] = await db.insert(loyaltyCards).values(data).returning();
-
-      return created;
+      await db.insert(loyaltyCards).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({
@@ -223,12 +215,8 @@ export function useAddCustomerDiscount(customerId: string) {
 
   return useMutation({
     mutationFn: async (data: NewCustomerDiscount) => {
-      const [created] = await db
-        .insert(customerDiscounts)
-        .values(data)
-        .returning();
-
-      return created;
+      await db.insert(customerDiscounts).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: customerKeys.byId(customerId) });

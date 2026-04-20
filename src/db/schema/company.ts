@@ -1,5 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { relations, InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { users } from "./users";
+import { products } from "./products";
 
 /* -------------------------------------------------------------------------- */
 /*                               COMPANIES                                    */
@@ -57,6 +59,8 @@ export const voidReasons = sqliteTable("void_reasons", {
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   voidReasons: many(voidReasons),
+  users: many(users),
+  products: many(products),
 }));
 
 export const voidReasonsRelations = relations(voidReasons, ({ one }) => ({

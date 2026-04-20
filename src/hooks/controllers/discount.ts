@@ -18,12 +18,8 @@ export function useAddCustomerDiscount() {
       productId: string;
       discountPercent: number;
     }) => {
-      const [created] = await db
-        .insert(customerDiscounts)
-        .values(data)
-        .returning();
-
-      return created;
+      await db.insert(customerDiscounts).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customers"] });
@@ -37,7 +33,7 @@ export function useDeleteCustomerDiscount() {
   return useMutation({
     mutationFn: async ({
       customerId,
-      productId:_i,
+      productId: _i,
     }: {
       customerId: string;
       productId: string;
@@ -59,7 +55,6 @@ export function useCustomerDiscounts(customerId: string) {
     queryFn: async () => {
       return db.query.customerDiscounts.findMany({
         where: eq(customerDiscounts.customerId, customerId),
-  
       });
     },
   });

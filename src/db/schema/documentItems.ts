@@ -1,5 +1,6 @@
-import {  real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { documents } from "./documents";
+import { products } from "./products";
 
 export const documentItems = sqliteTable("document_items", {
   id: text("id").primaryKey(),
@@ -8,7 +9,9 @@ export const documentItems = sqliteTable("document_items", {
     .notNull()
     .references(() => documents.id, { onDelete: "cascade" }),
 
-  productId: text("product_id").notNull(),
+  productId: text("product_id")
+    .notNull()
+    .references(() => products.id),
 
   name: text("name").notNull(),
   unit: text("unit"),

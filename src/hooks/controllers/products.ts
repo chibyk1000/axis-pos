@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
 import { eq, inArray } from "drizzle-orm";
 import { products } from "@/db/schema/products";
-import {  productPrices } from "@/db/schema/index";
+import { productPrices } from "@/db/schema/index";
 import type { Product, NewProduct } from "@/db/schema/products";
 
 export { type Product, type NewProduct };
@@ -19,7 +19,6 @@ export const productKeys = {
 /* -------------------------------------------------------------------------- */
 /*                                  QUERIES                                   */
 /* -------------------------------------------------------------------------- */
-
 
 export function useFlatProductsWithPrices() {
   return useQuery({
@@ -139,25 +138,22 @@ export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateProductInput) => {
-      const [created] = await db
-        .insert(products)
-        .values({
-          id: data.id,
-          nodeId: data.nodeId,
-          supplierId: data.supplierId ?? null,
-          title: data.title,
-          code: data.code,
-          unit: data.unit,
-          active: data.active ?? false,
-          service: data.service ?? false,
-          defaultQuantity: data.defaultQuantity ?? false,
-          ageRestriction: data.ageRestriction ?? null,
-          description: data.description ?? null,
-          image: data.image ?? null,
-          color: data.color ?? null,
-        })
-        .returning();
-      return created;
+      await db.insert(products).values({
+        id: data.id,
+        nodeId: data.nodeId,
+        supplierId: data.supplierId ?? null,
+        title: data.title,
+        code: data.code,
+        unit: data.unit,
+        active: data.active ?? false,
+        service: data.service ?? false,
+        defaultQuantity: data.defaultQuantity ?? false,
+        ageRestriction: data.ageRestriction ?? null,
+        description: data.description ?? null,
+        image: data.image ?? null,
+        color: data.color ?? null,
+      });
+      return data as NewProduct;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
@@ -173,11 +169,10 @@ export function useUpdateProduct() {
       id: string;
       data: Partial<CreateProductInput>;
     }) => {
-      const [updated] = await db
-        .update(products)
-        .set(data)
-        .where(eq(products.id, id))
-        .returning();
+      await db.update(products).set(data).where(eq(products.id, id));
+      const updated = await db.query.products.findFirst({
+        where: eq(products.id, id),
+      });
       if (!updated) throw new Error("Product not found");
       return updated;
     },

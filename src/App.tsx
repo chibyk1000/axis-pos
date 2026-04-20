@@ -202,6 +202,8 @@ const PaymentTypes = lazy(() => import("./pages/dashboard/payment-types"));
 const Countries = lazy(() => import("./pages/dashboard/countries"));
 const Mycompany = lazy(() => import("./pages/dashboard/my-company"));
 const TaxRates = lazy(() => import("./pages/dashboard/tax-rates"));
+const UserInfo = lazy(() => import("./pages/dashboard/user-info"));
+const Settings = lazy(() => import("./pages/dashboard/settings"));
 
 const PriceTagsPage = lazy(() => import("./components/products/price-tag"));
 const SortingScreen = lazy(() => import("./components/products/sorting"));
@@ -329,6 +331,8 @@ function App() {
                           path="users-security"
                           element={<UsersSecurity />}
                         />
+                        <Route path="user-info" element={<UserInfo />} />
+                        <Route path="settings" element={<Settings />} />
                         <Route path="payments" element={<PaymentTypes />} />
                         <Route path="countries" element={<Countries />} />
                         <Route path="company" element={<Mycompany />} />

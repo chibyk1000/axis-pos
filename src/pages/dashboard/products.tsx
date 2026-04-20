@@ -51,6 +51,7 @@ import { useAddStockEntry } from "@/hooks/controllers/stocks";
 // Added missing import
 import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
 import type { DrawerPriceEntry } from "@/components/products/add-product-drawer";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                         RESIZABLE COLUMNS                                  */
@@ -265,24 +266,24 @@ export function ProductsView() {
 
   // ── hooks ────────────────────────────────────────────────────────────────
   const deleteNodeMutation = useDeleteNode();
-  const { data: products } = useProduct(selectedId);
+  const { data: products, refetch: refetchProducts } = useProduct(selectedId);
   const { data: roots } = useRootWithoutChildren();
   const createBarcode = useCreateBarcode();
   const deleteProductMut = useDeleteProduct();
   const updateProduct = useUpdateProduct();
   const deleteBarcodes = useDeleteBarcode();
+  const queryClient = useQueryClient();
   const deleteComments = useDeleteComment();
-  const { data: rootGroups = [] } = useRootNodes();
+  const { data: rootGroups = [], refetch: refetchRootGroups } = useRootNodes();
   const createNodeMutation = useCreateNode();
   const updateNodeMutation = useUpdateNode();
   const addProductTaxes = useAddProductTax();
   const deleteProductTaxes = useDeleteProductTax(); // fixed: was useDeleteTax (from taxes.ts)
   const addComments = useAddComment();
   const { mutateAsync: createProduct } = useCreateProduct();
-const addStockEntry = useAddStockEntry();
+  const addStockEntry = useAddStockEntry();
   // price hooks
-const upsertProductPrice = useUpsertProductPrice();
-
+  const upsertProductPrice = useUpsertProductPrice();
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -332,6 +333,9 @@ const upsertProductPrice = useUpsertProductPrice();
     if (!ok) return;
     await deleteNodeMutation.mutateAsync(nodeId);
     if (selectedId === nodeId) setSelectedId("root");
+    refetchRootGroups();
+    refetchProducts();
+    queryClient.invalidateQueries();
   }
 
   async function deleteSelectedProduct(product: Product) {
@@ -343,6 +347,7 @@ const upsertProductPrice = useUpsertProductPrice();
     await deleteProductMut.mutateAsync(product.id);
     setSelectedProduct(undefined);
     setSelectedProductId("");
+    queryClient.invalidateQueries();
   }
 
   // ── tree ─────────────────────────────────────────────────────────────────
@@ -464,6 +469,7 @@ const upsertProductPrice = useUpsertProductPrice();
     }
     setEditingGroup(null);
     setDrawerOpen(false);
+    queryClient.invalidateQueries();
   };
 
   // ── product save — routes fields to correct tables ────────────────────────
@@ -472,93 +478,94 @@ const upsertProductPrice = useUpsertProductPrice();
   //   productPrices    → one row per DrawerPriceEntry (cost, markup, salePrice…)
   //   stockEntries     → reorderPoint, preferredQuantity, lowStockWarning, …
 
-const handleProductSave = async (
-  data: any,
-  groupId: string | null,
-  supplier: string | null,
-  comments: { id: string; text: string }[],
-  selectedTaxes: any[],
-  barcodes: { id: string; text: string }[],
-  prices: DrawerPriceEntry[],
-) => {
-  const isEditing = Boolean(selectedProduct?.id);
-  const productId = isEditing ? selectedProduct!.id : crypto.randomUUID();
+  const handleProductSave = async (
+    data: any,
+    groupId: string | null,
+    supplier: string | null,
+    comments: { id: string; text: string }[],
+    selectedTaxes: any[],
+    barcodes: { id: string; text: string }[],
+    prices: DrawerPriceEntry[],
+  ) => {
+    const isEditing = Boolean(selectedProduct?.id);
+    const productId = isEditing ? selectedProduct!.id : crypto.randomUUID();
 
-  const productData = {
-    title: data.title,
-    code: data.code,
-    unit: data.unit,
-    nodeId: groupId ?? data.nodeId,
-    supplierId: supplier ?? null,
-    active: data.active,
-    service: data.service,
-    defaultQuantity: data.defaultQuantity,
-    ageRestriction: data.ageRestriction,
-    description: data.description,
-    image: data.image,
-    color: data.color,
+    const productData = {
+      title: data.title,
+      code: data.code,
+      unit: data.unit,
+      nodeId: groupId ?? data.nodeId,
+      supplierId: supplier ?? null,
+      active: data.active,
+      service: data.service,
+      defaultQuantity: data.defaultQuantity,
+      ageRestriction: data.ageRestriction,
+      description: data.description,
+      image: data.image,
+      color: data.color,
+    };
+
+    if (isEditing) {
+      await updateProduct.mutateAsync({ id: productId, data: productData });
+      // Cleanup relations for overwrite
+      await deleteProductTaxes.mutateAsync({ productId });
+      await deleteComments.mutateAsync({ id: productId });
+      await deleteBarcodes.mutateAsync(productId);
+    } else {
+      await createProduct({ ...productData, id: productId });
+    }
+
+    // Save Prices with new Label-based system
+    for (const entry of prices) {
+      await upsertProductPrice.mutateAsync({
+        productId,
+        id: crypto.randomUUID(),
+        label: entry.label,
+        cost: entry.cost,
+        markup: entry.markup,
+        salePrice: entry.salePrice,
+        priceAfterTax: entry.priceAfterTax,
+        priceChangeAllowed: entry.priceChangeAllowed,
+        isDefault: entry.isDefault,
+      });
+    }
+
+    // Save Stock Control Settings
+    if (data.reorderPoint !== undefined || data.lowStockWarning) {
+      await addStockEntry.mutateAsync({
+        id: nanoid(),
+        productId,
+        type: "adjustment",
+        quantity: 0,
+        note: "Stock-control settings",
+        reorderPoint: data.reorderPoint ?? null,
+        preferredQuantity: data.preferredQuantity ?? null,
+        lowStockWarning: data.lowStockWarning ?? false,
+        lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
+      });
+    }
+
+    // Save other metadata (Taxes, Comments, Barcodes)
+    for (const tax of selectedTaxes)
+      await addProductTaxes.mutateAsync({ productId, taxId: tax.id });
+    for (const comment of comments)
+      await addComments.mutateAsync({
+        id: comment.id,
+        productId,
+        content: comment.text,
+      });
+    for (const bc of barcodes)
+      await createBarcode.mutateAsync({
+        id: bc.id,
+        productId,
+        value: bc.text,
+        type: "EAN13",
+      });
+    refetchRootGroups();
+    setAddProductDrawerOpen(false);
+    setSelectedProduct(undefined);
+    queryClient.invalidateQueries();
   };
-
-  if (isEditing) {
-    await updateProduct.mutateAsync({ id: productId, data: productData });
-    // Cleanup relations for overwrite
-    await deleteProductTaxes.mutateAsync({ productId });
-    await deleteComments.mutateAsync({ id: productId });
-    await deleteBarcodes.mutateAsync(productId);
-  } else {
-    await createProduct({ ...productData, id: productId });
-  }
-
-  // Save Prices with new Label-based system
-  for (const entry of prices) {
-    await upsertProductPrice.mutateAsync({
-      productId,
-      id:crypto.randomUUID(),
-      label: entry.label,
-      cost: entry.cost,
-      markup: entry.markup,
-      salePrice: entry.salePrice,
-      priceAfterTax: entry.priceAfterTax,
-      priceChangeAllowed: entry.priceChangeAllowed,
-      isDefault: entry.isDefault,
-    });
-  }
-
-  // Save Stock Control Settings
-  if (data.reorderPoint !== undefined || data.lowStockWarning) {
-    await addStockEntry.mutateAsync({
-      id: nanoid(),
-      productId,
-      type: "adjustment",
-      quantity: 0,
-      note: "Stock-control settings",
-      reorderPoint: data.reorderPoint ?? null,
-      preferredQuantity: data.preferredQuantity ?? null,
-      lowStockWarning: data.lowStockWarning ?? false,
-      lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
-    });
-  }
-
-  // Save other metadata (Taxes, Comments, Barcodes)
-  for (const tax of selectedTaxes)
-    await addProductTaxes.mutateAsync({ productId, taxId: tax.id });
-  for (const comment of comments)
-    await addComments.mutateAsync({
-      id: comment.id,
-      productId,
-      content: comment.text,
-    });
-  for (const bc of barcodes)
-    await createBarcode.mutateAsync({
-      id: bc.id,
-      productId,
-      value: bc.text,
-      type: "EAN13",
-    });
-
-  setAddProductDrawerOpen(false);
-  setSelectedProduct(undefined);
-};
 
   // ── derived ───────────────────────────────────────────────────────────────
 
@@ -573,23 +580,21 @@ const handleProductSave = async (
     return level;
   }
 
-
-
   const visibleProducts = (products ?? []).filter((p) =>
     selectedSingleProductId
       ? p.id === selectedSingleProductId
       : !searchQuery ||
         p.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-function getPriceInfo(product: any) {
-  const prices = product.productPrices || [];
-  // Prioritize default label, otherwise take the first one
-  return prices.find((p: any) => p.isDefault) || prices[0] || null;
-}
+  function getPriceInfo(product: any) {
+    const prices = product.productPrices || [];
+    // Prioritize default label, otherwise take the first one
+    return prices.find((p: any) => p.isDefault) || prices[0] || null;
+  }
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 text-slate-200">
+    <div className="flex-1 w-full overflow-hidden flex flex-col bg-slate-900 text-slate-200 h-full">
       <AddGroupDrawer
         open={drawerOpen}
         onOpenChange={() => {
@@ -720,7 +725,7 @@ function getPriceInfo(product: any) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
             <table
               className="border-collapse text-sm"
               style={{ width: "max-content", minWidth: "100%" }}

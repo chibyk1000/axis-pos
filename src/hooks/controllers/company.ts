@@ -97,8 +97,8 @@ export function useCreateCompany() {
       if (data.isDefault) {
         await db.update(companies).set({ isDefault: false });
       }
-      const [created] = await db.insert(companies).values(data).returning();
-      return created;
+      await db.insert(companies).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: companyKeys.list() });
@@ -125,13 +125,9 @@ export function useUpdateCompany() {
       if (data.isDefault) {
         await db.update(companies).set({ isDefault: false });
       }
-
-      const [updated] = await db
-        .update(companies)
-        .set(data)
-        .where(eq(companies.id, id))
-        .returning();
-      return updated;
+      await db.update(companies).set(data).where(eq(companies.id, id));
+      const updated = await db.query.companies.findFirst({ where: eq(companies.id, id) });
+      return updated as Company;
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: companyKeys.byId(id) });
@@ -164,12 +160,9 @@ export function useSetDefaultCompany() {
   return useMutation({
     mutationFn: async (id: string) => {
       await db.update(companies).set({ isDefault: false });
-      const [updated] = await db
-        .update(companies)
-        .set({ isDefault: true })
-        .where(eq(companies.id, id))
-        .returning();
-      return updated;
+      await db.update(companies).set({ isDefault: true }).where(eq(companies.id, id));
+      const updated = await db.query.companies.findFirst({ where: eq(companies.id, id) });
+      return updated as Company;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: companyKeys.list() });
@@ -186,8 +179,8 @@ export function useCreateVoidReason() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: NewVoidReason) => {
-      const [created] = await db.insert(voidReasons).values(data).returning();
-      return created;
+      await db.insert(voidReasons).values(data);
+      return data as NewVoidReason;
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({
@@ -210,14 +203,14 @@ export function useUpdateVoidReason() {
       companyId: string;
       data: Partial<Omit<VoidReason, "id" | "companyId" | "createdAt">>;
     }) => {
-      const [updated] = await db
+      await db
         .update(voidReasons)
         .set(data)
         .where(
           and(eq(voidReasons.id, id), eq(voidReasons.companyId, companyId)),
-        )
-        .returning();
-      return updated;
+        );
+      const updated = await db.query.voidReasons.findFirst({ where: and(eq(voidReasons.id, id), eq(voidReasons.companyId, companyId)) });
+      return updated as VoidReason;
     },
     onSuccess: (_, { companyId }) => {
       qc.invalidateQueries({ queryKey: companyKeys.voidReasons(companyId) });

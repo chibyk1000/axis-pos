@@ -118,7 +118,8 @@ CREATE TABLE `document_items` (
 	`tax_rate` real DEFAULT 0,
 	`discount` real DEFAULT 0,
 	`total` real NOT NULL,
-	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `docmentPayments` (
@@ -138,6 +139,8 @@ CREATE TABLE `documents` (
 	`number` text NOT NULL,
 	`external_number` text,
 	`customer_id` text NOT NULL,
+	`user_id` integer,
+	`company_id` text,
 	`date` integer NOT NULL,
 	`due_date` integer,
 	`stock_date` integer,
@@ -147,7 +150,9 @@ CREATE TABLE `documents` (
 	`tax_total` real DEFAULT 0,
 	`total` real DEFAULT 0,
 	`created_at` integer NOT NULL,
-	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `nodes` (
@@ -175,6 +180,8 @@ CREATE TABLE `products` (
 	`id` text PRIMARY KEY NOT NULL,
 	`node_id` text NOT NULL,
 	`supplier_id` text,
+	`owner_id` integer,
+	`company_id` text,
 	`title` text NOT NULL,
 	`code` text NOT NULL,
 	`unit` text NOT NULL,
@@ -188,7 +195,9 @@ CREATE TABLE `products` (
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
 	`updated_at` integer,
 	FOREIGN KEY (`node_id`) REFERENCES `nodes`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`supplier_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`supplier_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `taxes` (
@@ -213,7 +222,9 @@ CREATE TABLE `users` (
 	`city` text DEFAULT 'NULL',
 	`created_at` text DEFAULT 'CURRENT_TIMESTAMP',
 	`updated_at` text DEFAULT 'CURRENT_TIMESTAMP',
-	`deleted_at` text DEFAULT 'NULL'
+	`deleted_at` text DEFAULT 'NULL',
+	`company_id` text,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_id_unique` ON `users` (`id`);--> statement-breakpoint

@@ -46,8 +46,8 @@ export function useCreateCashEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: NewCashEntry) => {
-      const [created] = await db.insert(cashEntries).values(data).returning();
-      return created;
+      await db.insert(cashEntries).values(data);
+      return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: cashKeys.all }),
   });
@@ -109,13 +109,13 @@ export function useCreateOpenSale() {
       sale: NewOpenSale;
       items: NewOpenSaleItem[];
     }) => {
-      const [created] = await db.insert(openSales).values(sale).returning();
+      await db.insert(openSales).values(sale);
       if (items.length) {
         await db
           .insert(openSaleItems)
-          .values(items.map((i) => ({ ...i, openSaleId: created.id })));
+          .values(items.map((i) => ({ ...i, openSaleId: sale.id })));
       }
-      return created;
+      return sale;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: openSaleKeys.list() }),
   });
@@ -213,10 +213,8 @@ export function useRecordCreditPayment() {
   return useMutation({
     mutationFn: async (data: NewCreditPayment) => {
       // 1. Insert payment record
-      const [payment] = await db
-        .insert(creditPayments)
-        .values(data)
-        .returning();
+      await db.insert(creditPayments).values(data);
+      const payment = data;
 
       // 2. Upsert balance
       const existing = await db.query.customerBalances.findFirst({

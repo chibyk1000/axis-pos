@@ -4,7 +4,6 @@ import { documents, documentItems } from "@/db/schema";
 import { and, gte, lte, eq, like, sql, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
@@ -204,22 +203,23 @@ export function useCreateRefundDocument() {
       const now = new Date();
 
       // Insert refund document
-      const [refundDoc] = await db
-        .insert(documents)
-        .values({
-          id: refundId,
-          number: refundNumber,
-          externalNumber: sourceDocument.number, // trace back to original
-          customerId: sourceDocument.customerId,
-          date: now,
-          status: "posted",
-          paid: true,
-          totalBeforeTax: -(sourceDocument.totalBeforeTax ?? 0),
-          taxTotal: -(sourceDocument.taxTotal ?? 0),
-          total: -(sourceDocument.total ?? 0),
-          createdAt: now,
-        })
-        .returning();
+      await db.insert(documents).values({
+        id: refundId,
+        number: refundNumber,
+        externalNumber: sourceDocument.number, // trace back to original
+        customerId: sourceDocument.customerId,
+        date: now,
+        status: "posted",
+        paid: true,
+        totalBeforeTax: -(sourceDocument.totalBeforeTax ?? 0),
+        taxTotal: -(sourceDocument.taxTotal ?? 0),
+        total: -(sourceDocument.total ?? 0),
+        createdAt: now,
+      });
+      const refundDoc = await db.query.documents.findFirst({
+        where: eq(documents.id, refundId),
+      });
+      if (!refundDoc) throw new Error("Failed to create refund document");
 
       // Insert negated items
       if (sourceItems.length > 0) {

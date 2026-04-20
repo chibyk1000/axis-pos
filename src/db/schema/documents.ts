@@ -4,6 +4,8 @@ import { relations } from "drizzle-orm";
 import { customers } from ".";
 import { paymentTypes } from "./paymentTypes";
 import { documentItems } from "./documentItems";
+import { users } from "./users";
+import { companies } from "./company";
 
 export const documents = sqliteTable("documents", {
   id: text("id").primaryKey(),
@@ -14,6 +16,9 @@ export const documents = sqliteTable("documents", {
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id),
+
+  userId: integer("user_id").references(() => users.id),
+  companyId: text("company_id").references(() => companies.id),
 
   date: integer("date", { mode: "timestamp" }).notNull(),
   dueDate: integer("due_date", { mode: "timestamp" }),
@@ -58,5 +63,10 @@ export const documentRelations = relations(documents, ({ many, one }) => ({
   customer: one(customers, {
     fields: [documents.customerId],
     references: [customers.id],
+  }),
+  user: one(users, { fields: [documents.userId], references: [users.id] }),
+  company: one(companies, {
+    fields: [documents.companyId],
+    references: [companies.id],
   }),
 }));

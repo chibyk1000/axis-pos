@@ -58,8 +58,8 @@ export function useCreateTax() {
 
   return useMutation({
     mutationFn: async (data: NewTax) => {
-      const [created] = await db.insert(taxes).values(data).returning();
-      return created;
+      await db.insert(taxes).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: taxKeys.list() });
@@ -87,15 +87,11 @@ export function useUpdateTax() {
       if (!existing) throw new Error("Tax not found");
 
       // Then update
-      const [updated] = await db
-        .update(taxes)
-        .set(data)
-        .where(eq(taxes.id, id))
-        .returning();
-
-     
-
-      return updated;
+      await db.update(taxes).set(data).where(eq(taxes.id, id));
+      const updated = await db.query.taxes.findFirst({
+        where: eq(taxes.id, id),
+      });
+      return updated as Tax;
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: taxKeys.byId(id) });
@@ -128,10 +124,6 @@ export function useDeleteTax() {
     },
   });
 }
-
-
-
-
 
 export function useSwitchTax() {
   const qc = useQueryClient();

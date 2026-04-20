@@ -39,7 +39,6 @@ export const productPriceKeys = {
   default: () => [...productPriceKeys.all, "default"] as const,
 };
 
-
 export function useSetDefaultProductPrice() {
   const qc = useQueryClient();
 
@@ -52,22 +51,19 @@ export function useSetDefaultProductPrice() {
       priceId: string;
     }) => {
       // 🔒 Use transaction (VERY important)
-      await db.transaction(async (tx) => {
-        // 1. Clear existing defaults for THIS product only
-        await tx
-          .update(productPrices)
-          .set({ isDefault: false })
-          .where(eq(productPrices.productId, productId));
-
-        // 2. Set selected price as default
-        await tx
-          .update(productPrices)
-          .set({
-            isDefault: true,
-            updatedAt: new Date(),
-          })
-          .where(eq(productPrices.id, priceId));
-      });
+      // Clear existing defaults for THIS product only
+      await db
+        .update(productPrices)
+        .set({ isDefault: false })
+        .where(eq(productPrices.productId, productId));
+      // Set selected price as default
+      await db
+        .update(productPrices)
+        .set({
+          isDefault: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(productPrices.id, priceId));
 
       return { productId, priceId };
     },
@@ -163,7 +159,6 @@ export function useAllLabelPrices() {
   });
 }
 
-
 export function useAllPrices() {
   return useQuery({
     queryKey: productPriceKeys.all,
@@ -172,7 +167,7 @@ export function useAllPrices() {
         orderBy: (p) => p.createdAt,
         with: { product: true },
       });
-return rows;
+      return rows;
     },
   });
 }
@@ -218,19 +213,22 @@ export function useUpsertProductPrice() {
       });
 
       if (existing) {
-        const [updated] = await db
+        await db
           .update(productPrices)
           .set({ ...rest, wholeSale, id: existing.id, updatedAt: new Date() })
-          .where(eq(productPrices.id, existing.id))
-          .returning();
-        return updated;
+          .where(eq(productPrices.id, existing.id));
+        const updated = await db.query.productPrices.findFirst({
+          where: eq(productPrices.id, existing.id),
+        });
+        return updated as ProductPrice;
       }
 
-      const [created] = await db
-        .insert(productPrices)
-        .values({ ...rest, wholeSale, id: rest.id ?? nanoid() })
-        .returning();
-      return created;
+      const id = rest.id ?? nanoid();
+      await db.insert(productPrices).values({ ...rest, wholeSale, id });
+      const created = await db.query.productPrices.findFirst({
+        where: eq(productPrices.id, id),
+      });
+      return created as ProductPrice;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productPriceKeys.all });

@@ -15,17 +15,15 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-import {Outlet, useLocation} from "react-router"
+import { Outlet, useLocation } from "react-router";
 const Applayout = () => {
-  const location = useLocation()
+  const location = useLocation();
 
-  
   return (
     <SidebarProvider className="bg-[#333] w-screen">
       <AppSidebar />
-      <SidebarInset className="bg-slate-900 flex-1">
+      <SidebarInset className="bg-slate-900 flex-1 overflow-hidden">
         <header className="flex h-16 shrink-0 pr-4  items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-   
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1 text-white" />
             <Separator
@@ -48,7 +46,7 @@ const Applayout = () => {
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 ">
+        <div className="flex flex-1 overflow-hidden flex-col">
           <Outlet />
         </div>
       </SidebarInset>

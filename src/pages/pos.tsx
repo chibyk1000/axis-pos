@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
-
 import {
   X,
   Search,
@@ -13,7 +12,6 @@ import {
   Lock,
   Copy,
   Trash2,
-  Menu,
   Hash,
   Accessibility,
   User,
@@ -22,6 +20,7 @@ import {
   CreditCard,
   Banknote,
   AlertTriangle,
+  Menu,
 } from "lucide-react";
 import { BsThreeDots } from "react-icons/bs";
 import { TbBasketPlus } from "react-icons/tb";
@@ -30,13 +29,12 @@ import Select from "react-select";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { SidebarDrawer } from "@/components/sidebar-drawer";
 import { ResponsiveIcon } from "@/components/responsive-icon";
-
+import { useAuth } from "@/App";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
 import { useNavigate } from "react-router";
-import { getProductPrices, useAllPrices,  } from "@/hooks/controllers/priceLists";
-
+import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +44,7 @@ interface CartItem {
   cost: number;
   unit: string;
   qty: number;
-  discount: number; // percent 0–100
+  discount: number;
   taxRate: number;
 }
 
@@ -207,8 +205,8 @@ function CalcModal({
           )}
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate
-              ${display.length > 10 ? "text-2xl" : display.length > 7 ? "text-3xl" : "text-4xl"}
-              ${display === "Error" ? "text-red-400" : "text-slate-100"}`}
+            ${display.length > 10 ? "text-2xl" : display.length > 7 ? "text-3xl" : "text-4xl"}
+            ${display === "Error" ? "text-red-400" : "text-slate-100"}`}
           >
             {display}
           </div>
@@ -332,11 +330,7 @@ function DiscountModal({
                 setTab("item");
                 setValue(String(item.discount));
               }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                tab === "item"
-                  ? "text-cyan-400 border-b-2 border-cyan-400"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === "item" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-400 hover:text-slate-200"}`}
             >
               Item Discount
             </button>
@@ -346,11 +340,7 @@ function DiscountModal({
               setTab("cart");
               setValue(String(cartDiscount));
             }}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              tab === "cart"
-                ? "text-cyan-400 border-b-2 border-cyan-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === "cart" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-400 hover:text-slate-200"}`}
           >
             Cart Discount
           </button>
@@ -462,9 +452,7 @@ function CustomerModal({
                 onSelect(c);
                 onClose();
               }}
-              className={`w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800 transition-colors ${
-                selected?.id === c.id ? "bg-slate-800" : ""
-              }`}
+              className={`w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800 transition-colors ${selected?.id === c.id ? "bg-slate-800" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -496,7 +484,7 @@ function CustomerModal({
   );
 }
 
-// ─── Payment Screen (full-screen, replaces modal) ─────────────────────────────
+// ─── Payment Screen ───────────────────────────────────────────────────────────
 
 function PaymentScreen({
   total,
@@ -520,8 +508,6 @@ function PaymentScreen({
   onClose: () => void;
 }) {
   const enabled = paymentTypes.filter((p) => p.enabled);
-
-  // Fall back to a sensible default list if payment types aren't loaded yet
   const displayTypes =
     enabled.length > 0
       ? enabled
@@ -543,7 +529,6 @@ function PaymentScreen({
     ? Math.max(0, paidAmount - total)
     : 0;
 
-  // ── Keypad ──
   const handleKey = (val: string) => {
     if (val === "⌫") {
       setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
@@ -554,7 +539,6 @@ function PaymentScreen({
     } else if (val === ".") {
       setPaidInput((p) => (p.includes(".") ? p : p + "."));
     } else if (val === "-") {
-      // quick shortcuts: set to exact total or common amounts
       setPaidInput(total.toFixed(2));
     } else {
       setPaidInput((p) => (p === "0" ? val : p + val));
@@ -589,9 +573,7 @@ function PaymentScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen bg-slate-900 text-slate-200">
-      {/* ── LEFT: order summary ─────────────────────────────────────── */}
       <div className="w-1/3 border-r border-slate-700 flex flex-col">
-        {/* Header */}
         <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">
@@ -608,8 +590,6 @@ function PaymentScreen({
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Items */}
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Items
@@ -634,8 +614,6 @@ function PaymentScreen({
             </div>
           ))}
         </div>
-
-        {/* Totals */}
         <div className="px-5 py-4 border-t border-slate-700 space-y-1.5 text-sm">
           <div className="flex justify-between text-slate-400">
             <span>Subtotal</span>
@@ -658,9 +636,7 @@ function PaymentScreen({
         </div>
       </div>
 
-      {/* ── RIGHT: payment area ─────────────────────────────────────── */}
       <div className="w-2/3 flex flex-col p-6 gap-5">
-        {/* Top bar: Cancel + context actions */}
         <div className="flex items-center justify-between">
           <button
             onClick={onClose}
@@ -678,20 +654,14 @@ function PaymentScreen({
               </button>
             ))}
             <button
-              className={`text-sm px-4 py-2 rounded transition-colors ${
-                customer
-                  ? "bg-cyan-800 hover:bg-cyan-700 text-cyan-200 border border-cyan-600"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-              }`}
+              className={`text-sm px-4 py-2 rounded transition-colors ${customer ? "bg-cyan-800 hover:bg-cyan-700 text-cyan-200 border border-cyan-600" : "bg-slate-800 hover:bg-slate-700 text-slate-300"}`}
             >
               {customer ? customer.name.split(" ")[0] : "Customer"}
             </button>
           </div>
         </div>
 
-        {/* Payment types + keypad */}
         <div className="flex gap-6 flex-1 min-h-0">
-          {/* Payment type list */}
           <div className="w-[180px] flex flex-col gap-2 shrink-0">
             <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
               Payment type
@@ -718,9 +688,7 @@ function PaymentScreen({
             ))}
           </div>
 
-          {/* Amount + keypad */}
           <div className="flex-1 flex flex-col justify-between min-h-0">
-            {/* Amounts display */}
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-slate-500 mb-0.5">Total</p>
@@ -728,7 +696,6 @@ function PaymentScreen({
                   ₦{total.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
                 </p>
               </div>
-
               <div>
                 <p className="text-xs text-slate-500 mb-0.5">Paid</p>
                 <div className="border-b-2 border-cyan-500 pb-1">
@@ -740,7 +707,6 @@ function PaymentScreen({
                   </span>
                 </div>
               </div>
-
               {selectedType?.changeAllowed && change > 0 && (
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">Change</p>
@@ -754,7 +720,6 @@ function PaymentScreen({
               )}
             </div>
 
-            {/* Keypad */}
             <div className="grid grid-cols-4 gap-2.5">
               {KEYS.map((key, i) => {
                 if (key === "") return <div key={i} />;
@@ -765,16 +730,15 @@ function PaymentScreen({
                   <button
                     key={i}
                     onClick={() => handleKey(key)}
-                    className={`py-4 rounded text-lg font-medium transition-colors
-                      ${
-                        isBackspace
-                          ? "bg-red-700 hover:bg-red-600 text-white"
-                          : isEnter
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
-                            : isDash
-                              ? "bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
-                              : "bg-slate-800 hover:bg-slate-700 text-slate-100"
-                      }`}
+                    className={`py-4 rounded text-lg font-medium transition-colors ${
+                      isBackspace
+                        ? "bg-red-700 hover:bg-red-600 text-white"
+                        : isEnter
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                          : isDash
+                            ? "bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-100"
+                    }`}
                     title={isDash ? "Set to exact total" : undefined}
                   >
                     {isDash ? "Exact" : key}
@@ -783,7 +747,6 @@ function PaymentScreen({
               })}
             </div>
 
-            {/* Confirm button */}
             <button
               onClick={handleConfirm}
               disabled={!selectedId || paidAmount < total}
@@ -799,7 +762,7 @@ function PaymentScreen({
   );
 }
 
-// ─── Refund Screen (full-screen) ──────────────────────────────────────────────
+// ─── Refund Screen ────────────────────────────────────────────────────────────
 
 function RefundScreen({
   documents,
@@ -816,7 +779,6 @@ function RefundScreen({
   const [paymentType, setPaymentType] = useState<string>("");
   const [error, setError] = useState("");
 
-  // Resolve the document matching the typed receipt number
   const matchedDoc =
     (documents ?? []).find(
       (d) =>
@@ -834,10 +796,6 @@ function RefundScreen({
           { id: "check", name: "CHECK" },
         ];
 
-  // Set a sensible default when payment types load
-  if (!paymentType && displayPayments.length > 0) {
-    // use a ref-free approach: will set on first render
-  }
   const selectedPayment =
     displayPayments.find(
       (p) => p.id === paymentType || p.name === paymentType,
@@ -875,7 +833,6 @@ function RefundScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen bg-slate-900 text-slate-200">
-      {/* ── LEFT: refund items ─────────────────────────────────────── */}
       <div className="w-1/3 border-r border-slate-700 flex flex-col">
         <div className="px-5 py-4 border-b border-slate-700">
           <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">
@@ -890,8 +847,6 @@ function RefundScreen({
             </p>
           )}
         </div>
-
-        {/* Items */}
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
             Refund items
@@ -927,8 +882,6 @@ function RefundScreen({
             ))
           )}
         </div>
-
-        {/* Total */}
         <div className="px-5 py-4 border-t border-slate-700">
           <p className="text-xs text-slate-500 uppercase tracking-wider">
             Total refund amount
@@ -943,29 +896,21 @@ function RefundScreen({
         </div>
       </div>
 
-      {/* ── RIGHT: lookup + payment type ───────────────────────────── */}
       <div className="w-2/3 p-6 flex flex-col relative">
-        {/* Close */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
-
-        {/* Centre content */}
         <div className="flex-1 flex flex-col items-center justify-center gap-8">
-          {/* Icon */}
           <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl text-slate-400 select-none">
             ↩
           </div>
-
           <p className="text-slate-400 text-center max-w-sm text-sm">
             Enter the receipt number and select a refund payment type to
             confirm.
           </p>
-
-          {/* Receipt number */}
           <div className="w-96 flex flex-col gap-1.5">
             <label className="text-xs text-slate-400">Receipt number</label>
             <div className="relative">
@@ -980,13 +925,7 @@ function RefundScreen({
                 onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
                 placeholder="e.g. POS-00012345"
                 className={`w-full bg-slate-800 border pl-9 pr-4 py-2.5 text-sm text-slate-100 focus:outline-none transition-colors rounded-sm
-                  ${
-                    error
-                      ? "border-red-500 focus:border-red-400"
-                      : matchedDoc
-                        ? "border-emerald-500 focus:border-emerald-400"
-                        : "border-slate-600 focus:border-cyan-500"
-                  }`}
+                  ${error ? "border-red-500 focus:border-red-400" : matchedDoc ? "border-emerald-500 focus:border-emerald-400" : "border-slate-600 focus:border-cyan-500"}`}
               />
               {matchedDoc && (
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
@@ -1002,8 +941,6 @@ function RefundScreen({
               </p>
             )}
           </div>
-
-          {/* Payment type */}
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs text-slate-500 uppercase tracking-wider">
               Refund payment type
@@ -1017,11 +954,7 @@ function RefundScreen({
                   <button
                     key={pt.id}
                     onClick={() => setPaymentType(pt.id || pt.name)}
-                    className={`relative px-7 py-4 border rounded text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-cyan-700 border-cyan-500 text-white"
-                        : "bg-slate-800 border-slate-600 hover:bg-slate-700 text-slate-300"
-                    }`}
+                    className={`relative px-7 py-4 border rounded text-sm font-medium transition-colors ${active ? "bg-cyan-700 border-cyan-500 text-white" : "bg-slate-800 border-slate-600 hover:bg-slate-700 text-slate-300"}`}
                   >
                     {active && (
                       <span className="absolute -top-2.5 -left-2.5 bg-cyan-500 rounded-full w-6 h-6 flex items-center justify-center text-xs text-white shadow">
@@ -1035,8 +968,6 @@ function RefundScreen({
             </div>
           </div>
         </div>
-
-        {/* Footer */}
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
           <button
             onClick={handleConfirm}
@@ -1057,7 +988,21 @@ function RefundScreen({
   );
 }
 
-// ─── Transfer Screen (full-screen) ────────────────────────────────────────────
+// ─── Transfer Screen ──────────────────────────────────────────────────────────
+
+function ChevronDownIcon() {
+  return (
+    <svg
+      className="w-3.5 h-3.5 opacity-50"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
 
 function TransferScreen({
   items: cartItems,
@@ -1070,21 +1015,15 @@ function TransferScreen({
   onTransfer: (keptItems: CartItem[], targetDocId: string | null) => void;
   onClose: () => void;
 }) {
-  // Source = current cart items still to transfer
   const [source, setSource] = useState<CartItem[]>(cartItems);
-  // Selected = items staged for transfer
   const [staged, setStaged] = useState<CartItem[]>([]);
-  // Which item is highlighted in each list
   const [srcSel, setSrcSel] = useState<string | null>(null);
   const [stageSel, setStageSel] = useState<string | null>(null);
-  // Target open order
   const [targetDocId, setTargetDocId] = useState<string | null>(null);
   const [showOrderPicker, setShowOrderPicker] = useState(false);
 
   const openOrders = (documents ?? []).filter((d) => d.status === "draft");
   const targetDoc = openOrders.find((d) => d.id === targetDocId) ?? null;
-
-  // ── Move helpers ────────────────────────────────────────────────────────────
 
   const moveOne = () => {
     const item = srcSel ? source.find((i) => i.id === srcSel) : source[0];
@@ -1093,13 +1032,11 @@ function TransferScreen({
     setStaged((p) => [...p, item]);
     setSrcSel(null);
   };
-
   const moveAll = () => {
     setStaged((p) => [...p, ...source]);
     setSource([]);
     setSrcSel(null);
   };
-
   const removeOne = () => {
     const item = stageSel
       ? staged.find((i) => i.id === stageSel)
@@ -1109,27 +1046,22 @@ function TransferScreen({
     setSource((p) => [...p, item]);
     setStageSel(null);
   };
-
   const removeAll = () => {
     setSource((p) => [...p, ...staged]);
     setStaged([]);
     setStageSel(null);
   };
-
   const handleOk = () => {
     onTransfer(source, staged.length > 0 ? targetDocId : null);
     onClose();
   };
-
-  // ── Item row ────────────────────────────────────────────────────────────────
 
   function SrcRow({ item }: { item: CartItem }) {
     const sel = srcSel === item.id;
     return (
       <div
         onClick={() => setSrcSel(sel ? null : item.id)}
-        className={`flex justify-between border-b border-slate-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none
-          ${sel ? "bg-slate-700 border-l-2 border-l-cyan-400" : "hover:bg-slate-800/60"}`}
+        className={`flex justify-between border-b border-slate-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none ${sel ? "bg-slate-700 border-l-2 border-l-cyan-400" : "hover:bg-slate-800/60"}`}
       >
         <div>
           <p className="text-sm font-medium text-slate-200">{item.title}</p>
@@ -1154,8 +1086,7 @@ function TransferScreen({
     return (
       <div
         onClick={() => setStageSel(sel ? null : item.id)}
-        className={`flex justify-between border border-cyan-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none
-          ${sel ? "bg-cyan-700/60 border-cyan-400" : "bg-cyan-900/30 hover:bg-cyan-800/40"}`}
+        className={`flex justify-between border border-cyan-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none ${sel ? "bg-cyan-700/60 border-cyan-400" : "bg-cyan-900/30 hover:bg-cyan-800/40"}`}
       >
         <div>
           <p className="text-sm font-medium text-slate-200">{item.title}</p>
@@ -1175,8 +1106,6 @@ function TransferScreen({
     );
   }
 
-  // ── Order picker dropdown ────────────────────────────────────────────────────
-
   function OrderPicker() {
     return (
       <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-sm shadow-xl max-h-48 overflow-auto">
@@ -1192,8 +1121,7 @@ function TransferScreen({
                 setTargetDocId(doc.id);
                 setShowOrderPicker(false);
               }}
-              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex justify-between
-                ${targetDocId === doc.id ? "bg-cyan-700/40 text-cyan-200" : "text-slate-300 hover:bg-slate-700"}`}
+              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex justify-between ${targetDocId === doc.id ? "bg-cyan-700/40 text-cyan-200" : "text-slate-300 hover:bg-slate-700"}`}
             >
               <span className="font-mono">{doc.number}</span>
               <span className="text-slate-500 text-xs">
@@ -1244,7 +1172,6 @@ function TransferScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen bg-slate-900 text-slate-200">
-      {/* ── LEFT: order items ──────────────────────────────────────── */}
       <div className="w-[30%] border-r border-slate-700 flex flex-col">
         <div className="px-4 py-3 border-b border-slate-700">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
@@ -1265,7 +1192,6 @@ function TransferScreen({
         </div>
       </div>
 
-      {/* ── CENTRE: arrow controls ─────────────────────────────────── */}
       <div className="w-[8%] flex flex-col items-center justify-center gap-3 border-r border-slate-700 bg-slate-900/50">
         <CtrlBtn label="›" onClick={moveOne} title="Move selected →" />
         <CtrlBtn label="»" onClick={moveAll} title="Move all →" />
@@ -1273,7 +1199,6 @@ function TransferScreen({
         <CtrlBtn label="«" onClick={removeAll} title="← Move all back" />
       </div>
 
-      {/* ── MIDDLE: staged items ───────────────────────────────────── */}
       <div className="w-[30%] border-r border-slate-700 flex flex-col">
         <div className="px-4 py-3 border-b border-slate-700">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
@@ -1292,7 +1217,6 @@ function TransferScreen({
             staged.map((item) => <StageRow key={item.id} item={item} />)
           )}
         </div>
-        {/* Staged total */}
         {staged.length > 0 && (
           <div className="px-4 py-2.5 border-t border-slate-700 flex justify-between text-sm">
             <span className="text-slate-500">Transfer total</span>
@@ -1309,15 +1233,12 @@ function TransferScreen({
         )}
       </div>
 
-      {/* ── RIGHT: actions panel ───────────────────────────────────── */}
       <div className="flex-1 flex flex-col p-4 gap-3">
-        {/* Target order */}
         <div className="relative">
           <p className="text-xs text-slate-500 mb-1">Target order</p>
           <button
             onClick={() => setShowOrderPicker((v) => !v)}
-            className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center
-              ${targetDoc ? "bg-cyan-900/30 border-cyan-600 text-cyan-200" : "bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500"}`}
+            className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center ${targetDoc ? "bg-cyan-900/30 border-cyan-600 text-cyan-200" : "bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500"}`}
           >
             <span className="font-mono">
               {targetDoc ? targetDoc.number : "Select order…"}
@@ -1326,8 +1247,6 @@ function TransferScreen({
           </button>
           {showOrderPicker && <OrderPicker />}
         </div>
-
-        {/* Action buttons */}
         <div className="flex flex-col gap-2 flex-1">
           <ActionBtn
             label="Select order"
@@ -1350,8 +1269,6 @@ function TransferScreen({
           />
           <ActionBtn label="Transfer all orders" onClick={() => {}} disabled />
         </div>
-
-        {/* Footer */}
         <div className="flex gap-2 justify-end pt-2 border-t border-slate-800">
           <button
             onClick={handleOk}
@@ -1369,7 +1286,6 @@ function TransferScreen({
         </div>
       </div>
 
-      {/* Close button */}
       <button
         onClick={onClose}
         className="absolute top-3 right-4 text-slate-400 hover:text-white transition-colors"
@@ -1380,20 +1296,7 @@ function TransferScreen({
   );
 }
 
-// tiny inline icon to avoid importing ChevronDown twice
-function ChevronDownIcon() {
-  return (
-    <svg
-      className="w-3.5 h-3.5 opacity-50"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
+// ─── Void Modal ───────────────────────────────────────────────────────────────
 
 function VoidModal({
   onConfirm,
@@ -1467,13 +1370,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`w-4 h-4 rounded-full border-2 transition-colors ${
-              pin.length > i
-                ? error
-                  ? "bg-red-500 border-red-500"
-                  : "bg-cyan-400 border-cyan-400"
-                : "border-slate-600"
-            }`}
+            className={`w-4 h-4 rounded-full border-2 transition-colors ${pin.length > i ? (error ? "bg-red-500 border-red-500" : "bg-cyan-400 border-cyan-400") : "border-slate-600"}`}
           />
         ))}
       </div>
@@ -1503,7 +1400,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
-// ─── Comment / Note Modal ─────────────────────────────────────────────────────
+// ─── Comment Modal ────────────────────────────────────────────────────────────
 
 function CommentModal({
   item,
@@ -1561,14 +1458,13 @@ function CommentModal({
   );
 }
 
-// ─── Cash Drawer Toast ────────────────────────────────────────────────────────
+// ─── Toasts ───────────────────────────────────────────────────────────────────
 
 function CashDrawerToast({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 2500);
     return () => clearTimeout(t);
   }, [onClose]);
-
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-emerald-800 border border-emerald-500 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
       <ImDrawer className="w-5 h-5 text-white" />
@@ -1577,14 +1473,11 @@ function CashDrawerToast({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Save Success Toast ───────────────────────────────────────────────────────
-
 function SaveToast({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 2500);
     return () => clearTimeout(t);
   }, [onClose]);
-
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-slate-800 border border-slate-600 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
       <Save className="w-5 h-5 text-cyan-400" />
@@ -1595,13 +1488,92 @@ function SaveToast({ onClose }: { onClose: () => void }) {
   );
 }
 
+// Inline warning banner shown when cart action fails silently
+function InlineWarning({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-amber-900 border border-amber-600 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
+      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+      <p className="text-sm font-semibold text-amber-200">{message}</p>
+      <button
+        onClick={onClose}
+        className="text-amber-400 hover:text-white ml-2"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Zone label ───────────────────────────────────────────────────────────────
+
+function ZoneLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[9px] uppercase tracking-[0.08em] text-slate-600 font-semibold mb-1.5 px-0.5">
+      {children}
+    </p>
+  );
+}
+
+// ─── Action button (right panel) ──────────────────────────────────────────────
+
+function ActBtn({
+  icon,
+  label,
+  hotkey,
+  onClick,
+  disabled,
+  active,
+  danger,
+}: {
+  icon: any;
+  label: string;
+  hotkey?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative flex flex-col items-center justify-center gap-1 rounded border py-2 px-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed
+        ${
+          danger
+            ? "bg-red-900/60 border-red-800 hover:bg-red-800 text-red-300"
+            : active
+              ? "bg-cyan-950 border-cyan-700 hover:bg-cyan-900 text-cyan-300"
+              : "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300"
+        }`}
+    >
+      {hotkey && (
+        <span className="absolute top-1 left-1.5 text-[8px] text-slate-600 leading-none">
+          {hotkey}
+        </span>
+      )}
+      <ResponsiveIcon icon={icon as any} className="size-5" />
+      <span className="text-[10px] leading-tight text-center truncate w-full px-0.5">
+        {label}
+      </span>
+    </button>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AroniumLite() {
   const router = useNavigate();
 
-  // Remote data
-  // const productsQuery = useProducts();
   const customersQuery = useCustomers();
   const paymentTypesQuery = usePaymentTypes();
   const documentsQuery = useDocuments();
@@ -1613,23 +1585,20 @@ export default function AroniumLite() {
   const [cartDiscount, setCartDiscount] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [dineIn, setDineIn] = useState(false);
- 
   const [orderNote, setOrderNote] = useState("");
- 
-  
 
   // UI
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [modal, setModal] = useState<ModalKind>("none");
   const [showCashDrawer, setShowCashDrawer] = useState(false);
   const [showSaveToast, setShowSaveToast] = useState(false);
+  const [warning, setWarning] = useState("");
 
   // Qty calc state
   const [calcProduct, setCalcProduct] = useState<CartItem | null>(null);
-  const priceList = useAllPrices();
-  console.log(priceList.data)
   const [calcInitialQty, setCalcInitialQty] = useState(1);
-// const { data: prices } = useFlatProductsWithPrices();
+  const priceList = useAllPrices();
+
   // Derived
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
 
@@ -1652,7 +1621,7 @@ export default function AroniumLite() {
     () =>
       (priceList.data ?? []).map((p) => ({
         value: p.product.id,
-        label: `${p.product.title} — ₦${p.salePrice} - (${p.wholeSale? "Wholesale" : "Retail"})`,
+        label: `${p.product.title} — ₦${p.salePrice} (${p.wholeSale ? "Wholesale" : "Retail"})`,
         product: p.product,
       })),
     [priceList.data],
@@ -1661,7 +1630,6 @@ export default function AroniumLite() {
   // ── Cart helpers ──
 
   const openQtyModal = (product: CartItem, currentQty = 1) => {
-  console.log("Opening qty modal for product", product, "with currentQty", currentQty)
     setCalcProduct(product);
     setCalcInitialQty(currentQty);
     setModal("qty");
@@ -1708,7 +1676,7 @@ export default function AroniumLite() {
     setOrderNote("");
   };
 
-  // ── Build document payload ──
+  // ── Document payload ──
 
   const buildDocumentPayload = (
     status: "draft" | "posted",
@@ -1755,11 +1723,15 @@ export default function AroniumLite() {
       : {}),
   });
 
-  // ── Save sale (draft) ──
+  // ── Save sale ──
 
   const saveSale = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      setWarning("Add at least one item before saving.");
+      return;
+    }
     if (!selectedCustomer) {
+      setWarning("Select a customer to save the sale.");
       setModal("customer");
       return;
     }
@@ -1767,7 +1739,7 @@ export default function AroniumLite() {
     setShowSaveToast(true);
   };
 
-  // ── Payment confirm ──
+  // ── Payment ──
 
   const handlePaymentConfirm = async (
     payments: { paymentId: string; paymentType: string; amount: number }[],
@@ -1779,28 +1751,21 @@ export default function AroniumLite() {
     router("/documents");
   };
 
-  // ── Payment guard ──
-
   const openPayment = () => {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      setWarning("Add at least one item before proceeding to payment.");
+      return;
+    }
     if (!selectedCustomer) {
-      // Open customer modal first, payment will be triggered after selection
+      setWarning("Select a customer before proceeding to payment.");
       setModal("customer");
       return;
     }
     setModal("payment");
   };
 
-  // If customer just got set and we were trying to pay, open payment modal
   const prevCustomerRef = useRef<any>(null);
   useEffect(() => {
-    if (
-      selectedCustomer &&
-      prevCustomerRef.current === null &&
-      items.length > 0
-    ) {
-      // Don't auto-open payment — user might have opened customer for other reasons
-    }
     prevCustomerRef.current = selectedCustomer;
   }, [selectedCustomer]);
 
@@ -1819,25 +1784,20 @@ export default function AroniumLite() {
       taxRate: i.taxRate ?? 0,
     }));
     setItems(refundItems);
-    // if (doc.customer) setSelectedCustomer(doc.customer); // to be fixed
   };
 
   // ── Transfer ──
-  // keptItems  = items that stay on the current cart
-  // targetDocId = the open order they're being transferred into (null = new order)
+
   const handleTransfer = (
     keptItems: CartItem[],
     targetDocId: string | null,
   ) => {
-    console.log("Transferring items", keptItems, "to doc", targetDocId);
-    // Update cart to only contain items NOT transferred
+    console.log(targetDocId)
     setItems(keptItems);
     if (keptItems.length === 0) {
       setSelectedItemId(null);
       setCartDiscount(0);
     }
-    // targetDocId will be used to merge into an existing draft when
-    // you add that mutation — for now this just removes them from cart
   };
 
   return (
@@ -1850,6 +1810,9 @@ export default function AroniumLite() {
         <CashDrawerToast onClose={() => setShowCashDrawer(false)} />
       )}
       {showSaveToast && <SaveToast onClose={() => setShowSaveToast(false)} />}
+      {warning && (
+        <InlineWarning message={warning} onClose={() => setWarning("")} />
+      )}
 
       {/* Modals */}
       {modal === "qty" && calcProduct && (
@@ -1863,7 +1826,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "discount" && (
         <DiscountModal
           item={selectedItem}
@@ -1873,7 +1835,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "customer" && (
         <CustomerModal
           customers={customersQuery.data ?? []}
@@ -1882,7 +1843,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "payment" && (
         <PaymentScreen
           total={total}
@@ -1895,7 +1855,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "refund" && (
         <RefundScreen
           documents={documentsQuery.data ?? []}
@@ -1904,7 +1863,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "transfer" && (
         <TransferScreen
           items={items}
@@ -1913,7 +1871,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "void" && (
         <VoidModal
           onConfirm={() => {
@@ -1923,7 +1880,6 @@ export default function AroniumLite() {
           onClose={() => setModal("none")}
         />
       )}
-
       {modal === "comment" && (
         <CommentModal
           item={selectedItem}
@@ -1936,42 +1892,37 @@ export default function AroniumLite() {
       <SidebarDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* ── Header ── */}
-      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3">
-        <div className="flex items-center gap-3 flex-wrap">
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          {/* Brand */}
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
               A
             </div>
-            <span className="text-sm font-medium">Axis Lite</span>
+            <span className="text-sm font-medium hidden md:block">
+              Axis Lite
+            </span>
           </div>
 
-          <div className="flex-1 min-w-48 max-w-md">
+          {/* Product search */}
+          <div className="flex-1 min-w-0 max-w-lg">
             <Select
               options={productOptions}
-              placeholder="Search product…"
+              placeholder="Search or scan product…"
               isSearchable
               value={null}
               onChange={async (option: any) => {
                 if (!option) return;
                 const p = option.product;
-
-                // 1. Fetch all prices for this product
                 const prices = await getProductPrices(p.id);
-
-                // 2. Find the default price entry
                 const defaultPrice =
                   prices.find((pr) => pr.isDefault) || prices[0];
-
                 const existing = items.find((i) => i.id === p.id);
-
                 openQtyModal(
                   existing ?? {
                     id: p.id,
                     title: p.title,
-                    // Use the salePrice from the default price list entry
-                    // Fallback to p.cost if no price list entry exists
                     cost: defaultPrice ? defaultPrice.salePrice : (p.cost ?? 0),
-                 
                     unit: p.unit ?? "",
                     qty: 1,
                     discount: 0,
@@ -1986,30 +1937,32 @@ export default function AroniumLite() {
                   ...b,
                   backgroundColor: "#020617",
                   borderColor: "#334155",
-                  minHeight: "36px",
+                  minHeight: "34px",
+                  boxShadow: "none",
                 }),
-                menu: (b) => ({ ...b, backgroundColor: "#020617" }),
+                menu: (b) => ({ ...b, backgroundColor: "#0f172a", zIndex: 99 }),
                 option: (b, s) => ({
                   ...b,
-                  backgroundColor: s.isFocused ? "#1e293b" : "#020617",
+                  backgroundColor: s.isFocused ? "#1e293b" : "#0f172a",
                   color: "#e2e8f0",
                   cursor: "pointer",
                 }),
                 singleValue: (b) => ({ ...b, color: "#e2e8f0" }),
                 input: (b) => ({ ...b, color: "#e2e8f0" }),
+                placeholder: (b) => ({ ...b, color: "#64748b" }),
               }}
             />
           </div>
 
-          {/* Status badges */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Status chips — only shown when active */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             {selectedCustomer && (
-              <span className="flex items-center gap-1.5 bg-cyan-950 border border-cyan-700 rounded-lg px-2.5 py-1 text-xs text-cyan-300">
-                <UserCheck className="w-3.5 h-3.5" />
-                {selectedCustomer.name}
+              <span className="flex items-center gap-1 bg-cyan-950 border border-cyan-800 rounded px-2 py-0.5 text-xs text-cyan-300">
+                <UserCheck className="w-3 h-3" />
+                {selectedCustomer.name.split(" ")[0]}
                 <button
                   onClick={() => setSelectedCustomer(null)}
-                  className="opacity-60 hover:opacity-100"
+                  className="opacity-50 hover:opacity-100 ml-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -2018,63 +1971,73 @@ export default function AroniumLite() {
             {dineIn && (
               <button
                 onClick={() => setDineIn(false)}
-                className="flex items-center gap-1.5 bg-cyan-950 border border-cyan-700 rounded-lg px-2.5 py-1 text-xs text-cyan-300 hover:bg-cyan-900"
+                className="flex items-center gap-1 bg-cyan-950 border border-cyan-800 rounded px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-900"
               >
-                <Accessibility className="w-3.5 h-3.5" />
-                Dine-in
-                <X className="w-3 h-3 opacity-60 hover:opacity-100" />
+                <Accessibility className="w-3 h-3" /> Dine-in{" "}
+                <X className="w-3 h-3 opacity-50" />
               </button>
             )}
             {cartDiscount > 0 && (
               <button
                 onClick={() => setModal("discount")}
-                className="flex items-center gap-1.5 bg-amber-950 border border-amber-700 rounded-lg px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-900"
+                className="flex items-center gap-1 bg-amber-950 border border-amber-800 rounded px-2 py-0.5 text-xs text-amber-300 hover:bg-amber-900"
               >
-                <Percent className="w-3.5 h-3.5" />
-                {cartDiscount}% off
+                <Percent className="w-3 h-3" /> {cartDiscount}% off
               </button>
             )}
             {orderNote && (
               <button
                 onClick={() => setModal("comment")}
-                className="flex items-center gap-1.5 bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1 text-xs text-slate-400 hover:bg-slate-700"
+                className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-slate-700"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                Note
+                <MessageSquare className="w-3 h-3" /> Note
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-slate-300 ml-auto shrink-0">
-            <Menu className="w-5 h-5 cursor-pointer" />
-            <Hash className="w-5 h-5 cursor-pointer" />
-            <Search className="w-5 h-5 cursor-pointer" />
+          {/* User + controls — pushed right */}
+          <div className="flex items-center gap-2 ml-auto shrink-0">
+            <span className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500">
+              Signed in:{" "}
+              <strong className="text-slate-300 font-medium">
+                {useAuth().user?.username ?? "—"}
+              </strong>
+            </span>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+            <button className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+              <Hash className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
 
-      {/* ── Main ── */}
-      <main className="flex-1 p-4 overflow-hidden">
-        <Group orientation="horizontal" className="h-full gap-3">
-          {/* LEFT — cart */}
-          <Panel defaultSize={75} minSize={50}>
-            <div className="h-full flex flex-col rounded border border-slate-800 bg-slate-900">
-              <div className="grid grid-cols-5 px-6 py-3 text-xs font-semibold border-b border-slate-800 text-slate-400 uppercase tracking-wider">
-                <div className="col-span-2">Product</div>
+      {/* ── Main layout ── */}
+      <main className="flex-1 overflow-hidden p-3">
+        <Group orientation="horizontal" className="h-full gap-2">
+          {/* ── LEFT: Cart ── */}
+          <Panel defaultSize={76} minSize={50}>
+            <div className="h-full flex flex-col rounded border border-slate-800 bg-slate-900 overflow-hidden">
+              {/* Column headers */}
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 text-[10px] font-semibold border-b border-slate-800 text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Product</div>
                 <div className="text-right">Qty</div>
                 <div className="text-right">Price</div>
                 <div className="text-right">Amount</div>
               </div>
 
+              {/* Items */}
               <div className="flex-1 overflow-auto">
                 {items.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-slate-400">
-                    <div className="text-center">
-                      <p className="text-2xl font-semibold mb-2">No items</p>
-                      <p className="text-sm text-slate-500">
-                        Scan barcode or search to add products
-                      </p>
-                    </div>
+                  <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-slate-600 select-none">
+                    <p className="text-xl font-medium">Cart is empty</p>
+                    <p className="text-sm">
+                      Search or scan a product to add it
+                    </p>
                   </div>
                 ) : (
                   items.map((item) => (
@@ -2082,30 +2045,37 @@ export default function AroniumLite() {
                       key={item.id}
                       onClick={() => setSelectedItemId(item.id)}
                       onDoubleClick={() => openQtyModal(item, item.qty)}
-                      className={`grid grid-cols-5 px-6 py-3 border-b border-slate-800 cursor-pointer select-none transition-colors ${
+                      className={`grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 border-b border-slate-800/60 cursor-pointer select-none transition-colors ${
                         selectedItemId === item.id
-                          ? "bg-green-900/50 border-l-2 border-l-green-400"
+                          ? "bg-emerald-900/30 border-l-2 border-l-emerald-500"
                           : "hover:bg-slate-800/40"
                       }`}
                     >
-                      <div className="col-span-2 flex flex-col justify-center min-w-0">
-                        <span className="truncate text-sm">{item.title}</span>
+                      <div className="flex flex-col justify-center min-w-0">
+                        <span className="truncate text-sm text-slate-200">
+                          {item.title}
+                        </span>
                         {item.discount > 0 && (
-                          <span className="text-xs text-amber-400">
+                          <span className="text-[10px] text-amber-400">
                             {item.discount}% disc.
+                          </span>
+                        )}
+                        {item.unit && (
+                          <span className="text-[10px] text-slate-600">
+                            {item.unit}
                           </span>
                         )}
                       </div>
                       <div
-                        className={`text-right text-sm self-center ${item.qty < 0 ? "text-red-400" : ""}`}
+                        className={`text-right text-sm self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-300"}`}
                       >
                         {item.qty}
                       </div>
-                      <div className="text-right text-sm self-center">
+                      <div className="text-right text-sm self-center tabular-nums text-slate-400">
                         ₦{item.cost.toFixed(2)}
                       </div>
                       <div
-                        className={`text-right text-sm font-medium self-center ${item.qty < 0 ? "text-red-400" : ""}`}
+                        className={`text-right text-sm font-medium self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-200"}`}
                       >
                         ₦{itemTotal(item).toFixed(2)}
                       </div>
@@ -2114,198 +2084,191 @@ export default function AroniumLite() {
                 )}
               </div>
 
-              {/* Totals */}
-              <div className="border-t border-slate-800 px-6 py-4 space-y-1.5">
-                <div className="flex justify-between text-sm text-slate-400">
+              {/* Totals footer */}
+              <div className="border-t border-slate-800 px-5 py-3 space-y-1 shrink-0">
+                <div className="flex justify-between text-xs text-slate-500">
                   <span>Subtotal</span>
-                  <span>₦{subtotalGross.toFixed(2)}</span>
+                  <span className="tabular-nums">
+                    ₦{subtotalGross.toFixed(2)}
+                  </span>
                 </div>
                 {cartDiscount > 0 && (
-                  <div className="flex justify-between text-sm text-amber-400">
+                  <div className="flex justify-between text-xs text-amber-500">
                     <span>Discount ({cartDiscount}%)</span>
-                    <span>−₦{cartDiscountAmt.toFixed(2)}</span>
+                    <span className="tabular-nums">
+                      −₦{cartDiscountAmt.toFixed(2)}
+                    </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm text-slate-400">
+                <div className="flex justify-between text-xs text-slate-500">
                   <span>Tax</span>
-                  <span>₦{taxTotal.toFixed(2)}</span>
+                  <span className="tabular-nums">₦{taxTotal.toFixed(2)}</span>
                 </div>
-                <div className="pt-2 border-t border-slate-800 flex justify-between font-bold">
-                  <span>Total</span>
-                  <span className="text-xl">₦{total.toFixed(2)}</span>
+                <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-slate-800">
+                  <span className="text-slate-200">Total</span>
+                  <span className="tabular-nums text-slate-100">
+                    ₦{total.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
           </Panel>
 
-          <Separator className="w-0.5 bg-slate-700 hover:bg-slate-500 transition" />
+          <Separator className="w-px bg-slate-800 hover:bg-slate-600 transition-colors cursor-col-resize" />
 
-          {/* RIGHT — actions */}
-          <Panel defaultSize={25} minSize={280}>
-            <div className="h-full flex flex-col gap-3 overflow-y-auto">
-              {/* Top 4 actions */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  {
-                    icon: X,
-                    label: "Delete",
-                    action: deleteSelectedItem,
-                    disabled: !selectedItemId,
-                  },
-                  { icon: Search, label: "Search", action: () => {} },
-                  {
-                    icon: TbBasketPlus,
-                    label: "Qty",
-                    key: "F8",
-                    action: () =>
+          {/* ── RIGHT: Actions panel ── */}
+          <Panel defaultSize={24} minSize={18}>
+            <div className="h-full flex flex-col overflow-y-auto gap-0 bg-slate-900 rounded border border-slate-800">
+              {/* ── Zone: Item actions ── */}
+              <div className="px-2 pt-2.5 pb-2 border-b border-slate-800">
+                <ZoneLabel>Item</ZoneLabel>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <ActBtn
+                    icon={X}
+                    label="Delete"
+                    onClick={deleteSelectedItem}
+                    disabled={!selectedItemId}
+                  />
+                  <ActBtn
+                    icon={TbBasketPlus}
+                    label="Qty"
+                    hotkey="F8"
+                    onClick={() =>
                       selectedItem &&
-                      openQtyModal(selectedItem, selectedItem.qty),
-                    disabled: !selectedItemId,
-                  },
-                  {
-                    icon: Plus,
-                    label: "New",
-                    action: clearCart,
-                  },
-                ].map(({ icon, label, key, action, disabled }) => (
+                      openQtyModal(selectedItem, selectedItem.qty)
+                    }
+                    disabled={!selectedItemId}
+                  />
+                  <ActBtn
+                    icon={Percent}
+                    label="Discount"
+                    hotkey="F2"
+                    onClick={() => setModal("discount")}
+                  />
+                  <ActBtn
+                    icon={MessageSquare}
+                    label="Note"
+                    onClick={() => setModal("comment")}
+                  />
+                </div>
+              </div>
+
+              {/* ── Zone: Order ── */}
+              <div className="px-2 pt-2.5 pb-2 border-b border-slate-800">
+                <ZoneLabel>Order</ZoneLabel>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <ActBtn
+                    icon={UserCheck}
+                    label={
+                      selectedCustomer
+                        ? selectedCustomer.name.split(" ")[0]
+                        : "Customer"
+                    }
+                    onClick={() => setModal("customer")}
+                    active={!!selectedCustomer}
+                  />
+                  <ActBtn icon={User} label="Cashier" />
+                  <ActBtn icon={Plus} label="New" onClick={clearCart} />
+                  <ActBtn
+                    icon={Copy}
+                    label="Transfer"
+                    hotkey="F7"
+                    onClick={() => items.length > 0 && setModal("transfer")}
+                    disabled={items.length === 0}
+                  />
+                </div>
+              </div>
+
+              {/* ── Zone: Quick pay ── */}
+              <div className="px-2 pt-2.5 pb-2 border-b border-slate-800">
+                <ZoneLabel>Quick pay</ZoneLabel>
+                <div className="grid grid-cols-2 gap-1.5">
                   <button
-                    key={label}
-                    onClick={action}
-                    disabled={disabled}
-                    className="relative bg-slate-900 border border-slate-800 rounded hover:bg-slate-800 disabled:opacity-40 flex flex-col items-center justify-center aspect-square transition-colors"
+                    onClick={openPayment}
+                    className="bg-slate-900 border border-slate-800 border-b-2 border-b-emerald-600 rounded h-10 hover:bg-slate-800 text-xs font-medium text-slate-300 transition-colors"
                   >
-                    {key && (
-                      <span className="absolute top-1 left-1 text-[10px] text-slate-500">
-                        {key}
-                      </span>
-                    )}
-                    <ResponsiveIcon icon={icon} className="size-7" />
-                    <span className="text-xs">{label}</span>
+                    F12 Cash
                   </button>
-                ))}
+                  <button
+                    onClick={openPayment}
+                    className="bg-slate-900 border border-slate-800 border-b-2 border-b-blue-600 rounded h-10 hover:bg-slate-800 text-xs font-medium text-slate-300 transition-colors"
+                  >
+                    Card
+                  </button>
+                </div>
               </div>
 
-              {/* Quick pay */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* ── Zone: Payment (primary CTA) ── */}
+              <div className="px-2 pt-2.5 pb-2 border-b border-slate-800">
                 <button
                   onClick={openPayment}
-                  className="bg-slate-900 border-b-2 border-emerald-500 rounded h-14 hover:bg-slate-800 text-sm font-medium transition-colors"
+                  disabled={items.length === 0}
+                  className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed rounded flex flex-col items-center justify-center gap-0.5 py-4 text-white font-semibold transition-colors"
                 >
-                  F12 Cash
-                </button>
-                <button
-                  onClick={openPayment}
-                  className="bg-slate-900 border-b-2 border-blue-500 rounded h-14 hover:bg-slate-800 text-sm font-medium transition-colors"
-                >
-                  Card
-                </button>
-              </div>
-
-              {/* Secondary */}
-       
-
-              {/* Middle 4 */}
-              <div className="grid grid-cols-4 gap-2 mt-auto">
-                <button
-                  onClick={() => setModal("discount")}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-24 relative transition-colors"
-                >
-                  <span className="absolute top-2 left-2 text-[10px] text-slate-500">
-                    F2
+                  <span className="text-[10px] opacity-70 font-normal">
+                    F10
                   </span>
-                  <ResponsiveIcon icon={Percent} className="size-9" />
-                  <div className="text-xs">Discount</div>
-                </button>
-                <button
-                  onClick={() => setModal("comment")}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-24 transition-colors"
-                >
-                  <ResponsiveIcon icon={MessageSquare} className="size-9" />
-                  <div className="text-xs">Comment</div>
-                </button>
-                <button
-                  onClick={() => setModal("customer")}
-                  className={`border rounded flex flex-col items-center justify-center gap-1.5 h-24 transition-colors ${
-                    selectedCustomer
-                      ? "bg-cyan-950 border-cyan-700 hover:bg-cyan-900"
-                      : "bg-slate-900 border-slate-800 hover:bg-slate-800"
-                  }`}
-                >
-                  <ResponsiveIcon icon={UserCheck} className="size-9" />
-                  <div className="text-xs truncate max-w-full px-1">
-                    {selectedCustomer
-                      ? selectedCustomer.name.split(" ")[0]
-                      : "Customer"}
-                  </div>
-                </button>
-                <button className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-24 transition-colors">
-                  <ResponsiveIcon icon={User} className="size-9" />
-                  <div className="text-xs">Cashier</div>
+                  <span className="text-base">Payment</span>
+                  {items.length > 0 && (
+                    <span className="text-xs opacity-80 tabular-nums">
+                      ₦{total.toFixed(2)}
+                    </span>
+                  )}
                 </button>
               </div>
 
-              {/* Save + Refund + Payment */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid grid-cols-2 gap-2">
+              {/* ── Zone: Document ── */}
+              <div className="px-2 pt-2.5 pb-2 border-b border-slate-800">
+                <ZoneLabel>Document</ZoneLabel>
+                <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={saveSale}
                     disabled={items.length === 0 || createDocument.isPending}
-                    className="bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 rounded flex flex-col items-center justify-center gap-1.5 h-32 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
                   >
-                    <ResponsiveIcon icon={Save} className="size-8" />
-                    <div className="text-xs font-semibold">F9</div>
-                    <div className="text-xs">Save sale</div>
+                    <Save className="w-4 h-4 text-slate-400" />
+                    <span className="text-[9px] text-slate-500 font-medium">
+                      F9
+                    </span>
+                    <span className="text-[10px] text-slate-300">Save</span>
                   </button>
                   <button
                     onClick={() => setModal("refund")}
-                    className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-32 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded py-2.5 transition-colors"
                   >
-                    <ResponsiveIcon icon={RefreshCw} className="size-8" />
-                    <div className="text-xs">Refund</div>
+                    <RefreshCw className="w-4 h-4 text-slate-400" />
+                    <span className="text-[10px] text-slate-300">Refund</span>
                   </button>
                 </div>
-                <button
-                  onClick={openPayment}
-                  disabled={items.length === 0}
-                  className="bg-[#4caf50] hover:bg-[#45a049] disabled:opacity-40 rounded flex flex-col items-center justify-center gap-2 text-black font-semibold transition-colors"
-                >
-                  <div className="text-2xl">F10</div>
-                  <div>Payment</div>
-                </button>
               </div>
 
-              {/* Lock / Transfer / Void / More */}
-              <div className="grid grid-cols-4 gap-2">
-                {/* <button
-                  onClick={() => setModal("lock")}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-20 transition-colors"
-                >
-                  <ResponsiveIcon icon={Lock} className="size-7" />
-                  <div className="text-xs">Lock</div>
-                </button> */}
-                <button
-                  onClick={() => items.length > 0 && setModal("transfer")}
-                  disabled={items.length === 0}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 disabled:opacity-40 rounded flex flex-col items-center justify-center gap-1.5 h-20 transition-colors"
-                >
-                  <ResponsiveIcon icon={Copy} className="size-7" />
-                  <div className="text-[10px]">F7</div>
-                  <div className="text-xs">Transfer</div>
-                </button>
-                <button
-                  onClick={() => items.length > 0 && setModal("void")}
-                  disabled={items.length === 0}
-                  className="bg-[#d32f2f] hover:bg-[#b71c1c] disabled:opacity-40 rounded flex flex-col items-center justify-center gap-1.5 h-20 text-white transition-colors"
-                >
-                  <ResponsiveIcon icon={Trash2} className="size-7" />
-                  <div className="text-xs font-semibold">Void</div>
-                </button>
-                <button
-                  onClick={() => setDrawerOpen(true)}
-                  className="bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded flex flex-col items-center justify-center gap-1.5 h-20 transition-colors"
-                >
-                  <ResponsiveIcon icon={BsThreeDots} className="size-7" />
-                </button>
+              {/* ── Zone: Danger + More ── */}
+              <div className="px-2 pt-2.5 pb-2">
+                <ZoneLabel>More</ZoneLabel>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={() => items.length > 0 && setModal("void")}
+                    disabled={items.length === 0}
+                    className="flex flex-col items-center justify-center gap-1 bg-red-950/60 border border-red-900 hover:bg-red-900/60 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="text-[10px] font-semibold">Void</span>
+                  </button>
+                  <button
+                    onClick={() => setModal("lock")}
+                    className="flex flex-col items-center justify-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded py-2.5 transition-colors text-slate-400"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span className="text-[10px]">Lock</span>
+                  </button>
+                  <button
+                    onClick={() => setDrawerOpen(true)}
+                    className="flex flex-col items-center justify-center gap-1 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded py-2.5 transition-colors text-slate-400"
+                  >
+                    <BsThreeDots className="w-4 h-4" />
+                    <span className="text-[10px]">More</span>
+                  </button>
+                </div>
               </div>
             </div>
           </Panel>

@@ -54,8 +54,8 @@ export function useCreateBarcode() {
       productId: string;
       isPrimary?: boolean;
     }) => {
-      const [created] = await db.insert(barcodes).values(data).returning();
-      return created;
+      await db.insert(barcodes).values(data);
+      return data;
     },
     onSuccess: (_, { productId }) => {
       qc.invalidateQueries({ queryKey: barcodeKeys.byProduct(productId) });
@@ -78,12 +78,14 @@ export function useUpdateBarcode() {
         isPrimary: boolean;
       }>;
     }) => {
-      const [updated] = await db
-        .update(barcodes)
-        .set(data)
-        .where(eq(barcodes.id, id))
-        .returning();
-      if (!updated) throw new Error("Barcode not found");
+      const existing = await db.query.barcodes.findFirst({
+        where: eq(barcodes.id, id),
+      });
+      if (!existing) throw new Error("Barcode not found");
+      await db.update(barcodes).set(data).where(eq(barcodes.id, id));
+      const updated = await db.query.barcodes.findFirst({
+        where: eq(barcodes.id, id),
+      });
       return updated;
     },
     onSuccess: (_, { id }) => {
@@ -97,11 +99,11 @@ export function useDeleteBarcode() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const deleted = await db
-        .delete(barcodes)
-        .where(eq(barcodes.id, id))
-        .returning();
-      if (!deleted.length) throw new Error("Barcode not found");
+      const existing = await db.query.barcodes.findFirst({
+        where: eq(barcodes.id, id),
+      });
+      if (!existing) throw new Error("Barcode not found");
+      await db.delete(barcodes).where(eq(barcodes.id, id));
       return true;
     },
     onSuccess: () => {

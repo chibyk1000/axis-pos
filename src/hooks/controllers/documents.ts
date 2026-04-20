@@ -3,8 +3,6 @@ import { db } from "@/db/database";
 import { documents, documentItems, documentPayments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
-
-
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentItem = typeof documentItems.$inferInsert;
@@ -70,34 +68,33 @@ export function useCreateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
-   
-const docId = crypto.randomUUID();
+      const docId = crypto.randomUUID();
 
-await db.insert(documents).values({
-  ...data.document,
-  id: docId,
-  createdAt: new Date(),
-});
+      await db.insert(documents).values({
+        ...data.document,
+        id: docId,
+        createdAt: new Date(),
+      });
 
-if (data.items?.length) {
-  await db.insert(documentItems).values(
-    data.items.map((item) => ({
-      ...item,
-      id: crypto.randomUUID(),
-      documentId: docId,
-    })),
-  );
-}
+      if (data.items?.length) {
+        await db.insert(documentItems).values(
+          data.items.map((item) => ({
+            ...item,
+            id: crypto.randomUUID(),
+            documentId: docId,
+          })),
+        );
+      }
 
-if (data.payments?.length) {
-  await db.insert(documentPayments).values(
-    data.payments.map((p) => ({
-      ...p,
-      id: crypto.randomUUID(),
-      documentId: docId,
-    })),
-  );
-}
+      if (data.payments?.length) {
+        await db.insert(documentPayments).values(
+          data.payments.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+            documentId: docId,
+          })),
+        );
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
@@ -115,42 +112,39 @@ export function useUpdateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
-      await db.transaction(async (tx) => {
-        await tx
-          .update(documents)
-          .set(data.document)
-          .where(eq(documents.id, data.id));
+      await db
+        .update(documents)
+        .set(data.document)
+        .where(eq(documents.id, data.id));
 
-        // remove old children
-        await tx
-          .delete(documentItems)
-          .where(eq(documentItems.documentId, data.id));
+      // remove old children
+      await db
+        .delete(documentItems)
+        .where(eq(documentItems.documentId, data.id));
+      await db
+        .delete(documentPayments)
+        .where(eq(documentPayments.documentId, data.id));
 
-        await tx
-          .delete(documentPayments)
-          .where(eq(documentPayments.documentId, data.id));
+      // insert new children
+      if (data.items?.length) {
+        await db.insert(documentItems).values(
+          data.items.map((item) => ({
+            ...item,
+            id: crypto.randomUUID(),
+            documentId: data.id,
+          })),
+        );
+      }
 
-        // insert new children
-        if (data.items?.length) {
-          await tx.insert(documentItems).values(
-            data.items.map((item) => ({
-              ...item,
-              id: crypto.randomUUID(),
-              documentId: data.id,
-            })),
-          );
-        }
-
-        if (data.payments?.length) {
-          await tx.insert(documentPayments).values(
-            data.payments.map((p) => ({
-              ...p,
-              id: crypto.randomUUID(),
-              documentId: data.id,
-            })),
-          );
-        }
-      });
+      if (data.payments?.length) {
+        await db.insert(documentPayments).values(
+          data.payments.map((p) => ({
+            ...p,
+            id: crypto.randomUUID(),
+            documentId: data.id,
+          })),
+        );
+      }
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["documents"] });

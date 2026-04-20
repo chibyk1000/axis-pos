@@ -92,15 +92,13 @@ export function useAllStockHistory() {
  * `id` is optional — if omitted, a nanoid is generated automatically.
  * Callers may pass a pre-generated id for idempotency (e.g. optimistic UI).
  */
-export function   useAddStockEntry() {
+export function useAddStockEntry() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: Omit<NewStockEntry, "id"> & { id?: string }) => {
-      const [created] = await db
-        .insert(stockEntries)
-        .values({ ...data, id: data.id ?? nanoid() })
-        .returning();
-      return created;
+      const id = data.id ?? nanoid();
+      await db.insert(stockEntries).values({ ...data, id });
+      return { ...data, id } as StockEntry;
     },
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: stockKeys.all });
@@ -124,12 +122,11 @@ export function useUpdateStockEntry() {
         where: eq(stockEntries.id, id),
       });
       if (!existing) throw new Error("Stock entry not found");
-      const [updated] = await db
-        .update(stockEntries)
-        .set(data)
-        .where(eq(stockEntries.id, id))
-        .returning();
-      return updated;
+      await db.update(stockEntries).set(data).where(eq(stockEntries.id, id));
+      const updated = await db.query.stockEntries.findFirst({
+        where: eq(stockEntries.id, id),
+      });
+      return updated as StockEntry;
     },
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: stockKeys.all });

@@ -1,6 +1,8 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { nodes } from "./nodes";
 import { InferInsertModel, InferSelectModel, relations } from "drizzle-orm";
+import { users } from "./users";
+import { companies } from "./company";
 import { barcodes } from "./barcode";
 import { productTaxes } from "./productTaxes";
 import { comments } from "./comments";
@@ -26,6 +28,9 @@ export const products = sqliteTable("products", {
   supplierId: text("supplier_id").references(() => customers.id, {
     onDelete: "restrict",
   }),
+
+  ownerId: integer("owner_id").references(() => users.id),
+  companyId: text("company_id").references(() => companies.id),
 
   title: text("title").notNull(),
   code: text("code").notNull(),
@@ -62,6 +67,11 @@ export const productsRelations = relations(products, ({ many, one }) => ({
     fields: [products.supplierId],
     references: [customers.id],
   }),
+  owner: one(users, { fields: [products.ownerId], references: [users.id] }),
+  company: one(companies, {
+    fields: [products.companyId],
+    references: [companies.id],
+  }),
 }));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -77,6 +87,8 @@ export type Product = InferSelectModel<typeof products> & {
   stockEntries: InferSelectModel<typeof stockEntries>[];
   node: InferSelectModel<typeof nodes>;
   supplier?: InferSelectModel<typeof customers> | null;
+  owner?: InferSelectModel<typeof users> | null;
+  company?: InferSelectModel<typeof companies> | null;
 };
 
 export type NewProduct = InferInsertModel<typeof products>;

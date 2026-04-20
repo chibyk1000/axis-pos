@@ -49,8 +49,8 @@ export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: NewUser) => {
-      const [created] = await db.insert(users).values(data).returning();
-      return created;
+      await db.insert(users).values(data);
+      return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.list() }),
   });
@@ -70,12 +70,12 @@ export function useUpdateUser() {
         where: eq(users.id, id),
       });
       if (!existing) throw new Error("User not found");
-      const [updated] = await db
+      await db
         .update(users)
         .set({ ...data, updated_at: new Date().toISOString() })
-        .where(eq(users.id, id))
-        .returning();
-      return updated;
+        .where(eq(users.id, id));
+      const updated = await db.query.users.findFirst({ where: eq(users.id, id) });
+      return updated as User;
     },
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: userKeys.byId(String(id)) });
@@ -93,15 +93,15 @@ export function useDeleteUser() {
         where: eq(users.id, id),
       });
       if (!existing) throw new Error("User not found");
-      const [deleted] = await db
+      await db
         .update(users)
         .set({
           deleted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .where(eq(users.id, id))
-        .returning();
-      return deleted;
+        .where(eq(users.id, id));
+      const deleted = await db.query.users.findFirst({ where: eq(users.id, id) });
+      return deleted as User;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.list() }),
   });

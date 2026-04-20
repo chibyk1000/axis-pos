@@ -1,14 +1,11 @@
-
 import { db } from "@/db/database";
-import { eq,  } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nodes } from "@/db/schema/nodes";
 import { type Node, type NewNode, products, Product } from "@/db/schema/index";
 import { ROOT_NODE_ID } from "@/db/constants";
 // hooks/nodes/useRootNodes.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodeKeys } from "../querykeys";
-
-
 
 export function useRootNodes() {
   return useQuery({
@@ -19,15 +16,14 @@ export function useRootNodes() {
         orderBy: (nodes) => nodes.position, // keep ordering
         with: {
           products: true,
-          
-        }
+        },
       });
 
       // 2️⃣ Build tree recursively
-      function buildTree(nodes:any, parentId: string | null = null) {
+      function buildTree(nodes: any, parentId: string | null = null) {
         return nodes
-          .filter((n:any) => n.parentId === parentId)
-          .map((n:any) => ({
+          .filter((n: any) => n.parentId === parentId)
+          .map((n: any) => ({
             ...n,
             children: buildTree(nodes, n.id), // recursion for children
           }));
@@ -41,19 +37,14 @@ export function useRootNodes() {
 export function useRootWithoutChildren() {
   return useQuery({
     queryKey: ["root-nochild"],
-    queryFn: async () =>{
-
-const allNodes = await db.query.nodes.findMany({
-  orderBy: (nodes) => nodes.position, // keep ordering
-});
-    return allNodes  
-    }
+    queryFn: async () => {
+      const allNodes = await db.query.nodes.findMany({
+        orderBy: (nodes) => nodes.position, // keep ordering
+      });
+      return allNodes;
+    },
   });
 }
-
-
-
-
 
 export function useNodeChildren(parentId: string | null) {
   return useQuery({
@@ -69,8 +60,6 @@ export function useNodeChildren(parentId: string | null) {
   });
 }
 
-
-
 export function useNodeById(id: string) {
   return useQuery({
     queryKey: nodeKeys.byId(id),
@@ -83,7 +72,6 @@ export function useNodeById(id: string) {
     },
   });
 }
-
 
 type TreeElement =
   | {
@@ -161,18 +149,16 @@ export function useCreateNode() {
 
   return useMutation({
     mutationFn: async (data: NewNode) => {
-      const [created] = await db.insert(nodes).values(data).returning();
-      return created;
+      await db.insert(nodes).values(data);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: nodeKeys.all });
       qc.invalidateQueries({ queryKey: ["root-nochild"] });
-      qc.invalidateQueries()
+      qc.invalidateQueries();
     },
   });
 }
-
-
 
 export function useUpdateNode() {
   const qc = useQueryClient();
@@ -185,13 +171,7 @@ export function useUpdateNode() {
       id: string;
       data: Partial<Omit<Node, "id" | "createdAt">>;
     }) => {
-    await db
-        .update(nodes)
-        .set(data)
-        .where(eq(nodes.id, id))
-        .returning();
-
-      
+      await db.update(nodes).set(data).where(eq(nodes.id, id));
       return true;
     },
     onSuccess: (_, { id }) => {
@@ -200,8 +180,6 @@ export function useUpdateNode() {
     },
   });
 }
-
-
 
 export function useMoveNode() {
   const qc = useQueryClient();
@@ -216,12 +194,13 @@ export function useMoveNode() {
       parentId: string | null;
       position?: number;
     }) => {
-      const [updated] = await db
+      await db
         .update(nodes)
         .set({ parentId, position })
-        .where(eq(nodes.id, id))
-        .returning();
-
+        .where(eq(nodes.id, id));
+      const updated = await db.query.nodes.findFirst({
+        where: eq(nodes.id, id),
+      });
       if (!updated) throw new Error("Node not found");
       return updated;
     },
@@ -231,21 +210,12 @@ export function useMoveNode() {
   });
 }
 
-
-
-
-
 export function useDeleteNode() {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      await db
-        .delete(nodes)
-        .where(eq(nodes.id, id))
-        .returning();
-
- 
+      await db.delete(nodes).where(eq(nodes.id, id));
       return true;
     },
     onSuccess: () => {
@@ -260,23 +230,20 @@ export async function ensureRootNode() {
     where: eq(nodes.id, ROOT_NODE_ID),
   });
 
-  
-
   if (root) return root;
 
   // 2. Create root if missing
-  const [created] = await db
-    .insert(nodes)
-    .values({
-      id: ROOT_NODE_ID,
-      name: "products",
-      type: "group",
-      parentId: null,
-      position: 0,
-      displayName:"products"
-    })
-    .returning();
+  await db.insert(nodes).values({
+    id: ROOT_NODE_ID,
+    name: "products",
+    type: "group",
+    parentId: null,
+    position: 0,
+    displayName: "products",
+  });
 
+  const created = await db.query.nodes.findFirst({
+    where: eq(nodes.id, ROOT_NODE_ID),
+  });
   return created;
 }
-
