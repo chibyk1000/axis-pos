@@ -35,8 +35,8 @@ export default function TaxRatesTable() {
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
-const [switchOpen, setSwitchOpen] = useState(false);
-const switchTax = useSwitchTax();
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const switchTax = useSwitchTax();
   const { data: taxes = [], refetch } = useTaxes();
   const createTax = useCreateTax();
   const updateTax = useUpdateTax();
@@ -45,7 +45,7 @@ const switchTax = useSwitchTax();
   const selectedTax = taxes.find((t) => t.id === selected);
 
   return (
-    <div className="h-screen bg-slate-900 text-slate-100 p-4">
+    <div className="h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4">
       <SwitchTaxesDrawer
         open={switchOpen}
         onOpenChange={setSwitchOpen}
@@ -137,16 +137,16 @@ const switchTax = useSwitchTax();
       </div>
 
       {/* Table */}
-      <div className="border border-slate-700 bg-slate- rounded-md overflow-hidden">
+      <div className="border border-slate-200 dark:border-slate-700 bg-slate- rounded-md overflow-hidden">
         <ScrollArea className="h-[calc(100vh-120px)]">
           <Table>
-            <TableHeader className="  bg-slate-700 border-b border-slate-100">
+            <TableHeader className="  bg-slate-100 dark:bg-slate-700 border-b border-slate-100">
               <TableRow>
-                <TableHead className="text-slate-200 w-[40%]">Name</TableHead>
-                <TableHead className="text-slate-200">Rate</TableHead>
-                <TableHead className="text-slate-200">Code</TableHead>
-                <TableHead className="text-slate-200">Fixed</TableHead>
-                <TableHead className="text-slate-200">Enabled</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200 w-[40%]">Name</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">Rate</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">Code</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">Fixed</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">Enabled</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -157,12 +157,12 @@ const switchTax = useSwitchTax();
                   onClick={() => setSelected(tax.id)}
                   className={`
                     cursor-pointer transition-colors
-                    ${selected === tax.id ? "bg-slate-700" : "hover:bg-slate-700/50"}
+                    ${selected === tax.id ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-100 dark:bg-slate-700/50"}
                   `}
                 >
                   <TableCell>{tax.name}</TableCell>
                   <TableCell>{tax.rate}%</TableCell>
-                  <TableCell className="text-slate-400">
+                  <TableCell className="text-slate-500 dark:text-slate-400">
                     {tax.code || "—"}
                   </TableCell>
                   <TableCell>
@@ -201,9 +201,9 @@ function ToolbarButton({
       onClick={onClick}
       className="
         flex items-center gap-2
-        text-slate-300
-        hover:text-white
-        hover:bg-slate-800
+        text-slate-700 dark:text-slate-300
+        hover:text-slate-900 dark:text-white
+        hover:bg-white dark:bg-slate-800
         disabled:opacity-40
       "
     >

@@ -68,12 +68,12 @@ export function useCreateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
-      const docId = crypto.randomUUID();
+      const docId = data.document.id ?? crypto.randomUUID();
 
       await db.insert(documents).values({
         ...data.document,
         id: docId,
-        createdAt: new Date(),
+        createdAt: data.document.createdAt ?? new Date(),
       });
 
       if (data.items?.length) {

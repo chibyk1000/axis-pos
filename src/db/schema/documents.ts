@@ -25,6 +25,7 @@ export const documents = sqliteTable("documents", {
   stockDate: integer("stock_date", { mode: "timestamp" }),
 
   paid: integer("paid", { mode: "boolean" }).default(false),
+  type: integer("type").default(200),
 
   status: text("status")
     .$type<"draft" | "posted" | "cancelled">()

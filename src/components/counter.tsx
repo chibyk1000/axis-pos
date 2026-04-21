@@ -1,4 +1,4 @@
-import  { useState } from "react";
+import { useState } from "react";
 
 interface CounterProps {
   initialValue?: number;
@@ -34,17 +34,17 @@ export default function Counter({
   };
 
   return (
-    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded px-2 py-1 w-max">
+    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 w-max">
       <button
         onClick={handleDecrement}
-        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white"
+        className="px-2 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded text-slate-900 dark:text-white"
       >
         −
       </button>
-      <span className="px-3 text-white">{value}</span>
+      <span className="px-3 text-slate-900 dark:text-white">{value}</span>
       <button
         onClick={handleIncrement}
-        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white"
+        className="px-2 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded text-slate-900 dark:text-white"
       >
         +
       </button>

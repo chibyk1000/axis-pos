@@ -1,6 +1,6 @@
 "use client";
 
-import {  useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "./ui/drawer";
 import { Switch } from "./ui/switch";
 import { ScrollArea } from "./ui/scroll-area";
@@ -11,8 +11,11 @@ import {
   useDeleteLoyaltyCard,
   useUpdateCustomer,
 } from "@/hooks/controllers/customers";
-import { useAddCustomerDiscount, useCustomerDiscounts } from "@/hooks/controllers/discount";
-import Select from "react-select"
+import {
+  useAddCustomerDiscount,
+  useCustomerDiscounts,
+} from "@/hooks/controllers/discount";
+import Select from "react-select";
 import { CSS } from "@dnd-kit/utilities";
 interface TreeItem {
   id: string;
@@ -25,11 +28,6 @@ interface LoyaltyCard {
   id: string;
   number: string;
 }
-
-
-
-
-
 
 function DraggableFolder({
   element,
@@ -62,7 +60,7 @@ function DraggableFolder({
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()} // 🔑 CRITICAL
-        className="absolute left-0 top-1/2 -translate-y-1/2 cursor-grab text-slate-400 hover:text-white"
+        className="absolute left-0 top-1/2 -translate-y-1/2 cursor-grab text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
       >
         <GripVertical className="size-4" />
       </div>
@@ -71,9 +69,6 @@ function DraggableFolder({
     </div>
   );
 }
-
-
-
 
 function DraggableFile({ element }: { element: TreeViewElement }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -129,11 +124,7 @@ function RenderTree({ elements }: { elements: TreeViewElement[] }) {
   );
 }
 
-
-
-
 function DiscountDropZone({
-
   children,
 }: {
   onDrop: (item: TreeItem) => void;
@@ -146,8 +137,10 @@ function DiscountDropZone({
   return (
     <div
       ref={setNodeRef}
-      className={`border border-slate-700 rounded-md p-4 transition ${
-        isOver ? "bg-slate-700/40" : "bg-slate-800"
+      className={`border border-slate-300 dark:border-slate-700 rounded-md p-4 transition ${
+        isOver
+          ? "bg-slate-200/40 dark:bg-slate-700/40"
+          : "bg-white dark:bg-slate-800"
       }`}
     >
       {children}
@@ -155,11 +148,10 @@ function DiscountDropZone({
   );
 }
 
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialData:Customer | null
+  initialData: Customer | null;
 }
 
 interface DiscountItem {
@@ -168,15 +160,8 @@ interface DiscountItem {
   value: number;
 }
 
-
-
 import { Formik, FieldArray, FormikProps } from "formik";
-import {
-  DndContext,
-
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
+import { DndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { GripVertical, Info, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -192,7 +177,7 @@ export default function CustomerSupplierDrawer({
   initialData,
 }: Props) {
   const [activeTab, setActiveTab] = useState("General");
-  
+
   const [cards, setCards] = useState<LoyaltyCard[]>([]);
   const [cardInput, setCardInput] = useState<string>("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -202,14 +187,12 @@ export default function CustomerSupplierDrawer({
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
   const addCustomerDiscount = useAddCustomerDiscount();
-  const getLoyaltyCards = useCustomerLoyaltyCards(initialData?.id as string)
+  const getLoyaltyCards = useCustomerLoyaltyCards(initialData?.id as string);
   const deletLoyaltyCard = useDeleteLoyaltyCard(initialData?.id as string);
 
-  const getDiscount = useCustomerDiscounts(initialData?.id as string)
+  const getDiscount = useCustomerDiscounts(initialData?.id as string);
 
-  
-
-  const { data: rootGroups = [],  } = useRootNodes();
+  const { data: rootGroups = [] } = useRootNodes();
   const addLoyaltyCardMutation = useAddLoyaltyCard("");
   const formikRef = useRef<FormikProps<{ discounts: DiscountItem[] }>>(null);
   const mapGroupsToTree = (groups: any[]): TreeViewElement[] =>
@@ -218,7 +201,7 @@ export default function CustomerSupplierDrawer({
       name: group.name,
       isSelectable: true,
       children: group.children ? mapGroupsToTree(group.children) : [],
-      type:"group"
+      type: "group",
     }));
   // General info state
   const [form, setForm] = useState({
@@ -256,7 +239,6 @@ export default function CustomerSupplierDrawer({
     setCardInput("");
   };
 
-
   useEffect(() => {
     if (getLoyaltyCards.data) {
       setCards(
@@ -268,17 +250,17 @@ export default function CustomerSupplierDrawer({
     }
   }, [getLoyaltyCards.data]);
 
-useEffect(() => {
-  if (initialData?.id && getDiscount.data && formikRef.current) {
-    formikRef.current.setValues({
-      discounts: getDiscount.data.map((d) => ({
-        id: d.productId,
-        label: d.productId, // or product name if you join later
-        value: d.discountPercent,
-      })),
-    });
-  }
-}, [initialData?.id, getDiscount.data]);
+  useEffect(() => {
+    if (initialData?.id && getDiscount.data && formikRef.current) {
+      formikRef.current.setValues({
+        discounts: getDiscount.data.map((d) => ({
+          id: d.productId,
+          label: d.productId, // or product name if you join later
+          value: d.discountPercent,
+        })),
+      });
+    }
+  }, [initialData?.id, getDiscount.data]);
 
   // ---------- Sync initialData when drawer opens ----------
   useEffect(() => {
@@ -299,14 +281,10 @@ useEffect(() => {
         country: initialData.country || "",
         email: initialData.email || "",
         dueDate: initialData.paymentTermsDays || 0,
-
       });
       setIsActive(initialData.active ?? true);
       setIsCustomer(initialData.customer ?? true);
       setIsTaxExempt(initialData.taxExempt ?? false);
-    
-      
-  
     } else if (!open) {
       // Reset form when closing drawer
       resetForm();
@@ -342,112 +320,111 @@ useEffect(() => {
     if (!selectedCardId) return;
 
     if (initialData) {
-        await deletLoyaltyCard.mutateAsync(selectedCardId);
+      await deletLoyaltyCard.mutateAsync(selectedCardId);
     }
     setCards((prev) => prev.filter((c) => c.id !== selectedCardId));
     setSelectedCardId(null);
   };
 
   /* ---------- Save handler ---------- */
-const handleSave = async () => {
-  try {
-    const customerId = initialData?.id ?? crypto.randomUUID();
+  const handleSave = async () => {
+    try {
+      const customerId = initialData?.id ?? crypto.randomUUID();
 
-    /* ---------------- UPDATE ---------------- */
-    if (initialData?.id) {
-      // 1. Update customer
-      await updateCustomer.mutateAsync({
-        id: customerId,
-        data: {
+      /* ---------------- UPDATE ---------------- */
+      if (initialData?.id) {
+        // 1. Update customer
+        await updateCustomer.mutateAsync({
+          id: customerId,
+          data: {
+            ...form,
+            active: isActive,
+            customer: isCustomer,
+            taxExempt,
+          },
+        });
+
+        // 2. DELETE ALL loyalty cards
+        if (getLoyaltyCards.data?.length) {
+          for (const card of getLoyaltyCards.data) {
+            await deletLoyaltyCard.mutateAsync(card.id);
+          }
+        }
+
+        // 3. DELETE ALL discounts
+        if (getDiscount.data?.length) {
+          for (const discount of getDiscount.data) {
+            await addCustomerDiscount.reset(); // ensure clean state
+            await addCustomerDiscount.mutateAsync({
+              id: discount.id, // doesn't matter, will be deleted anyway
+              customerId,
+              productId: discount.productId,
+              discountPercent: discount.discountPercent,
+            });
+          }
+        }
+
+        // 4. RE-ADD loyalty cards
+        for (const card of cards) {
+          await addLoyaltyCardMutation.mutateAsync({
+            id: crypto.randomUUID(),
+            customerId,
+            number: card.number,
+          });
+        }
+
+        // 5. RE-ADD discounts
+        if (formikRef.current) {
+          const discounts = formikRef.current.values.discounts;
+
+          for (const discount of discounts) {
+            await addCustomerDiscount.mutateAsync({
+              id: crypto.randomUUID(),
+              customerId,
+              productId: discount.id,
+              discountPercent: discount.value,
+            });
+          }
+        }
+      } else {
+        /* ---------------- CREATE ---------------- */
+        await createCustomer.mutateAsync({
+          id: customerId,
           ...form,
           active: isActive,
           customer: isCustomer,
           taxExempt,
-        },
-      });
-
-      // 2. DELETE ALL loyalty cards
-      if (getLoyaltyCards.data?.length) {
-        for (const card of getLoyaltyCards.data) {
-          await deletLoyaltyCard.mutateAsync(card.id);
-        }
-      }
-
-      // 3. DELETE ALL discounts
-      if (getDiscount.data?.length) {
-        for (const discount of getDiscount.data) {
-          await addCustomerDiscount.reset(); // ensure clean state
-          await addCustomerDiscount.mutateAsync({
-            id: discount.id, // doesn't matter, will be deleted anyway
-            customerId,
-            productId: discount.productId,
-            discountPercent: discount.discountPercent,
-          });
-        }
-      }
-
-      // 4. RE-ADD loyalty cards
-      for (const card of cards) {
-        await addLoyaltyCardMutation.mutateAsync({
-          id: crypto.randomUUID(),
-          customerId,
-          number: card.number,
         });
-      }
 
-      // 5. RE-ADD discounts
-      if (formikRef.current) {
-        const discounts = formikRef.current.values.discounts;
-
-        for (const discount of discounts) {
-          await addCustomerDiscount.mutateAsync({
+        for (const card of cards) {
+          await addLoyaltyCardMutation.mutateAsync({
             id: crypto.randomUUID(),
             customerId,
-            productId: discount.id,
-            discountPercent: discount.value,
+            number: card.number,
           });
         }
-      }
-    } else {
 
-    /* ---------------- CREATE ---------------- */
-      await createCustomer.mutateAsync({
-        id: customerId,
-        ...form,
-        active: isActive,
-        customer: isCustomer,
-        taxExempt,
-      });
+        if (formikRef.current) {
+          const discounts = formikRef.current.values.discounts;
 
-      for (const card of cards) {
-        await addLoyaltyCardMutation.mutateAsync({
-          id: crypto.randomUUID(),
-          customerId,
-          number: card.number,
-        });
-      }
-
-      if (formikRef.current) {
-        const discounts = formikRef.current.values.discounts;
-
-        for (const discount of discounts) {
-          await addCustomerDiscount.mutateAsync({
-            id: crypto.randomUUID(),
-            customerId,
-            productId: discount.id,
-            discountPercent: discount.value,
-          });
+          for (const discount of discounts) {
+            await addCustomerDiscount.mutateAsync({
+              id: crypto.randomUUID(),
+              customerId,
+              productId: discount.id,
+              discountPercent: discount.value,
+            });
+          }
         }
       }
+
+      toast.success(initialData ? "Customer updated" : "Customer added");
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save customer");
     }
-
-    toast.success(initialData ? "Customer updated" : "Customer added");
-    onOpenChange(false);
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to save customer");
-  }
-};
+  };
 
   const treeElements = mapGroupsToTree(rootGroups);
 
@@ -458,22 +435,22 @@ const handleSave = async () => {
       direction="right"
       handleOnly={true}
     >
-      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-4xl bg-slate-900 border-l border-slate-700 p-6 flex flex-col gap-4">
+      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-4xl bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
         <DrawerHeader>
-          <DrawerTitle className="text-white">
+          <DrawerTitle className="text-slate-900 dark:text-white">
             New Customer / Supplier
           </DrawerTitle>
         </DrawerHeader>
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-slate-700 ">
+        <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700 ">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 text-sm rounded-t-md transition ${
                 activeTab === tab
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
               }`}
             >
               {tab}
@@ -485,7 +462,7 @@ const handleSave = async () => {
           {/* Tab Content */}
           {activeTab === "General" && (
             <div className="max-w-3xl mb-6">
-              <h2 className="text-lg font-medium mb-4 text-white">
+              <h2 className="text-lg font-medium mb-4 text-slate-900 dark:text-white">
                 General Info
               </h2>
               <div className="grid grid-cols-1 gap-4">
@@ -634,7 +611,7 @@ const handleSave = async () => {
                     >
                       <div className="grid grid-cols-[360px_1fr] gap-4 min-h-[60dvh]">
                         {/* LEFT */}
-                        <div className="border border-slate-700 bg-slate-800 rounded-md p-2">
+                        <div className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md p-2">
                           <Tree elements={treeElements}>
                             <RenderTree elements={treeElements} />
                           </Tree>
@@ -643,7 +620,7 @@ const handleSave = async () => {
                         {/* RIGHT */}
                         <DiscountDropZone onDrop={() => {}}>
                           {values.discounts.length === 0 ? (
-                            <div className="text-slate-400 text-center">
+                            <div className="text-slate-500 dark:text-slate-400 text-center">
                               Drag products here
                             </div>
                           ) : (
@@ -651,15 +628,15 @@ const handleSave = async () => {
                               {values.discounts.map((d, i) => (
                                 <div
                                   key={d.id}
-                                  className="flex justify-between items-center bg-slate-700 px-3 py-2 rounded"
+                                  className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded"
                                 >
-                                  <span className="text-xs text-white">
+                                  <span className="text-xs text-slate-900 dark:text-white">
                                     {d.label}
                                   </span>
                                   <div className="flex items-center gap-3">
                                     <input
                                       type="number"
-                                      className="w-16 bg-slate-800 border border-slate-50 pl-2 text-white rounded"
+                                      className="w-16 bg-white dark:bg-slate-800 border border-slate-50 pl-2 text-slate-900 dark:text-white rounded"
                                       value={d.value}
                                       onChange={(e) =>
                                         setFieldValue(
@@ -691,7 +668,7 @@ const handleSave = async () => {
 
           {activeTab === "Loyalty cards" && (
             <div className="mb-6">
-              <p className="text-sm text-slate-300 mb-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
                 Enter customer loyalty cards
               </p>
 
@@ -700,12 +677,12 @@ const handleSave = async () => {
                   value={cardInput}
                   onChange={(e) => setCardInput(e.target.value)}
                   placeholder="Card number"
-                  className="w-64 bg-slate-800 border border-slate-600 px-3 py-2 text-sm rounded outline-none focus:ring-2 focus:ring-slate-500"
+                  className="w-64 bg-white dark:bg-slate-800 border border-slate-600 px-3 py-2 text-sm rounded outline-none focus:ring-2 focus:ring-slate-500"
                 />
 
                 <button
                   onClick={addCard}
-                  className="flex items-center gap-1 text-sm text-slate-300 hover:text-white"
+                  className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white"
                 >
                   <span className="text-lg">＋</span> Add card
                 </button>
@@ -713,15 +690,15 @@ const handleSave = async () => {
                 <button
                   onClick={deleteCard}
                   disabled={!selectedCardId}
-                  className="flex items-center gap-1 text-sm text-slate-400 disabled:opacity-40 hover:text-white"
+                  className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:text-slate-900 dark:text-white"
                 >
                   <span className="text-lg">🗑</span> Delete
                 </button>
               </div>
 
-              <div className="border border-slate-700 bg-slate-800 rounded-md h-90 overflow-auto">
+              <div className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md h-90 overflow-auto">
                 {cards.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-slate-400">
+                  <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
                     No loyalty cards
                   </div>
                 ) : (
@@ -732,8 +709,8 @@ const handleSave = async () => {
                         onClick={() => setSelectedCardId(card.id)}
                         className={`px-4 py-2 cursor-pointer text-sm ${
                           selectedCardId === card.id
-                            ? "bg-slate-600 text-white"
-                            : "hover:bg-slate-700"
+                            ? "bg-slate-600 text-slate-900 dark:text-white"
+                            : "hover:bg-slate-100 dark:bg-slate-700"
                         }`}
                       >
                         {card.number}
@@ -746,8 +723,8 @@ const handleSave = async () => {
           )}
 
           {activeTab === "Payment terms" && (
-            <div className="text-slate-300 mb-6 space-y-6">
-              <Alert className="flex items-center gap-3 bg-slate-800 border-slate-700 text-slate-100 rounded-none">
+            <div className="text-slate-700 dark:text-slate-300 mb-6 space-y-6">
+              <Alert className="flex items-center gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-none">
                 <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-sky-500/20 text-sky-400">
                   <Info className="h-4 w-4" />
                 </div>
@@ -811,16 +788,15 @@ const handleSave = async () => {
         </ScrollArea>
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-6">
-          <button className="px-6 py-2 bg-slate-700 text-slate-300 rounded hover:bg-slate-600">
+          <button className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-600">
             Cancel
           </button>
           <button
             disabled={createCustomer.isPending || updateCustomer.isPending}
             onClick={handleSave}
-            className="px-6 py-2 bg-slate-600 rounded hover:bg-slate-500 text-white"
+            className="px-6 py-2 bg-slate-600 rounded hover:bg-slate-500 text-slate-900 dark:text-white"
           >
             {initialData ? "Update" : "Save"}
-           
           </button>
         </div>
       </DrawerContent>
@@ -842,17 +818,15 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm text-slate-300 mb-1">
+      <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <input
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500"
+        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500"
       />
     </div>
   );
 }
-
-

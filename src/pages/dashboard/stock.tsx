@@ -47,7 +47,10 @@ import {
   useAllStockHistory,
   useAddStockEntry,
 } from "@/hooks/controllers/stocks";
-import { PriceLabel, useProductPricesByLabel } from "@/hooks/controllers/priceLists";
+import {
+  PriceLabel,
+  useProductPricesByLabel,
+} from "@/hooks/controllers/priceLists";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,7 +232,7 @@ function TreeItem({
         }}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         className={`flex items-center gap-1.5 pr-3 py-1.5 cursor-pointer rounded mx-1 transition-colors text-xs
-          ${isSelected ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-700 text-slate-300"}`}
+          ${isSelected ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
       >
         <span className="w-3 shrink-0">
           {hasChildren && (
@@ -314,36 +317,38 @@ function StockHistoryDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-180 max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-180 max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-300 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-sky-400" />
-            <span className="font-semibold text-slate-100">Stock History</span>
-            <span className="text-xs text-slate-500 ml-1">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
+              Stock History
+            </span>
+            <span className="text-xs text-slate-600 dark:text-slate-500 ml-1">
               ({filtered.length} entries)
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 transition-colors"
+            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-3 border-b border-slate-800">
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
+        <div className="px-5 py-3 border-b border-slate-300 dark:border-slate-800">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product or note…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-100"
+              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="text-slate-500 hover:text-slate-300"
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-300"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -361,12 +366,12 @@ function StockHistoryDialog({
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
+              <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   {["Date", "Product", "Type", "Qty", "Note"].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-2.5 text-left text-xs font-medium text-slate-400"
+                      className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400"
                     >
                       {h}
                     </th>
@@ -379,13 +384,13 @@ function StockHistoryDialog({
                   return (
                     <tr
                       key={entry.id}
-                      className="border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors"
+                      className="border-b border-slate-300 dark:border-slate-800/60 hover:bg-white dark:bg-slate-800/40 transition-colors"
                     >
-                      <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="text-xs font-medium text-slate-200">
+                        <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
                           {entry.product?.title ?? "—"}
                         </div>
                         <div className="text-[10px] text-slate-500">
@@ -404,7 +409,7 @@ function StockHistoryDialog({
                         {entry.quantity > 0 ? "+" : ""}
                         {entry.quantity}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-400">
+                      <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
                         {entry.note ?? "—"}
                       </td>
                     </tr>
@@ -414,10 +419,10 @@ function StockHistoryDialog({
             </table>
           )}
         </div>
-        <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
+        <div className="px-5 py-3 border-t border-slate-300 dark:border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg px-4 py-1.5 text-sm transition-colors"
+            className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-4 py-1.5 text-sm transition-colors"
           >
             Close
           </button>
@@ -516,12 +521,12 @@ function QuickInventoryDialog({
   };
 
   const btnCls = (v: string) => {
-    if (v === "C") return "bg-red-700/70 hover:bg-red-600 text-white";
+    if (v === "C") return "bg-red-700/70 hover:bg-red-600 text-slate-900 dark:text-white";
     if (v === "⌫")
-      return "bg-slate-700 hover:bg-slate-600 text-amber-400 text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 text-lg";
     if (["+", "-", "×", "÷"].includes(v))
-      return "bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-xl";
-    return "bg-slate-800 hover:bg-slate-700 text-slate-100 text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-xl";
+    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-lg";
   };
 
   const types = [
@@ -547,23 +552,23 @@ function QuickInventoryDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-90 shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-90 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-300 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              <span className="font-semibold text-slate-100 text-sm">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
                 Quick Inventory
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-65">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-65">
               {product.title}
               <span className="text-slate-600 ml-2">stock: {currentStock}</span>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 transition-colors"
+            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -578,7 +583,7 @@ function QuickInventoryDialog({
               className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                 type === key
                   ? active
-                  : "border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700"
+                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-700"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -588,7 +593,7 @@ function QuickInventoryDialog({
         </div>
 
         {/* Display */}
-        <div className="mx-4 mt-3 bg-slate-950 rounded-xl px-4 py-3 border border-slate-800">
+        <div className="mx-4 mt-3 bg-slate-950 rounded-xl px-4 py-3 border border-slate-300 dark:border-slate-800">
           {expr && (
             <div className="text-slate-500 text-xs text-right h-4 truncate">
               {expr}
@@ -597,7 +602,7 @@ function QuickInventoryDialog({
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate mt-0.5
             ${display.length > 10 ? "text-2xl" : display.length > 7 ? "text-3xl" : "text-4xl"}
-            ${display === "Error" ? "text-red-400" : "text-slate-100"}`}
+            ${display === "Error" ? "text-red-400" : "text-slate-900 dark:text-slate-100"}`}
           >
             {display}
           </div>
@@ -655,7 +660,7 @@ function QuickInventoryDialog({
           ))}
           <button
             onClick={confirm}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors flex items-center justify-center"
+            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold transition-colors flex items-center justify-center"
             style={{ gridRow: "span 2", minHeight: "104px" }}
           >
             <CheckCircle2 className="w-7 h-7" />
@@ -677,7 +682,7 @@ function QuickInventoryDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Optional note…"
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500 placeholder-slate-500"
+            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500 placeholder-slate-500"
           />
         </div>
       </div>
@@ -710,25 +715,25 @@ function ProductPickerDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <span className="font-semibold text-slate-100">Select product</span>
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-300 dark:border-slate-800">
+          <span className="font-semibold text-slate-900 dark:text-slate-100">Select product</span>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400"
+            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-3 border-b border-slate-800">
-          <div className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2 border border-slate-700">
+        <div className="px-5 py-3 border-b border-slate-300 dark:border-slate-800">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-100"
+              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -739,11 +744,11 @@ function ProductPickerDialog({
               <button
                 key={p.id}
                 onClick={() => onSelect(p)}
-                className="w-full px-4 py-3 text-left hover:bg-slate-800 border-b border-slate-800/60 transition-colors"
+                className="w-full px-4 py-3 text-left hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800/60 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-200">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                       {p.title}
                     </p>
                     <p className="text-xs text-slate-500">
@@ -784,11 +789,11 @@ function StatusBadge({
   return (
     <div className="flex items-center gap-2">
       <span
-        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-white font-bold shrink-0`}
+        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-slate-900 dark:text-white font-bold shrink-0`}
       >
         {count}
       </span>
-      <span className="text-xs text-slate-300">{label}</span>
+      <span className="text-xs text-slate-700 dark:text-slate-300">{label}</span>
     </div>
   );
 }
@@ -807,8 +812,8 @@ function SummaryBlock({
       </div>
       {rows.map(([label, value]) => (
         <div key={label} className="flex justify-between gap-8">
-          <span className="text-xs text-slate-400">{label}</span>
-          <span className="text-xs font-medium text-slate-200 font-mono tabular-nums">
+          <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+          <span className="text-xs font-medium text-slate-800 dark:text-slate-200 font-mono tabular-nums">
             {value}
           </span>
         </div>
@@ -819,7 +824,7 @@ function SummaryBlock({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const PRICE_LABELS = ["Retail", "Wholesale",];
+const PRICE_LABELS = ["Retail", "Wholesale"];
 
 export default function StockView() {
   const navigate = useNavigate();
@@ -1086,12 +1091,12 @@ export default function StockView() {
   };
 
   const tbtn =
-    "flex items-center gap-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 px-2.5 py-1.5 rounded transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
+    "flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700 px-2.5 py-1.5 rounded transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 text-slate-200 h-full overflow-hidden">
+    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 h-full overflow-hidden">
       {/* Dialogs */}
       {showHistory && (
         <StockHistoryDialog
@@ -1121,16 +1126,16 @@ export default function StockView() {
       )}
 
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-1 rounded hover:bg-slate-700 transition-colors"
+            className="p-1 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
           >
             <ChevronLeftIcon className="w-5 h-5" />
           </button>
           <span className="text-sm">
-            <span className="text-slate-400">Management •</span> Stock
+            <span className="text-slate-500 dark:text-slate-400">Management •</span> Stock
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1139,8 +1144,8 @@ export default function StockView() {
             <span className="text-xs text-slate-500">Price list:</span>
             <select
               value={selectedLabel}
-              onChange={(e:any) => setSelectedLabel(e.target.value)}
-              className="bg-slate-700 border border-slate-600 text-slate-100 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500"
+              onChange={(e: any) => setSelectedLabel(e.target.value)}
+              className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500"
             >
               {PRICE_LABELS.map((l) => (
                 <option key={l} value={l}>
@@ -1155,7 +1160,7 @@ export default function StockView() {
               nodesQuery.refetch();
               stockLevelsQuery.refetch();
             }}
-            className="p-1.5 rounded hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -1163,7 +1168,7 @@ export default function StockView() {
           </button>
           <button
             onClick={() => navigate(-1)}
-            className="p-1.5 rounded hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1171,7 +1176,7 @@ export default function StockView() {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center gap-0.5 overflow-x-auto shrink-0">
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-3 py-2 flex items-center gap-0.5 overflow-x-auto shrink-0">
         <button
           onClick={() => {
             productsQuery.refetch();
@@ -1182,11 +1187,11 @@ export default function StockView() {
         >
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
-        <div className="w-px h-5 bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
         <button onClick={() => setShowHistory(true)} className={tbtn}>
           <Clock className="w-3.5 h-3.5" /> Stock history
         </button>
-        <div className="w-px h-5 bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
         <button onClick={handlePrint} className={tbtn}>
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
@@ -1202,7 +1207,7 @@ export default function StockView() {
           <Sheet className="w-3.5 h-3.5" />
           {savingExcel ? "Saving…" : "Excel"}
         </button>
-        <div className="w-px h-5 bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
         <button className={tbtn}>
           <ClipboardList className="w-3.5 h-3.5" /> Inventory count report
         </button>
@@ -1216,9 +1221,9 @@ export default function StockView() {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <div className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 py-2.5 border-b border-slate-700 shrink-0">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="w-56 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden shrink-0">
+          <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 shrink-0">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Product Groups
             </span>
           </div>
@@ -1226,7 +1231,7 @@ export default function StockView() {
             <div
               onClick={() => setSelectedNodeId(null)}
               className={`flex items-center gap-1.5 px-3 py-1.5 mx-1 cursor-pointer rounded transition-colors text-xs
-                ${selectedNodeId === null ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-700 text-slate-300"}`}
+                ${selectedNodeId === null ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
             >
               <span className="w-3 shrink-0" />
               <Folder className="w-3.5 h-3.5 shrink-0 text-sky-400/70" />
@@ -1256,7 +1261,7 @@ export default function StockView() {
         {/* Main */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Filter bar */}
-          <div className="bg-slate-800 border-b border-slate-700 px-5 py-3 space-y-2.5 shrink-0">
+          <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-3 space-y-2.5 shrink-0">
             <div className="flex items-center gap-5 flex-wrap">
               <StatusBadge
                 color="bg-red-500"
@@ -1274,7 +1279,7 @@ export default function StockView() {
                 count={zeroCount}
               />
             </div>
-            <div className="flex items-center gap-2 bg-slate-900 rounded px-3 py-2 border border-slate-700">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded px-3 py-2 border border-slate-200 dark:border-slate-700">
               <Search className="w-4 h-4 text-slate-500 shrink-0" />
               <input
                 type="text"
@@ -1290,7 +1295,7 @@ export default function StockView() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1320,7 +1325,7 @@ export default function StockView() {
               </div>
             ) : (
               <table className="w-full text-sm border-collapse">
-                <thead className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700">
+                <thead className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     {[
                       "Code",
@@ -1334,7 +1339,7 @@ export default function StockView() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="px-4 py-2.5 text-left text-xs font-medium text-slate-400"
+                        className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400"
                       >
                         {h}
                       </th>
@@ -1347,17 +1352,17 @@ export default function StockView() {
                     return (
                       <tr
                         key={p.id}
-                        className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors group"
+                        className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:bg-slate-700/30 transition-colors group"
                       >
-                        <td className="px-4 py-2.5 text-xs text-slate-400 font-mono">
+                        <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 font-mono">
                           {p.code}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="font-medium text-slate-200">
+                          <span className="font-medium text-slate-800 dark:text-slate-200">
                             {p.title}
                           </span>
                           {!p.active && (
-                            <span className="ml-2 text-[10px] bg-slate-700 text-slate-400 rounded px-1.5 py-0.5 align-middle">
+                            <span className="ml-2 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded px-1.5 py-0.5 align-middle">
                               inactive
                             </span>
                           )}
@@ -1367,16 +1372,16 @@ export default function StockView() {
                         >
                           {stock}
                         </td>
-                        <td className="px-4 py-2.5 text-xs text-slate-400">
+                        <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
                           {p.unit}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
                           ₦{p.cost.toFixed(2)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
                           ₦{(stock * p.cost).toFixed(2)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
                           ₦{p.salePrice.toFixed(2)}
                         </td>
                         <td className="px-4 py-2.5 w-12">
@@ -1397,7 +1402,7 @@ export default function StockView() {
           </div>
 
           {/* Footer */}
-          <div className="bg-slate-800 border-t border-slate-700 px-6 py-3 shrink-0">
+          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 px-6 py-3 shrink-0">
             <div className="flex justify-end gap-12">
               <SummaryBlock
                 title="Cost"

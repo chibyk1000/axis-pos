@@ -123,7 +123,7 @@ function Td({
   return (
     <td
       className={cn(
-        "px-3 py-2.5 border-r border-slate-800/60 last:border-r-0 overflow-hidden",
+        "px-3 py-2.5 border-r border-slate-300 dark:border-slate-800/60 last:border-r-0 overflow-hidden",
         className,
       )}
       style={{ width, maxWidth: width }}
@@ -151,7 +151,7 @@ function GroupContextContent({
   onRefresh: () => void;
 }) {
   return (
-    <ContextMenuContent className="w-52 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg p-1">
+    <ContextMenuContent className="w-52 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-lg p-1">
       <div className="px-2 py-1 mb-1">
         <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-widest">
           Group actions
@@ -159,7 +159,7 @@ function GroupContextContent({
       </div>
       <ContextMenuItem
         onClick={onNewGroup}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
           hover:bg-indigo-500/15 hover:text-indigo-300 cursor-pointer"
       >
         <span>📁</span> New group
@@ -167,12 +167,12 @@ function GroupContextContent({
       <ContextMenuItem
         disabled={isRoot}
         onClick={onEditGroup}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
           hover:bg-indigo-500/15 hover:text-indigo-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <span>✏️</span> Edit group
       </ContextMenuItem>
-      <ContextMenuSeparator className="my-1 bg-slate-700/60" />
+      <ContextMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-700/60" />
       <ContextMenuItem
         disabled={isRoot}
         onClick={onDeleteGroup}
@@ -181,11 +181,11 @@ function GroupContextContent({
       >
         <span>🗑</span> Delete group
       </ContextMenuItem>
-      <ContextMenuSeparator className="my-1 bg-slate-700/60" />
+      <ContextMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-700/60" />
       <ContextMenuItem
         onClick={onRefresh}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-400
-          hover:bg-slate-700 hover:text-slate-200 cursor-pointer"
+        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-500 dark:text-slate-400
+          hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:text-slate-200 cursor-pointer"
       >
         <span>🔄</span> Refresh
       </ContextMenuItem>
@@ -203,7 +203,7 @@ function ProductContextContent({
   onDuplicate: () => void;
 }) {
   return (
-    <ContextMenuContent className="w-52 bg-slate-900 border border-slate-600 shadow-2xl rounded-lg p-1">
+    <ContextMenuContent className="w-52 bg-slate-50 dark:bg-slate-900 border border-slate-600 shadow-2xl rounded-lg p-1">
       <div className="px-2 py-1 mb-1">
         <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest">
           Product actions
@@ -211,19 +211,19 @@ function ProductContextContent({
       </div>
       <ContextMenuItem
         onClick={onEdit}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
           hover:bg-emerald-500/15 hover:text-emerald-300 cursor-pointer"
       >
         <span>✏️</span> Edit product
       </ContextMenuItem>
       <ContextMenuItem
         onClick={onDuplicate}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
           hover:bg-emerald-500/15 hover:text-emerald-300 cursor-pointer"
       >
         <span>📋</span> Duplicate
       </ContextMenuItem>
-      <ContextMenuSeparator className="my-1 bg-slate-700/60" />
+      <ContextMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-700/60" />
       <ContextMenuItem
         onClick={onDelete}
         className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md
@@ -594,7 +594,7 @@ export function ProductsView() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 w-full overflow-hidden flex flex-col bg-slate-900 text-slate-200 h-full">
+    <div className="flex-1 w-full overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 h-full">
       <AddGroupDrawer
         open={drawerOpen}
         onOpenChange={() => {
@@ -613,15 +613,15 @@ export function ProductsView() {
       />
 
       {/* Page header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
-        <span className="text-sm text-slate-300">Management • Products</span>
-        <button className="text-slate-400 hover:text-indigo-400 transition">
+      <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
+        <span className="text-sm text-slate-700 dark:text-slate-300">Management • Products</span>
+        <button className="text-slate-500 dark:text-slate-400 hover:text-indigo-400 transition">
           <ChevronDownIcon className="w-5 h-5" />
         </button>
       </div>
 
       {/* Toolbar */}
-      <div className="bg-slate-900 border-b border-slate-800 px-6 py-4">
+      <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-4">
         <div className="flex flex-wrap gap-3">
           <ToolbarButton icon="↻" label="Refresh" />
           <ToolbarButton
@@ -692,7 +692,7 @@ export function ProductsView() {
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-56 bg-slate-900 border-r border-slate-800 overflow-y-auto shrink-0">
+        <div className="w-56 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 overflow-y-auto shrink-0">
           <div className="pt-3">
             <Tree
               elements={treeElements}
@@ -706,7 +706,7 @@ export function ProductsView() {
 
         {/* Table area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+          <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1 max-w-md">
               <span className="text-slate-500">🔍</span>
               <input
@@ -714,7 +714,7 @@ export function ProductsView() {
                 placeholder="Product name"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-800 text-slate-200 px-3 py-2 rounded text-sm w-full placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 rounded text-sm w-full placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="flex gap-4 text-xs text-slate-500">
@@ -730,12 +730,12 @@ export function ProductsView() {
               className="border-collapse text-sm"
               style={{ width: "max-content", minWidth: "100%" }}
             >
-              <thead className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   {COLUMNS.map((col) => (
                     <th
                       key={col.key}
-                      className="relative p-0 text-left font-medium border-r border-slate-700/50 last:border-r-0"
+                      className="relative p-0 text-left font-medium border-r border-slate-200 dark:border-slate-700/50 last:border-r-0"
                       style={{
                         width: colWidths[col.key],
                         minWidth: col.minWidth,
@@ -775,7 +775,7 @@ export function ProductsView() {
                             }}
                             onDoubleClick={() => setAddProductDrawerOpen(true)}
                             className={cn(
-                              "border-b border-slate-800 transition cursor-pointer hover:bg-indigo-500/5",
+                              "border-b border-slate-300 dark:border-slate-800 transition cursor-pointer hover:bg-indigo-500/5",
                               selectedProductId === product.id &&
                                 "bg-indigo-500/10 ring-1 ring-inset ring-indigo-500/40",
                             )}
@@ -783,20 +783,20 @@ export function ProductsView() {
                             <Td width={colWidths.code}>{product.code}</Td>
                             <Td
                               width={colWidths.name}
-                              className="text-slate-100 font-medium"
+                              className="text-slate-900 dark:text-slate-100 font-medium"
                             >
                               {product.title}
                             </Td>
                             <Td
                               width={colWidths.group}
-                              className="text-slate-400"
+                              className="text-slate-500 dark:text-slate-400"
                             >
                               {roots?.find((r) => r.id === product.nodeId)
                                 ?.name ?? "—"}
                             </Td>
                             <Td
                               width={colWidths.barcode}
-                              className="text-slate-400 font-mono text-xs"
+                              className="text-slate-500 dark:text-slate-400 font-mono text-xs"
                             >
                               {(product as any).barcodes
                                 ?.map((b: any) => b.value)
@@ -813,7 +813,7 @@ export function ProductsView() {
                             </Td>
                             <Td
                               width={colWidths.taxes}
-                              className="text-slate-400 text-xs"
+                              className="text-slate-500 dark:text-slate-400 text-xs"
                             >
                               {(product as any).taxes
                                 ?.map(
@@ -835,7 +835,7 @@ export function ProductsView() {
                             </Td>
                             <Td
                               width={colWidths.unit}
-                              className="text-slate-400"
+                              className="text-slate-500 dark:text-slate-400"
                             >
                               {product.unit}
                             </Td>
@@ -902,8 +902,8 @@ function ToolbarButton({
         disabled
           ? "text-slate-600 opacity-50 cursor-not-allowed pointer-events-none"
           : danger
-            ? "text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
-            : "text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10",
+            ? "text-slate-500 dark:text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+            : "text-slate-500 dark:text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10",
       )}
     >
       <span className="text-base">{icon}</span>

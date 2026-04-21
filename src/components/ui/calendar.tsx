@@ -48,9 +48,9 @@ function Calendar({
           "flex gap-4 flex-col md:flex-row relative",
           defaultClassNames.months
         ),
-        month: cn("flex flex-col w-full gap-4 text-white", defaultClassNames.month),
+        month: cn("flex flex-col w-full gap-4 text-slate-900 dark:text-white", defaultClassNames.month),
         nav: cn(
-          "flex items-center gap-1 w-full absolute text-white top-0 inset-x-0 justify-between",
+          "flex items-center gap-1 w-full absolute text-slate-900 dark:text-white top-0 inset-x-0 justify-between",
           defaultClassNames.nav
         ),
         button_previous: cn(

@@ -33,7 +33,7 @@ export default function CountriesTable() {
   const selectedCountry = countries.find((c) => c.id === selected);
 
   return (
-    <div className="h-screen bg-slate-900 text-slate-100 p-4">
+    <div className="h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4">
       {/* Drawer */}
       <CountryDrawer
         open={drawerOpen}
@@ -103,13 +103,13 @@ export default function CountriesTable() {
       </div>
 
       {/* Table */}
-      <div className="border border-slate-700 rounded-md bg-slate-800 overflow-hidden">
+      <div className="border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 overflow-hidden">
         <ScrollArea className="h-[calc(100vh-110px)]">
           <Table>
-            <TableHeader className="sticky top-0 bg-slate-800 border-b border-slate-700">
+            <TableHeader className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <TableRow>
-                <TableHead className="w-[70%] text-slate-200">Name</TableHead>
-                <TableHead className="text-slate-200">Code</TableHead>
+                <TableHead className="w-[70%] text-slate-800 dark:text-slate-200">Name</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">Code</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -122,13 +122,13 @@ export default function CountriesTable() {
                     cursor-pointer transition-colors
                     ${
                       selected === country.id
-                        ? "bg-slate-700 text-white"
-                        : "hover:bg-slate-700/50"
+                        ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white"
+                        : "hover:bg-slate-100 dark:bg-slate-700/50"
                     }
                   `}
                 >
                   <TableCell>{country.name}</TableCell>
-                  <TableCell className="text-slate-400">
+                  <TableCell className="text-slate-500 dark:text-slate-400">
                     {country.code}
                   </TableCell>
                 </TableRow>

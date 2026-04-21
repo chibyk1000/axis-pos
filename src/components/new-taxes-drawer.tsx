@@ -97,38 +97,38 @@ export default function TaxRateDrawer({
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
-      <DrawerContent className="bg-slate-900 text-slate-100 border-slate-800">
+      <DrawerContent className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-800">
         <DrawerHeader className="flex flex-row items-center justify-between">
           <DrawerTitle className="text-lg font-semibold">
             {initialData ? "Edit Tax Rate" : "New Tax Rate"}
           </DrawerTitle>
-          <ArrowRight className="h-5 w-5 text-slate-400" />
+          <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-400" />
         </DrawerHeader>
 
         <div className="px-4 py-2 space-y-5">
           {/* Name */}
           <div className="space-y-1">
-            <label className="text-sm text-slate-400">Name</label>
+            <label className="text-sm text-slate-500 dark:text-slate-400">Name</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-slate-800 border-slate-700 focus-visible:ring-slate-600"
+              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-slate-600"
             />
           </div>
 
           {/* Code */}
           <div className="space-y-1">
-            <label className="text-sm text-slate-400">Code</label>
+            <label className="text-sm text-slate-500 dark:text-slate-400">Code</label>
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-32 block bg-slate-800 border-slate-700 focus-visible:ring-slate-600"
+              className="w-32 block bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-slate-600"
             />
           </div>
 
           {/* Rate */}
           <div className="space-y-1">
-            <label className="text-sm text-slate-400">Rate</label>
+            <label className="text-sm text-slate-500 dark:text-slate-400">Rate</label>
             <div className="flex items-center gap-2">
               <Counter initialValue={rate} onChange={(value) => {
                 setRate(value)
@@ -150,17 +150,17 @@ export default function TaxRateDrawer({
           </div>
         </div>
 
-        <DrawerFooter className="flex-row gap-2 border-t border-slate-800">
+        <DrawerFooter className="flex-row gap-2 border-t border-slate-300 dark:border-slate-800">
           <Button
             variant="outline"
-            className="flex-1 bg-slate-800 border-slate-700"
+            className="flex-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
             onClick={handleCancel}
           >
             Cancel
           </Button>
 
           <Button
-            className="flex-1 bg-slate-700 hover:bg-slate-600"
+            className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-600"
             onClick={handleSave}
           >
             {initialData ? "Update" : "Save"}

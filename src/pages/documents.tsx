@@ -1,28 +1,22 @@
 "use client";
 
-import { useState, useMemo,  } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Plus,
   Download,
-
   Printer,
   Copy,
   Trash2,
   X,
-
   ChevronLeft,
   ChevronRight,
- 
   FileText,
   TrendingUp,
- 
   Clock,
   Eye,
   ArrowLeft,
-
   Calendar,
-
   CreditCard,
   Banknote,
   Receipt,
@@ -31,6 +25,7 @@ import {
 import { useNavigate } from "react-router";
 import { useDocuments } from "@/hooks/controllers/documents";
 import { useCreateDocument } from "@/hooks/controllers/documents";
+import { useAuth } from "@/App";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,7 +141,7 @@ function StatusBadge({ status }: { status: DocStatus }) {
     },
     void: {
       label: "Void",
-      cls: "bg-slate-800 text-slate-500 border border-slate-700",
+      cls: "bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700",
     },
   };
   const { label, cls } = map[status] ?? map.void;
@@ -175,17 +170,17 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">
+        <span className="text-[11px] uppercase tracking-widest font-semibold text-slate-600 dark:text-slate-500">
           {label}
         </span>
-        <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center">
-          <Icon className="w-3.5 h-3.5 text-slate-400" />
+        <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
         </div>
       </div>
       <div
-        className={`text-2xl font-semibold tabular-nums ${accent ?? "text-slate-100"}`}
+        className={`text-2xl font-semibold tabular-nums ${accent ?? "text-slate-900 dark:text-slate-100"}`}
       >
         {value}
       </div>
@@ -216,13 +211,17 @@ function ConfirmModal({
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-80 p-6 shadow-2xl">
-        <p className="text-base font-semibold text-slate-100 mb-2">{title}</p>
-        <p className="text-sm text-slate-400 mb-6">{message}</p>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-80 p-6 shadow-2xl">
+        <p className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">
+          {title}
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+          {message}
+        </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 rounded-xl py-2.5 text-sm text-slate-400 transition-colors"
+            className="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl py-2.5 text-sm text-slate-700 dark:text-slate-400 transition-colors"
           >
             Cancel
           </button>
@@ -231,7 +230,7 @@ function ConfirmModal({
               onConfirm();
               onClose();
             }}
-            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors ${confirmCls}`}
+            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-slate-900 dark:text-white transition-colors ${confirmCls}`}
           >
             {confirmLabel}
           </button>
@@ -268,9 +267,9 @@ function SidePanel({
   };
 
   return (
-    <div className="flex flex-col h-full w-[300px] shrink-0 border-l border-slate-800 bg-slate-900">
+    <div className="flex flex-col h-full w-75 shrink-0 border-l border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-800 flex items-start justify-between gap-2">
+      <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <StatusBadge status={doc.status} />
@@ -280,14 +279,14 @@ function SidePanel({
               </span>
             )}
           </div>
-          <p className="text-sm font-semibold text-slate-100 truncate">
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
             {doc.customer?.name ?? "Walk-in"}
           </p>
           <p className="text-xs font-mono text-cyan-400 mt-0.5">{doc.number}</p>
         </div>
         <button
           onClick={onClose}
-          className="text-slate-500 hover:text-slate-300 mt-0.5 shrink-0 transition-colors"
+          className="text-slate-500 hover:text-slate-700 dark:text-slate-300 mt-0.5 shrink-0 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -296,25 +295,27 @@ function SidePanel({
       {/* Body */}
       <div className="flex-1 overflow-auto">
         {/* Details */}
-        <div className="px-4 py-3 border-b border-slate-800">
+        <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
           <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
             Details
           </p>
           <div className="space-y-1.5 text-[13px]">
             <div className="flex justify-between">
               <span className="text-slate-500">Date</span>
-              <span className="text-slate-300">{fmtDateTime(doc.date)}</span>
+              <span className="text-slate-700 dark:text-slate-300">
+                {fmtDateTime(doc.date)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Type</span>
-              <span className="text-slate-300">
+              <span className="text-slate-700 dark:text-slate-300">
                 {doc.externalNumber ?? "—"}
               </span>
             </div>
             {doc.customer && (
               <div className="flex justify-between">
                 <span className="text-slate-500">Customer</span>
-                <span className="text-slate-300 truncate max-w-[160px] text-right">
+                <span className="text-slate-700 dark:text-slate-300 truncate max-w-40 text-right">
                   {doc.customer.name}
                 </span>
               </div>
@@ -324,7 +325,7 @@ function SidePanel({
 
         {/* Items */}
         {items.length > 0 && (
-          <div className="px-4 py-3 border-b border-slate-800">
+          <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
             <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
               Items ({items.length})
             </p>
@@ -335,7 +336,7 @@ function SidePanel({
                   className="flex items-start justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-[13px] text-slate-300 truncate">
+                    <p className="text-[13px] text-slate-700 dark:text-slate-300 truncate">
                       {item.name}
                     </p>
                     <p className="text-[11px] text-slate-500">
@@ -360,7 +361,7 @@ function SidePanel({
 
         {/* Payments */}
         {payments.length > 0 && (
-          <div className="px-4 py-3 border-b border-slate-800">
+          <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
             <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
               Payments
             </p>
@@ -370,11 +371,11 @@ function SidePanel({
                   key={p.id}
                   className="flex items-center justify-between text-[13px]"
                 >
-                  <div className="flex items-center gap-1.5 text-slate-400">
+                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                     {paymentIcon(p.paymentType)}
                     <span>{p.paymentType}</span>
                   </div>
-                  <span className="text-slate-300 tabular-nums">
+                  <span className="text-slate-700 dark:text-slate-300 tabular-nums">
                     {fmt(p.amount)}
                   </span>
                 </div>
@@ -391,18 +392,18 @@ function SidePanel({
           <div className="space-y-1.5 text-[13px]">
             <div className="flex justify-between">
               <span className="text-slate-500">Subtotal</span>
-              <span className="text-slate-300 tabular-nums">
+              <span className="text-slate-700 dark:text-slate-300 tabular-nums">
                 {fmt(doc.totalBeforeTax)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Tax</span>
-              <span className="text-slate-300 tabular-nums">
+              <span className="text-slate-700 dark:text-slate-300 tabular-nums">
                 {fmt(doc.taxTotal)}
               </span>
             </div>
-            <div className="flex justify-between pt-2 border-t border-slate-800 font-semibold text-base">
-              <span className="text-slate-200">Total</span>
+            <div className="flex justify-between pt-2 border-t border-slate-300 dark:border-slate-800 font-semibold text-base">
+              <span className="text-slate-800 dark:text-slate-200">Total</span>
               <span
                 className={`tabular-nums ${doc.total < 0 ? "text-red-400" : "text-cyan-400"}`}
               >
@@ -414,17 +415,17 @@ function SidePanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="px-4 py-3 border-t border-slate-800 grid grid-cols-2 gap-2">
+      <div className="px-4 py-3 border-t border-slate-300 dark:border-slate-800 grid grid-cols-2 gap-2">
         <button
           onClick={() => onPrint(doc)}
-          className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg py-2 text-xs text-slate-300 transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg py-2 text-xs text-slate-700 dark:text-slate-300 transition-colors"
         >
           <Printer className="w-3.5 h-3.5" />
           Print
         </button>
         <button
           onClick={() => onDuplicate(doc)}
-          className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg py-2 text-xs text-slate-300 transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg py-2 text-xs text-slate-700 dark:text-slate-300 transition-colors"
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
@@ -432,7 +433,7 @@ function SidePanel({
         {doc.status === "posted" && (
           <button
             onClick={() => onRefund(doc)}
-            className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-amber-800 rounded-lg py-2 text-xs text-amber-400 transition-colors"
+            className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-amber-800 rounded-lg py-2 text-xs text-amber-400 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Refund
@@ -441,7 +442,7 @@ function SidePanel({
         {(doc.status === "posted" || doc.status === "draft") && (
           <button
             onClick={() => onVoid(doc)}
-            className="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-red-950 border border-red-900 rounded-lg py-2 text-xs text-red-400 transition-colors"
+            className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-red-950 border border-red-900 rounded-lg py-2 text-xs text-red-400 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Void
@@ -460,7 +461,8 @@ export default function DocumentsPage() {
   const router = useNavigate();
   const documentsQuery = useDocuments();
   const createDocument = useCreateDocument();
-// @ts-ignore
+  const { user } = useAuth();
+  // @ts-ignore
   const docs: Document[] = documentsQuery.data ?? [];
 
   // ── State ──
@@ -548,7 +550,7 @@ export default function DocumentsPage() {
   // ── Actions ──
   const handleVoid = async (doc: Document) => {
     console.log(doc);
-    
+
     // In a real app, call update mutation to set status: "void"
     // For now, just refresh
     documentsQuery.refetch?.();
@@ -642,7 +644,7 @@ export default function DocumentsPage() {
   );
 
   return (
-    <div className="h-dvh w-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+    <div className="h-dvh w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden">
       {/* ── Confirm modals ── */}
       {confirmModal?.type === "void" && confirmModal.doc && (
         <ConfirmModal
@@ -666,26 +668,32 @@ export default function DocumentsPage() {
       )}
 
       {/* ── Header ── */}
-      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0">
         {/* Brand + back */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => router("/")}
-            className="text-slate-500 hover:text-slate-300 transition-colors mr-1"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mr-1"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
             A
           </div>
-          <span className="text-sm font-medium">Axis Lite</span>
-          <span className="text-slate-600">/</span>
-          <span className="text-sm text-slate-400 font-medium">Documents</span>
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            Axis Lite
+          </span>
+          <span className="text-slate-500 dark:text-slate-400">
+            /
+          </span>
+          <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+            Documents
+          </span>
         </div>
 
         {/* Search */}
         <div className="flex-1 min-w-48 max-w-xs relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <input
             value={search}
             onChange={(e) => {
@@ -693,12 +701,12 @@ export default function DocumentsPage() {
               setPage(1);
             }}
             placeholder="Search number or customer…"
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-100 outline-none focus:border-cyan-600 placeholder:text-slate-600 transition-colors"
+            className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-600 placeholder:text-slate-500 dark:placeholder:text-slate-600 transition-colors"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-300"
             >
               <X className="w-3 h-3" />
             </button>
@@ -706,6 +714,15 @@ export default function DocumentsPage() {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
+          {/* User info */}
+          {user && (
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+              <span>Welcome,</span>
+              <span className="font-medium text-slate-900 dark:text-slate-100">
+                {user.username}
+              </span>
+            </div>
+          )}
           {selectedIds.size > 0 && (
             <span className="text-xs text-cyan-400 font-medium">
               {selectedIds.size} selected
@@ -713,14 +730,14 @@ export default function DocumentsPage() {
           )}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300 transition-colors"
+            className="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Export CSV
           </button>
           <button
             onClick={() => router("/")}
-            className="flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 rounded-lg px-3 py-1.5 text-xs text-white font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-medium transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             New Sale
@@ -766,7 +783,7 @@ export default function DocumentsPage() {
 
             {/* Filters + date range */}
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg p-1">
                 {statusFilters.map((f) => (
                   <button
                     key={f.key}
@@ -777,7 +794,7 @@ export default function DocumentsPage() {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                       filterStatus === f.key
                         ? "bg-cyan-900 text-cyan-300 border border-cyan-700"
-                        : "text-slate-500 hover:text-slate-300"
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     {f.label}
@@ -798,7 +815,7 @@ export default function DocumentsPage() {
                     setDateRange(e.target.value as DateRange);
                     setPage(1);
                   }}
-                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-600 cursor-pointer"
+                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-cyan-600 cursor-pointer"
                 >
                   <option value="all">All time</option>
                   <option value="today">Today</option>
@@ -809,9 +826,9 @@ export default function DocumentsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-950 border-b border-slate-800">
+              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
                 {[
                   <input
                     key="chk"
@@ -872,10 +889,10 @@ export default function DocumentsPage() {
                         prev?.id === doc.id ? null : doc,
                       )
                     }
-                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
+                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
                       selectedDoc?.id === doc.id
                         ? "bg-cyan-950/40 border-l-2 border-l-cyan-500"
-                        : "hover:bg-slate-800/40"
+                        : "hover:bg-white dark:bg-slate-800/40"
                     }`}
                   >
                     {/* Checkbox */}
@@ -895,13 +912,13 @@ export default function DocumentsPage() {
                     </div>
                     {/* Number */}
                     <div className="flex items-center">
-                      <span className="text-xs font-mono text-slate-400">
+                      <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                         {doc.number}
                       </span>
                     </div>
                     {/* Customer */}
                     <div className="flex items-center min-w-0">
-                      <span className="text-sm font-medium text-slate-200 truncate">
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
                         {doc.customer?.name ?? (
                           <span className="text-slate-500 font-normal">
                             Walk-in
@@ -929,7 +946,7 @@ export default function DocumentsPage() {
                             ? "text-red-400"
                             : doc.status === "void"
                               ? "text-slate-600"
-                              : "text-slate-200"
+                              : "text-slate-800 dark:text-slate-200"
                         }`}
                       >
                         {doc.status === "void" ? "—" : fmt(doc.total)}
@@ -947,14 +964,14 @@ export default function DocumentsPage() {
                       <button
                         onClick={() => onPrint(doc)}
                         title="Print"
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700 transition-colors"
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setSelectedDoc(doc)}
                         title="View"
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -975,7 +992,7 @@ export default function DocumentsPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-800 text-slate-500 hover:text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -987,8 +1004,8 @@ export default function DocumentsPage() {
                       onClick={() => setPage(p)}
                       className={`w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors ${
                         page === p
-                          ? "bg-cyan-700 text-white border border-cyan-600"
-                          : "border border-slate-800 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                          ? "bg-cyan-700 text-slate-900 dark:text-white border border-cyan-600"
+                          : "border border-slate-300 dark:border-slate-800 text-slate-500 hover:bg-white dark:bg-slate-800 hover:text-slate-700 dark:text-slate-300"
                       }`}
                     >
                       {p}
@@ -998,7 +1015,7 @@ export default function DocumentsPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-800 text-slate-500 hover:text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>

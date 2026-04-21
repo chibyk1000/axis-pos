@@ -70,15 +70,15 @@ export default function CreditPaymentsModal() {
   }
 
   return (
-    <div className="min-h-screen w-screen bg-slate-950 flex p-4 font-sans text-slate-200">
-      <div className="w-full bg-slate-900 border border-slate-700 shadow-2xl rounded-sm overflow-hidden flex flex-col">
+    <div className="min-h-screen w-screen bg-slate-950 flex p-4 font-sans text-slate-800 dark:text-slate-200">
+      <div className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-sm overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-800/50 border-b border-slate-700">
-          <h2 className="text-base font-medium text-slate-100">
+        <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+          <h2 className="text-base font-medium text-slate-900 dark:text-slate-100">
             Credit payments
           </h2>
           <button
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors"
             onClick={() => navigate(-1)}
           >
             <X size={18} />
@@ -87,7 +87,7 @@ export default function CreditPaymentsModal() {
 
         {/* Success bar */}
         {savedMsg && (
-          <div className="bg-emerald-600/90 text-white px-4 py-2 flex items-center gap-2 text-sm shrink-0">
+          <div className="bg-emerald-600/90 text-slate-900 dark:text-white px-4 py-2 flex items-center gap-2 text-sm shrink-0">
             <Check size={15} />
             Payment of {amountNum.toFixed(2)} recorded successfully
           </div>
@@ -101,14 +101,14 @@ export default function CreditPaymentsModal() {
             <div className="w-full md:w-1/3 flex flex-col gap-3">
               {/* Customer */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">Customer</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">Customer</label>
                 <select
                   value={customerId}
                   onChange={(e) => {
                     setCustomerId(e.target.value);
                     setAmount("0");
                   }}
-                  className="w-full bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500"
                 >
                   <option value="">Select customer…</option>
                   {customers.map((c) => (
@@ -121,11 +121,11 @@ export default function CreditPaymentsModal() {
 
               {/* Payment type */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">Payment type</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">Payment type</label>
                 <select
                   value={paymentTypeId}
                   onChange={(e) => setPaymentTypeId(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500"
                 >
                   <option value="">Select type…</option>
                   {paymentTypes.map((pt) => (
@@ -138,20 +138,20 @@ export default function CreditPaymentsModal() {
 
               {/* Amount */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">Amount</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">Amount</label>
                 <input
                   type="number"
                   min={0}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500 text-right font-mono"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500 text-right font-mono"
                 />
               </div>
 
               {/* Note */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">
+                <label className="text-xs text-slate-500 dark:text-slate-400">
                   Note (optional)
                 </label>
                 <input
@@ -159,7 +159,7 @@ export default function CreditPaymentsModal() {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Reference, memo…"
-                  className="w-full bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500 placeholder:text-slate-600"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500 placeholder:text-slate-600"
                 />
               </div>
 
@@ -167,7 +167,7 @@ export default function CreditPaymentsModal() {
               <button
                 onClick={handleRefreshAll}
                 disabled={!customerId}
-                className="flex items-center justify-center gap-2 w-full py-2 border border-slate-600 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-sm rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 w-full py-2 border border-slate-600 hover:bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-sm rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <RefreshCw size={13} />
                 Load unpaid documents
@@ -176,10 +176,10 @@ export default function CreditPaymentsModal() {
 
             {/* Right: summary */}
             <div className="w-full md:w-2/3 flex flex-col">
-              <div className="text-xs text-slate-400 mb-1">Summary</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Summary</div>
 
               {!customerId ? (
-                <div className="flex-1 bg-slate-800/50 border border-slate-700 rounded-sm flex flex-col items-center justify-center text-slate-500 gap-3">
+                <div className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-sm flex flex-col items-center justify-center text-slate-500 gap-3">
                   <EyeOff size={40} strokeWidth={1.5} />
                   <div className="text-center text-sm">
                     <p>No customer selected.</p>
@@ -189,10 +189,10 @@ export default function CreditPaymentsModal() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 bg-slate-800/50 border border-slate-700 rounded-sm overflow-auto">
+                <div className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-sm overflow-auto">
                   {/* Balance row */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-                    <span className="text-xs text-slate-400">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       Current balance
                     </span>
                     <span
@@ -204,8 +204,8 @@ export default function CreditPaymentsModal() {
                   </div>
 
                   {/* Unpaid docs */}
-                  <div className="px-4 py-2 border-b border-slate-700">
-                    <p className="text-xs text-slate-400 mb-2">
+                  <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                       Unpaid documents ({unpaidDocs.length})
                       {unpaidDocs.length > 0 && (
                         <span className="ml-2 text-red-400 font-mono">
@@ -224,10 +224,10 @@ export default function CreditPaymentsModal() {
                             key={doc.id}
                             className="flex justify-between text-xs"
                           >
-                            <span className="text-slate-400 font-mono">
+                            <span className="text-slate-500 dark:text-slate-400 font-mono">
                               {doc.number}
                             </span>
-                            <span className="text-slate-300">
+                            <span className="text-slate-700 dark:text-slate-300">
                               {(doc.total ?? 0).toFixed(2)}
                             </span>
                           </div>
@@ -238,7 +238,7 @@ export default function CreditPaymentsModal() {
 
                   {/* Payment history */}
                   <div className="px-4 py-2">
-                    <p className="text-xs text-slate-400 mb-2">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                       Recent payments
                     </p>
                     {history.length === 0 ? (
@@ -272,7 +272,7 @@ export default function CreditPaymentsModal() {
           </div>
 
           {/* Info banner */}
-          <div className="border border-slate-700 rounded-sm bg-slate-800/30 flex items-center gap-4 px-4 py-3 text-sm text-slate-400">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-sm bg-white dark:bg-slate-800/30 flex items-center gap-4 px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
             <div className="w-10 h-10 rounded-full bg-sky-600/20 border border-sky-600/30 flex items-center justify-center text-sky-400 shrink-0">
               <Info size={18} />
             </div>
@@ -285,13 +285,13 @@ export default function CreditPaymentsModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-slate-700 flex justify-end gap-3 bg-slate-800/50">
+        <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-white dark:bg-slate-800/50">
           <button
             onClick={handleOk}
             disabled={!canSubmit || recordMutation.isPending}
             className="px-6 py-2 text-sm rounded-sm flex items-center gap-2 transition-colors
-              bg-sky-600 hover:bg-sky-500 text-white
-              disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
+              bg-sky-600 hover:bg-sky-500 text-slate-900 dark:text-white
+              disabled:bg-slate-100 dark:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
           >
             {recordMutation.isPending ? (
               <RefreshCw size={14} className="animate-spin" />
@@ -302,7 +302,7 @@ export default function CreditPaymentsModal() {
           </button>
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-sm transition-colors"
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white text-sm rounded-sm transition-colors"
           >
             Close
           </button>

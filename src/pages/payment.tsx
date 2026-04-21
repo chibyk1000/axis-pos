@@ -35,13 +35,15 @@ export default function PaymentScreen() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-200">
+    <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
       {/* LEFT PANEL */}
-      <div className="w-1/3 border-r border-slate-700 p-4 flex flex-col justify-between">
+      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 p-4 flex flex-col justify-between">
         <div>
-          <h2 className="text-lg font-semibold mb-4">Items</h2>
+          <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+            Items
+          </h2>
 
-          <div className="flex justify-between border-b border-slate-700 pb-2">
+          <div className="flex justify-between border-b border-slate-300 dark:border-slate-700 pb-2">
             <span>prid11</span>
             <span>500,000.00</span>
           </div>
@@ -73,7 +75,7 @@ export default function PaymentScreen() {
             {["Taxes", "Discount", "Rounds", "Customer"].map((btn) => (
               <button
                 key={btn}
-                className="bg-slate-800 px-4 py-2 rounded hover:bg-slate-700"
+                className="bg-white dark:bg-slate-800 px-4 py-2 rounded hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               >
                 {btn}
               </button>
@@ -84,13 +86,15 @@ export default function PaymentScreen() {
         <div className="flex gap-8 flex-1">
           {/* PAYMENT TYPES */}
           <div className="w-1/3">
-            <h3 className="mb-3 text-slate-400">Payment Type</h3>
+            <h3 className="mb-3 text-slate-700 dark:text-slate-400">
+              Payment Type
+            </h3>
 
             <div className="space-y-3">
               {["Cash", "Card", "Check", "Split Payments"].map((type) => (
                 <button
                   key={type}
-                  className="w-full bg-slate-800 py-3 rounded hover:bg-slate-700"
+                  className="w-full bg-white dark:bg-slate-800 py-3 rounded hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                 >
                   {type}
                 </button>
@@ -101,12 +105,12 @@ export default function PaymentScreen() {
           {/* PAYMENT AREA */}
           <div className="w-2/3 flex flex-col justify-between">
             <div>
-              <div className="text-slate-400">Total:</div>
+              <div className="text-slate-700 dark:text-slate-400">Total:</div>
               <div className="text-3xl text-cyan-400 font-bold mb-3">
                 500,000.00
               </div>
 
-              <div className="text-slate-400">Paid:</div>
+              <div className="text-slate-700 dark:text-slate-400">Paid:</div>
               <input
                 value={amount}
                 readOnly
@@ -120,9 +124,9 @@ export default function PaymentScreen() {
                 <button
                   key={index}
                   onClick={() => key && handleKeyPress(key)}
-                  className={`py-4 rounded text-lg 
-                    ${key === "⌫" ? "bg-red-700" : "bg-slate-800"} 
-                    ${key === "" ? "invisible" : "hover:bg-slate-700"}
+                  className={`py-4 rounded text-lg text-slate-900 dark:text-slate-100
+                    ${key === "⌫" ? "bg-red-700" : "bg-white dark:bg-slate-800"} 
+                    ${key === "" ? "invisible" : "hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700"}
                   `}
                 >
                   {key}

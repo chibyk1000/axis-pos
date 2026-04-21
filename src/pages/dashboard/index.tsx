@@ -110,7 +110,7 @@ function DateRangeModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl p-6 shadow-xl">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-3xl p-6 shadow-xl">
         <h3 className="text-base font-semibold mb-4">Select date range</h3>
 
         <div className="grid grid-cols-12 gap-6">
@@ -121,7 +121,7 @@ function DateRangeModal({
                 key={p.label}
                 variant="outline"
                 size="sm"
-                className="justify-start bg-transparent hover:bg-slate-800 hover:text-white text-slate-300 text-xs"
+                className="justify-start bg-transparent hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-white text-slate-700 dark:text-slate-300 text-xs"
                 onClick={() => setDraft(p.range())}
               >
                 {p.label}
@@ -138,7 +138,7 @@ function DateRangeModal({
               onSelect={setDraft}
               numberOfMonths={2}
               pagedNavigation
-              className="rounded-xl border border-slate-700 bg-slate-900"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900"
             />
           </div>
         </div>
@@ -177,7 +177,7 @@ function CardShell({
 }) {
   return (
     <div
-      className={`bg-slate-800 rounded-2xl border border-slate-700 p-5 ${className}`}
+      className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 ${className}`}
     >
       <h3 className="text-sm font-semibold mb-3">{title}</h3>
       {children}
@@ -197,7 +197,7 @@ function LoadingRows({ n = 4 }: { n?: number }) {
   return (
     <div className="flex flex-col gap-2">
       {Array.from({ length: n }).map((_, i) => (
-        <div key={i} className="h-5 bg-slate-700/60 rounded animate-pulse" />
+        <div key={i} className="h-5 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
       ))}
     </div>
   );
@@ -222,14 +222,14 @@ function TopProductsCard({ from, to }: { from: Date; to: Date }) {
           {data.map((row: TopProductRow, i) => (
             <div key={i} className="flex flex-col gap-0.5">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 truncate max-w-[65%]">
+                <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
                   {row.name}
                 </span>
-                <span className="text-slate-400 font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-mono">
                   {row.total.toLocaleString()}
                 </span>
               </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-sky-500 rounded-full"
                   style={{ width: `${(row.total / max) * 100}%` }}
@@ -314,14 +314,14 @@ function TopGroupsCard({ from, to }: { from: Date; to: Date }) {
           {data.map((row: TopGroupRow, i) => (
             <div key={i} className="flex flex-col gap-0.5">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 truncate max-w-[65%]">
+                <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
                   {row.name}
                 </span>
-                <span className="text-slate-400 font-mono">
+                <span className="text-slate-500 dark:text-slate-400 font-mono">
                   {row.total.toLocaleString()}
                 </span>
               </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-violet-500 rounded-full"
                   style={{ width: `${(row.total / max) * 100}%` }}
@@ -344,7 +344,7 @@ function TotalSalesCard({ from, to }: { from: Date; to: Date }) {
       className="flex flex-col items-center justify-center text-center"
     >
       {isLoading ? (
-        <div className="h-12 w-32 bg-slate-700/60 rounded animate-pulse mx-auto" />
+        <div className="h-12 w-32 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse mx-auto" />
       ) : (
         <>
           <p className="text-5xl font-bold tabular-nums">
@@ -367,7 +367,7 @@ function TopCustomersCard({ from, to }: { from: Date; to: Date }) {
 
   return (
     <CardShell title="Top customers" className="md:col-span-2">
-      <p className="text-xs text-slate-400 mb-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
         Top 5 customers in selected period
       </p>
       {isLoading ? (
@@ -377,7 +377,7 @@ function TopCustomersCard({ from, to }: { from: Date; to: Date }) {
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-slate-500 border-b border-slate-700">
+            <tr className="text-slate-500 border-b border-slate-200 dark:border-slate-700">
               <th className="text-left pb-2 font-medium">#</th>
               <th className="text-left pb-2 font-medium">Customer</th>
               <th className="text-right pb-2 font-medium">Orders</th>
@@ -388,14 +388,14 @@ function TopCustomersCard({ from, to }: { from: Date; to: Date }) {
             {data.map((row: TopCustomerRow, i) => (
               <tr
                 key={i}
-                className="border-b border-slate-700/40 last:border-0"
+                className="border-b border-slate-200 dark:border-slate-700/40 last:border-0"
               >
                 <td className="py-2 text-slate-500">{i + 1}</td>
-                <td className="py-2 text-slate-200">{row.name}</td>
-                <td className="py-2 text-right text-slate-400 tabular-nums">
+                <td className="py-2 text-slate-800 dark:text-slate-200">{row.name}</td>
+                <td className="py-2 text-right text-slate-500 dark:text-slate-400 tabular-nums">
                   {row.count}
                 </td>
-                <td className="py-2 text-right text-slate-200 font-medium tabular-nums">
+                <td className="py-2 text-right text-slate-800 dark:text-slate-200 font-medium tabular-nums">
                   {row.total.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
@@ -432,7 +432,7 @@ export default function Dashboard() {
   const rangeLabel = `${format(range.from, "MM/dd/yyyy")} – ${format(range.to, "MM/dd/yyyy")}`;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       {modalOpen && (
         <DateRangeModal
           range={range}
@@ -445,13 +445,13 @@ export default function Dashboard() {
 
       <main className="p-6 space-y-8">
         {/* ── Monthly Sales Chart ─────────────────────────────── */}
-        <section className="bg-slate-800 rounded-2xl border border-slate-700 p-6">
+        <section className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold">
                 Monthly sales — {currentYear}
               </h2>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Sales grouped by month (posted documents only)
               </p>
             </div>
@@ -460,7 +460,7 @@ export default function Dashboard() {
               <Switch checked={showAll} onCheckedChange={setShowAll} />
               <button
                 onClick={() => refetchMonthly()}
-                className="p-2 rounded-lg hover:bg-slate-700 transition text-slate-400 hover:text-white"
+                className="p-2 rounded-lg hover:bg-slate-100 dark:bg-slate-700 transition text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -515,10 +515,10 @@ export default function Dashboard() {
           {/* Range header */}
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">Periodic reports</h2>
-            <span className="text-sm text-slate-400">{rangeLabel}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{rangeLabel}</span>
             <button
               onClick={() => setModalOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-slate-800 transition text-slate-400 hover:text-white"
+              className="p-1.5 rounded-lg hover:bg-white dark:bg-slate-800 transition text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
             >
               <CalendarIcon className="w-4 h-4" />
             </button>

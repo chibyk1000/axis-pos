@@ -29,8 +29,8 @@ import { BsStar } from "react-icons/bs";
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const toolbarBtnCls =
-  "flex items-center gap-2 px-3 py-2 rounded-md text-slate-400 " +
-  "hover:bg-slate-800 hover:text-slate-100 active:bg-slate-700 transition-colors " +
+  "flex items-center gap-2 px-3 py-2 rounded-md text-slate-500 dark:text-slate-400 " +
+  "hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100 active:bg-slate-100 dark:bg-slate-700 transition-colors " +
   "disabled:opacity-40 disabled:cursor-not-allowed text-sm";
 
 function TBtn({
@@ -64,10 +64,10 @@ function FieldInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
       <input
         {...props}
-        className={`bg-slate-700 border text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none
+        className={`bg-slate-100 dark:bg-slate-700 border text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none
           ${error ? "border-red-500 focus:border-red-400" : "border-slate-600 focus:border-sky-500"}
           placeholder:text-slate-500`}
       />
@@ -128,7 +128,7 @@ function EditableCell({
         if (e.key === "Enter") commit();
         if (e.key === "Escape") setEditing(false);
       }}
-      className="w-24 bg-slate-700 border border-sky-500 text-slate-100 text-xs rounded px-2 py-0.5 text-right focus:outline-none"
+      className="w-24 bg-slate-100 dark:bg-slate-700 border border-sky-500 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-0.5 text-right focus:outline-none"
     />
   );
 }
@@ -171,12 +171,12 @@ function BulkAdjustModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-semibold">Bulk adjust — {label}</h3>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300"
+            className="text-slate-500 hover:text-slate-700 dark:text-slate-300"
           >
             <X className="w-4 h-4" />
           </button>
@@ -195,7 +195,7 @@ function BulkAdjustModal({
                 onChange={() => setMode(m)}
                 className="mt-0.5 accent-sky-500"
               />
-              <span className="text-xs text-slate-300">{modeLabels[m]}</span>
+              <span className="text-xs text-slate-700 dark:text-slate-300">{modeLabels[m]}</span>
             </label>
           ))}
         </div>
@@ -221,14 +221,14 @@ function BulkAdjustModal({
         <div className="flex justify-end gap-2 mt-5">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs border border-slate-600 text-slate-300 hover:text-white rounded"
+            className="px-3 py-1.5 text-xs border border-slate-600 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white rounded"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-slate-900 dark:text-white rounded"
           >
             <Percent className="w-3.5 h-3.5" />
             {isSaving ? "Applying…" : "Apply"}
@@ -276,7 +276,7 @@ function NodeTree({
           }}
           style={{ paddingLeft: `${8 + depth * 12}px` }}
           className={`w-full flex items-center gap-1.5 py-1 pr-2 text-xs rounded transition-colors
-            ${isSelected ? "text-sky-400 bg-sky-600/10" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/40"}`}
+            ${isSelected ? "text-sky-400 bg-sky-600/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/40"}`}
         >
           {children.length > 0 ? (
             isOpen ? (
@@ -302,7 +302,7 @@ function NodeTree({
       <button
         onClick={() => onSelect(null)}
         className={`text-left px-2 py-1 text-xs rounded transition-colors
-          ${selectedNodeId === null ? "text-sky-400 bg-sky-600/10" : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/40"}`}
+          ${selectedNodeId === null ? "text-sky-400 bg-sky-600/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/40"}`}
       >
         All groups
       </button>
@@ -460,7 +460,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 text-slate-100">
+    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       {bulkModalOpen && (
         <BulkAdjustModal
           label={selectedLabel}
@@ -472,7 +472,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
       )}
 
       {/* Toolbar */}
-      <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-900 shrink-0">
+      <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-50 dark:bg-slate-900 shrink-0">
         <TBtn
           icon={RefreshCw}
           label="Refresh"
@@ -490,8 +490,8 @@ function handleSetDefault(productId: string, priceRowId?: string) {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-56 border-r border-slate-800 bg-slate-900 flex flex-col shrink-0 overflow-hidden">
-          <div className="p-3 border-b border-slate-800">
+        <div className="w-56 border-r border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden">
+          <div className="p-3 border-b border-slate-300 dark:border-slate-800">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
               Price lists
             </p>
@@ -504,12 +504,12 @@ function handleSetDefault(productId: string, priceRowId?: string) {
                     key={label}
                     onClick={() => setSelectedLabel(label)}
                     className={`w-full text-left px-2 py-2 rounded text-xs transition-colors flex items-center justify-between gap-1
-                      ${isActive ? labelStyle[label] : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"}`}
+                      ${isActive ? labelStyle[label] : "text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800 hover:text-slate-800 dark:text-slate-200"}`}
                   >
                     <span className="truncate">{label}</span>
                     <span
                       className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full
-                      ${isActive ? "bg-white/10" : "bg-slate-800 text-slate-500"}`}
+                      ${isActive ? "bg-white/10" : "bg-white dark:bg-slate-800 text-slate-500"}`}
                     >
                       {count}
                     </span>
@@ -534,14 +534,14 @@ function handleSetDefault(productId: string, priceRowId?: string) {
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Search bar */}
-          <div className="border-b border-slate-800 px-6 py-3 flex items-center gap-3 bg-slate-900 shrink-0">
+          <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center gap-3 bg-slate-50 dark:bg-slate-900 shrink-0">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search product…"
-                className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded pl-8 pr-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs rounded pl-8 pr-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
               />
             </div>
             <span className="text-xs text-slate-500">
@@ -560,10 +560,10 @@ function handleSetDefault(productId: string, priceRowId?: string) {
 
           {/* Table */}
           <div className="flex-1 overflow-auto px-6 py-4">
-            <div className="border border-slate-800 rounded-lg overflow-hidden">
+            <div className="border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900">
+                  <tr className="border-b border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
                     {[
                       { label: "Code", cls: "w-20 text-left" },
                       { label: "Product", cls: "text-left" },
@@ -576,7 +576,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
                     ].map(({ label, cls }) => (
                       <th
                         key={label}
-                        className={`px-4 py-3 text-xs font-semibold text-slate-400 ${cls}`}
+                        className={`px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 ${cls}`}
                       >
                         {label}
                       </th>
@@ -607,40 +607,40 @@ function handleSetDefault(productId: string, priceRowId?: string) {
                       <tr
                         key={p.id}
                         className={`transition-colors
-                          ${p.hasPriceRow ? "hover:bg-sky-900/10" : "hover:bg-slate-800/40 opacity-70"}
-                          ${index === arr.length - 1 ? "" : "border-b border-slate-800"}`}
+                          ${p.hasPriceRow ? "hover:bg-sky-900/10" : "hover:bg-white dark:bg-slate-800/40 opacity-70"}
+                          ${index === arr.length - 1 ? "" : "border-b border-slate-300 dark:border-slate-800"}`}
                       >
                         <td className="px-4 py-2.5 font-mono text-slate-500">
                           {p.code}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-200">
+                        <td className="px-4 py-2.5 text-slate-800 dark:text-slate-200">
                           {p.title}
                           {!p.hasPriceRow && (
-                            <span className="ml-1.5 text-[10px] text-slate-600 bg-slate-800 px-1 py-0.5 rounded">
+                            <span className="ml-1.5 text-[10px] text-slate-600 bg-white dark:bg-slate-800 px-1 py-0.5 rounded">
                               no price
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           <EditableCell
                             value={p.cost}
                             onSave={(v) => handleFieldSave(p.id, "cost", v)}
                           />
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           <EditableCell
                             value={p.markup}
                             onSave={(v) => handleFieldSave(p.id, "markup", v)}
                             suffix="%"
                           />
                         </td>
-                        <td className="px-4 py-2.5 text-right font-medium text-slate-100">
+                        <td className="px-4 py-2.5 text-right font-medium text-slate-900 dark:text-slate-100">
                           <EditableCell
                             value={p.salePrice}
                             onSave={(v) =>
                               handleFieldSave(p.id, "salePrice", v)
                             }
-                            className="text-slate-100"
+                            className="text-slate-900 dark:text-slate-100"
                           />
                         </td>
                         <td className="px-4 py-2.5 text-center">
@@ -655,7 +655,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
                               ${
                                 p.priceAfterTax
                                   ? "text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20"
-                                  : "text-slate-600 hover:text-slate-400 hover:bg-slate-800"
+                                  : "text-slate-600 hover:text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800"
                               }`}
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -675,7 +675,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
                               ${
                                 p.priceChangeAllowed
                                   ? "text-sky-400 bg-sky-400/10 hover:bg-sky-400/20"
-                                  : "text-slate-600 hover:text-slate-400 hover:bg-slate-800"
+                                  : "text-slate-600 hover:text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800"
                               }`}
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -699,7 +699,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
         p.isDefault
           ? "text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
           : p.hasPriceRow
-            ? "text-slate-600 hover:text-yellow-500 hover:bg-slate-800"
+            ? "text-slate-600 hover:text-yellow-500 hover:bg-white dark:bg-slate-800"
             : "text-slate-800 cursor-not-allowed"
       }`}
                           >
@@ -717,7 +717,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-3 border-t border-slate-800 bg-slate-900 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="px-6 py-3 border-t border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs text-slate-500 shrink-0">
             <span>
               {pricedCount} / {enrichedProducts.length} products priced
             </span>

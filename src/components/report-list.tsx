@@ -35,8 +35,8 @@ export default function ReportList({
   );
 
   return (
-    <div className="bg-slate-900">
-      <h3 className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">
+    <div className="bg-slate-50 dark:bg-slate-900">
+      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">
         Sales
       </h3>
 
@@ -47,8 +47,8 @@ export default function ReportList({
             onClick={() => onSelectReport(report)}
             className="
               w-full flex items-center gap-3 px-3 py-2.5 rounded-md
-              text-sm text-slate-300 text-left
-              hover:bg-slate-800 hover:text-white
+              text-sm text-slate-700 dark:text-slate-300 text-left
+              hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-white
               transition-colors group
             "
           >
@@ -66,7 +66,7 @@ export default function ReportList({
       </div>
 
       {filteredReports.length === 0 && (
-        <div className="px-3 py-6 text-center text-slate-400 text-sm">
+        <div className="px-3 py-6 text-center text-slate-500 dark:text-slate-400 text-sm">
           No reports found
         </div>
       )}

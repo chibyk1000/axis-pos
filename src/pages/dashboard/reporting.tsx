@@ -53,20 +53,20 @@ const Reporting = () => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-slate-900 text-slate-200">
+    <div className="flex-1 flex overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {selectedReport && (
               <button
                 onClick={handleClearSelection}
-                className="text-slate-400 hover:text-slate-200 transition-colors"
+                className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <h2 className="text-lg font-semibold text-slate-100">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {selectedReport
                 ? `${selectedReport} (${reportQuery.data?.length ?? 0} rows)`
                 : "Select report to view or print"}
@@ -75,7 +75,7 @@ const Reporting = () => {
           {selectedReport && (
             <button
               onClick={handleClearSelection}
-              className="text-slate-400 hover:text-slate-200 transition-colors"
+              className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -94,7 +94,7 @@ const Reporting = () => {
                   placeholder="Search reports"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:border-sky-500"
+                  className="pl-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-500 focus:border-sky-500"
                 />
               </div>
 
@@ -112,11 +112,11 @@ const Reporting = () => {
           /* Report View */
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Action Buttons */}
-            <div className="border-b border-slate-800 px-6 py-4 flex gap-2">
+            <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex gap-2">
               <Button
                 onClick={handlePrint}
                 variant="outline"
-                className="gap-2 bg-transparent border-slate-700 text-slate-200 hover:border-sky-500 hover:text-sky-500"
+                className="gap-2 bg-transparent border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-sky-500 hover:text-sky-500"
               >
                 <Printer className="w-4 h-4" />
                 Print
@@ -125,7 +125,7 @@ const Reporting = () => {
                 onClick={exportToExcel}
                 disabled={reportQuery.isLoading || !reportQuery.data?.length}
                 variant="outline"
-                className="gap-2 bg-transparent border-slate-700 text-slate-200 hover:border-sky-500 hover:text-sky-500 disabled:opacity-50"
+                className="gap-2 bg-transparent border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-sky-500 hover:text-sky-500 disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
                 Excel
@@ -134,7 +134,7 @@ const Reporting = () => {
                 onClick={exportToPDF}
                 disabled={reportQuery.isLoading || !reportQuery.data?.length}
                 variant="outline"
-                className="gap-2 bg-transparent border-slate-700 text-slate-200 hover:border-sky-500 hover:text-sky-500 disabled:opacity-50"
+                className="gap-2 bg-transparent border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-sky-500 hover:text-sky-500 disabled:opacity-50"
               >
                 <File className="w-4 h-4" />
                 PDF
@@ -145,17 +145,17 @@ const Reporting = () => {
             <div className="flex-1 overflow-auto p-6">
               {reportQuery.isLoading ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-slate-400">Loading report...</p>
+                  <p className="text-slate-500 dark:text-slate-400">Loading report...</p>
                 </div>
               ) : reportQuery.data && reportQuery.data.length > 0 ? (
-                <div className="bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+                <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-700 border-b border-slate-600">
+                    <thead className="bg-slate-100 dark:bg-slate-700 border-b border-slate-600">
                       <tr>
                         {Object.keys(reportQuery.data[0]).map((key) => (
                           <th
                             key={key}
-                            className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider"
+                            className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider"
                           >
                             {key}
                           </th>
@@ -168,12 +168,12 @@ const Reporting = () => {
                         .map((row: any, idx: any) => (
                           <tr
                             key={idx}
-                            className="hover:bg-slate-700/50 transition-colors"
+                            className="hover:bg-slate-100 dark:bg-slate-700/50 transition-colors"
                           >
                             {Object.values(row).map((val: any, vidx) => (
                               <td
                                 key={vidx}
-                                className="px-4 py-2 text-slate-200"
+                                className="px-4 py-2 text-slate-800 dark:text-slate-200"
                               >
                                 {typeof val === "boolean"
                                   ? val
@@ -189,14 +189,14 @@ const Reporting = () => {
                     </tbody>
                   </table>
                   {reportQuery.data.length > 100 && (
-                    <div className="px-4 py-3 bg-slate-700/50 text-xs text-slate-400 border-t border-slate-700">
+                    <div className="px-4 py-3 bg-slate-100 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
                       Showing 100 of {reportQuery.data.length} rows
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-slate-400">
+                  <p className="text-slate-500 dark:text-slate-400">
                     No data available for this report
                   </p>
                 </div>

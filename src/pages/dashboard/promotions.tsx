@@ -99,10 +99,10 @@ function Input({
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
       <input
         {...props}
-        className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
+        className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
       />
     </div>
   );
@@ -115,10 +115,10 @@ function Select({
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
       <select
         {...props}
-        className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500"
+        className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500"
       >
         {children}
       </select>
@@ -185,21 +185,21 @@ function PromotionForm({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <h2 className="text-sm font-medium">
           {initial ? "Edit promotion" : "New promotion"}
         </h2>
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-slate-600 rounded"
+            className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white border border-slate-600 rounded"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!form.name.trim() || isSaving}
-            className="px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-white rounded disabled:opacity-40"
+            className="px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-slate-900 dark:text-white rounded disabled:opacity-40"
           >
             {isSaving ? "Saving…" : "Save"}
           </button>
@@ -209,7 +209,7 @@ function PromotionForm({
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* Basic */}
         <section className="flex flex-col gap-3">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Details
           </p>
           <Input
@@ -263,7 +263,7 @@ function PromotionForm({
 
         {/* Conditions */}
         <section className="flex flex-col gap-3">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Conditions
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -296,7 +296,7 @@ function PromotionForm({
 
         {/* Scheduling */}
         <section className="flex flex-col gap-3">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Schedule
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -331,7 +331,7 @@ function PromotionForm({
               className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.enabled ? "translate-x-4" : ""}`}
             />
           </div>
-          <span className="text-sm text-slate-300">Enabled</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300">Enabled</span>
         </label>
       </div>
     </div>
@@ -353,20 +353,20 @@ function DeleteConfirm({
 }) {
   return (
     <div className="p-4 flex flex-col gap-4">
-      <p className="text-sm text-slate-300">
-        Delete <span className="text-white font-medium">"{name}"</span>? This
+      <p className="text-sm text-slate-700 dark:text-slate-300">
+        Delete <span className="text-slate-900 dark:text-white font-medium">"{name}"</span>? This
         cannot be undone.
       </p>
       <div className="flex gap-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-slate-600 rounded"
+          className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white border border-slate-600 rounded"
         >
           Cancel
         </button>
         <button
           onClick={onConfirm}
-          className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded"
+          className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded"
         >
           Delete
         </button>
@@ -449,9 +449,9 @@ export default function PromotionsScreen() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="h-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-700 bg-slate-800 text-sm shrink-0">
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm shrink-0">
         {[
           {
             icon: "＋",
@@ -478,14 +478,14 @@ export default function PromotionsScreen() {
             key={label}
             onClick={onClick}
             disabled={disabled}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <span className="text-base leading-none">{icon}</span>
             <span className="text-xs">{label}</span>
           </button>
         ))}
 
-        <div className="mx-2 h-8 w-px bg-slate-700" />
+        <div className="mx-2 h-8 w-px bg-slate-100 dark:bg-slate-700" />
 
         {/* Search */}
         <div className="relative">
@@ -496,7 +496,7 @@ export default function PromotionsScreen() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search promotions…"
-            className="bg-slate-700 border border-slate-600 text-slate-100 text-xs rounded pl-7 pr-3 py-1.5 w-52 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
+            className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded pl-7 pr-3 py-1.5 w-52 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
           />
         </div>
 
@@ -504,7 +504,7 @@ export default function PromotionsScreen() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-          className="bg-slate-700 border border-slate-600 text-slate-100 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-sky-500"
+          className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-sky-500"
         >
           <option value="all">All types</option>
           <option value="percent">% Discount</option>
@@ -539,8 +539,8 @@ export default function PromotionsScreen() {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
-                <tr className="text-left text-xs text-slate-400">
+              <thead className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+                <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Type</th>
                   <th className="px-3 py-2 font-medium">Scope</th>
@@ -561,15 +561,15 @@ export default function PromotionsScreen() {
                         setSelectedId(promo.id);
                         setPanelMode("idle");
                       }}
-                      className={`border-b border-slate-700/50 cursor-pointer ${
+                      className={`border-b border-slate-200 dark:border-slate-700/50 cursor-pointer ${
                         selectedId === promo.id
                           ? "bg-sky-600/20"
-                          : "hover:bg-slate-800"
+                          : "hover:bg-white dark:bg-slate-800"
                       }`}
                     >
                       {/* Name */}
                       <td className="px-3 py-2">
-                        <p className="font-medium text-slate-100">
+                        <p className="font-medium text-slate-900 dark:text-slate-100">
                           {promo.name}
                         </p>
                         {promo.description && (
@@ -589,12 +589,12 @@ export default function PromotionsScreen() {
                       </td>
 
                       {/* Scope */}
-                      <td className="px-3 py-2 text-xs text-slate-400 capitalize">
+                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400 capitalize">
                         {promo.scope}
                       </td>
 
                       {/* Value */}
-                      <td className="px-3 py-2 text-right font-mono text-slate-200">
+                      <td className="px-3 py-2 text-right font-mono text-slate-800 dark:text-slate-200">
                         {promo.type === "percent" && promo.value != null
                           ? `${promo.value}%`
                           : promo.type === "fixed" && promo.value != null
@@ -608,7 +608,7 @@ export default function PromotionsScreen() {
                       </td>
 
                       {/* Conditions */}
-                      <td className="px-3 py-2 text-xs text-slate-400">
+                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                         <div className="flex flex-col gap-0.5">
                           {promo.minOrderValue != null && (
                             <span>
@@ -629,7 +629,7 @@ export default function PromotionsScreen() {
                       </td>
 
                       {/* Schedule */}
-                      <td className="px-3 py-2 text-xs text-slate-400">
+                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                         <div className="flex flex-col gap-0.5">
                           <span>{formatDate(promo.startsAt)} →</span>
                           <span>{formatDate(promo.endsAt)}</span>
@@ -637,7 +637,7 @@ export default function PromotionsScreen() {
                       </td>
 
                       {/* Uses */}
-                      <td className="px-3 py-2 text-center text-xs text-slate-400">
+                      <td className="px-3 py-2 text-center text-xs text-slate-500 dark:text-slate-400">
                         {promo.maxUses != null
                           ? `${promo.usedCount} / ${promo.maxUses}`
                           : promo.usedCount > 0
@@ -682,7 +682,7 @@ export default function PromotionsScreen() {
 
         {/* Right panel */}
         {panelMode !== "idle" && (
-          <div className="w-80 border-l border-slate-700 bg-slate-800 flex flex-col shrink-0">
+          <div className="w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shrink-0">
             {panelMode === "create" && (
               <PromotionForm
                 onSave={handleCreate}

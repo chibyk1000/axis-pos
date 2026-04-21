@@ -57,10 +57,10 @@ const booleanFields: {
 ];
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
-      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-2xl bg-slate-900 text-slate-100 border-l border-slate-700">
-        <DrawerHeader className="flex flex-row items-center justify-between border-slate-700">
+      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-2xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-l border-slate-200 dark:border-slate-700">
+        <DrawerHeader className="flex flex-row items-center justify-between border-slate-200 dark:border-slate-700">
           {" "}
-          <DrawerTitle className="text-xl font-semibold text-slate-100 flex ">
+          <DrawerTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100 flex ">
             {" "}
             {initialData ? "Edit Payment Type" : "New Payment Type"}
           </DrawerTitle>{" "}
@@ -70,13 +70,13 @@ const booleanFields: {
         </DrawerHeader>
 
         <div className="space-y-4 p-4">
-          <span className="text-sm text-slate-100">Name</span>
+          <span className="text-sm text-slate-900 dark:text-slate-100">Name</span>
           <Input
             placeholder="Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
-          <span className="text-sm text-slate-100">Position</span>
+          <span className="text-sm text-slate-900 dark:text-slate-100">Position</span>
           <Input
             placeholder="Position"
             type="number"
@@ -86,7 +86,7 @@ const booleanFields: {
             }
           />
 
-          <span className="text-sm text-slate-100">Code</span>
+          <span className="text-sm text-slate-900 dark:text-slate-100">Code</span>
           <Input
             placeholder="Code"
             value={form.code}
@@ -95,7 +95,7 @@ const booleanFields: {
           <div className="flex flex-col gap-3">
             {booleanFields.map((field) => (
               <div key={field.key} className="flex items-center gap-x-3">
-                <span className="text-sm text-slate-100">{field.label}</span>
+                <span className="text-sm text-slate-900 dark:text-slate-100">{field.label}</span>
                 <Switch
                   checked={form[field.key] as boolean}
                   onCheckedChange={() => toggleField(field.key)}

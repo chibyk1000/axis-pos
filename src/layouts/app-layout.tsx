@@ -20,12 +20,12 @@ const Applayout = () => {
   const location = useLocation();
 
   return (
-    <SidebarProvider className="bg-[#333] w-screen">
+    <SidebarProvider className="bg-slate-950 w-screen">
       <AppSidebar />
-      <SidebarInset className="bg-slate-900 flex-1 overflow-hidden">
+      <SidebarInset className="bg-white dark:bg-slate-900 flex-1 overflow-hidden">
         <header className="flex h-16 shrink-0 pr-4  items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1 text-white" />
+            <SidebarTrigger className="-ml-1 text-slate-900 dark:text-white" />
             <Separator
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4 bg-black"
@@ -36,8 +36,8 @@ const Applayout = () => {
                   <BreadcrumbLink href="#">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem className="text-white">
-                  <BreadcrumbPage className="text-white">
+                <BreadcrumbItem className="text-slate-900 dark:text-white">
+                  <BreadcrumbPage className="text-slate-900 dark:text-white">
                     {location.pathname !== "/dashboard" &&
                       location.pathname.split("/").slice(2)}
                   </BreadcrumbPage>

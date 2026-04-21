@@ -23,7 +23,7 @@ interface LoginPageProps {
 }
 const triggerChaos = () => {
   const today = dayjs().day(); // 0 (Sun) to 6 (Sat)
-  const isChaosDay = today === 2 || today === 4  || today ===6;
+  const isChaosDay = today === 2 || today === 4 || today === 6;
 
   // 30% chance of a random failure on those days
   if (isChaosDay && Math.random() < 0.3) {
@@ -91,7 +91,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+      <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-wider mb-1.5">
         {label}
       </label>
       {children}
@@ -119,7 +119,7 @@ function TextInput({
   rightSlot?: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#020617] border border-slate-700 rounded-xl focus-within:border-cyan-600 transition-colors flex items-center">
+    <div className="bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 rounded-xl focus-within:border-cyan-600 transition-colors flex items-center">
       <input
         ref={inputRef}
         type={type}
@@ -128,7 +128,7 @@ function TextInput({
         placeholder={placeholder}
         autoComplete={autoComplete}
         disabled={disabled}
-        className="flex-1 bg-transparent px-4 py-3 text-sm text-slate-100 placeholder:text-slate-700 outline-none rounded-xl disabled:opacity-50"
+        className="flex-1 bg-transparent px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-700 outline-none rounded-xl disabled:opacity-50"
       />
       {rightSlot}
     </div>
@@ -196,7 +196,7 @@ function SignupForm({ onSignedUp }: { onSignedUp: () => void }) {
       type="button"
       onClick={() => setShowPw((v) => !v)}
       tabIndex={-1}
-      className="px-3 text-slate-600 hover:text-slate-400 transition-colors"
+      className="px-3 text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-700 transition-colors"
     >
       {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
     </button>
@@ -272,7 +272,7 @@ function SignupForm({ onSignedUp }: { onSignedUp: () => void }) {
       <button
         type="submit"
         disabled={loading || !name || !email || !password || !confirm}
-        className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#0891b230]"
+        className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#0891b230]"
       >
         {loading ? (
           <>
@@ -380,7 +380,7 @@ function LoginForm({
               type="button"
               onClick={() => setShowPw((v) => !v)}
               tabIndex={-1}
-              className="px-3 text-slate-600 hover:text-slate-400 transition-colors"
+              className="px-3 text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-700 transition-colors"
             >
               {showPw ? (
                 <EyeOff className="w-4 h-4" />
@@ -395,7 +395,7 @@ function LoginForm({
       <button
         type="submit"
         disabled={loading || !username || !password}
-        className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#0891b230]"
+        className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#0891b230]"
       >
         {loading ? (
           <>
@@ -425,7 +425,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const showLogin = hasUsers || signedUp;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 flex items-center justify-center relative overflow-hidden w-screen">
+    <div className="min-h-screen bg-white dark:bg-[#020617] text-slate-900 dark:text-slate-100 flex items-center justify-center relative overflow-hidden w-screen">
       <DotGrid />
 
       <div className="relative z-10 w-full max-w-sm px-4">
@@ -434,10 +434,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <div className="w-14 h-14 rounded-2xl bg-cyan-500 flex items-center justify-center text-black font-bold text-2xl mb-4 shadow-[0_0_32px_#0891b240]">
             A
           </div>
-          <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
             Axis Lite
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 dark:text-slate-500 mt-1">
             {showLogin
               ? "Point of Sale · Sign in to continue"
               : "Point of Sale · First time setup"}
@@ -445,7 +445,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         </div>
 
         {/* Card */}
-        <div className="bg-[#0f172a] border border-[#1e293b] rounded-2xl p-7 shadow-2xl">
+        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl p-7 shadow-2xl">
           {isLoading ? (
             <div className="flex items-center justify-center py-10 gap-3 text-slate-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -457,10 +457,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               <div className="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center">
                 <Check className="w-5 h-5 text-emerald-400" />
               </div>
-              <p className="text-sm font-semibold text-slate-100">
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 Account created!
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-600 dark:text-slate-500">
                 Sign in with your new credentials below.
               </p>
               <Loader2 className="w-4 h-4 animate-spin text-slate-600 mt-1" />

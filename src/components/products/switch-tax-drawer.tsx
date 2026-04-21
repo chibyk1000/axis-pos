@@ -52,10 +52,10 @@ export default function SwitchTaxesDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent className="w-full max-w-md bg-slate-900 border-l border-slate-700 p-6">
+      <DrawerContent className="w-full max-w-md bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6">
         <DrawerHeader>
-          <DrawerTitle className="text-white">Switch Taxes</DrawerTitle>
-          <p className="text-sm text-slate-400">
+          <DrawerTitle className="text-slate-900 dark:text-white">Switch Taxes</DrawerTitle>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Replace a tax across all products
           </p>
         </DrawerHeader>
@@ -63,14 +63,14 @@ export default function SwitchTaxesDrawer({
         <div className="flex flex-col gap-4 mt-4">
           {/* Old Tax */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
+            <label className="text-sm text-slate-500 dark:text-slate-400 mb-1 block">
               Old tax (remove)
             </label>
             <Select value={oldTaxId} onValueChange={setOldTaxId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select tax to replace" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800">
+              <SelectContent className="bg-white dark:bg-slate-800">
                 {taxes.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name} ({t.rate}%)
@@ -82,14 +82,14 @@ export default function SwitchTaxesDrawer({
 
           {/* New Tax */}
           <div>
-            <label className="text-sm text-slate-400 mb-1 block">
+            <label className="text-sm text-slate-500 dark:text-slate-400 mb-1 block">
               New tax (apply)
             </label>
             <Select value={newTaxId} onValueChange={setNewTaxId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select replacement tax" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800">
+              <SelectContent className="bg-white dark:bg-slate-800">
                 {taxes.map((t) => (
                   <SelectItem
                     key={t.id}

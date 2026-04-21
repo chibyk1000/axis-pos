@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -12,6 +10,15 @@
     "fs:default",
     "sql:default",
     "sql:allow-execute",
-    "shell:default"
+    "shell:default",
+    "os:default",
+
+    "fs:allow-exists",
+    "fs:allow-temp-write",
+    "fs:allow-temp-read",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$TEMP/**" }]
+    }
   ]
 }

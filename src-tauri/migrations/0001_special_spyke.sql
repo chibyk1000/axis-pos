@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD `type` integer DEFAULT 200;

@@ -22,6 +22,7 @@ import {
 
 import { FaDownload, FaRunning } from "react-icons/fa";
 import { Link, useNavigate } from "react-router";
+import { useAuth } from "../App";
 
 interface SidebarDrawerProps {
   isOpen: boolean;
@@ -30,21 +31,22 @@ interface SidebarDrawerProps {
 
 export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
   const today = new Date().toLocaleDateString("en-GB");
-const navigate = useNavigate()
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent
         data-vaul-drawer-direction="right"
-        className="h-screen w-72 bg-slate-800 border-r border-slate-700 p-0"
+        className="h-screen w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-0"
       >
         {/* Header */}
-        <DrawerHeader className="border-b border-slate-700 px-4 py-4 flex flex-row items-center justify-between">
-          <span className="text-sm font-medium text-slate-200">
+        <DrawerHeader className="border-b border-slate-200 dark:border-slate-700 px-4 py-4 flex flex-row items-center justify-between">
+          <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
             POS – chibuike Okorie
           </span>
 
           <DrawerClose asChild>
-            <button className="text-slate-400 hover:text-white p-1">
+            <button className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white p-1">
               <ChevronRight className="w-5 h-5" />
             </button>
           </DrawerClose>
@@ -53,10 +55,10 @@ const navigate = useNavigate()
         {/* Content */}
         <div className="flex-1 overflow-y-auto flex flex-col">
           {/* Management */}
-          <div className="border-b border-slate-700">
+          <div className="border-b border-slate-200 dark:border-slate-700">
             <Link
               to="/dashboard"
-              className="px-4 py-4 flex items-center gap-3 text-slate-200 hover:bg-slate-700/60"
+              className="px-4 py-4 flex items-center gap-3 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/60"
             >
               <Settings2 className="w-5 h-5" />
               <span className="text-sm font-medium">Management</span>
@@ -75,7 +77,7 @@ const navigate = useNavigate()
                     navigate(item.link)
                   }}
                   key={item.label}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-slate-700/60 text-sm"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700/60 text-sm"
                 >
                   <span className="w-5 flex justify-center">{item.icon}</span>
                   <span>{item.label}</span>
@@ -85,18 +87,19 @@ const navigate = useNavigate()
           </div>
 
           {/* User */}
-          <div className="border-b border-slate-700">
-            <div className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="border-b border-slate-200 dark:border-slate-700">
+            <div className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               User
             </div>
 
             {[
-              { icon: "👤", label: "User info" },
-              { icon: "🚪", label: "Sign out" },
+              { icon: "👤", label: "User info", action: () => { navigate("/user-info"); onClose(); } },
+              { icon: "🚪", label: "Sign out", action: () => { logout(); onClose(); } },
             ].map((item) => (
               <div
                 key={item.label}
-                className="px-4 py-3 flex items-center gap-3 text-slate-300 hover:bg-slate-700/60 cursor-pointer text-sm"
+                onClick={item.action}
+                className="px-4 py-3 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700/60 cursor-pointer text-sm"
               >
                 <span className="w-5 text-center">{item.icon}</span>
                 <span>{item.label}</span>
@@ -109,20 +112,40 @@ const navigate = useNavigate()
         </div>
 
         {/* Footer */}
-        <DrawerFooter className="border-t border-slate-700 bg-slate-900 p-0">
-          <div className="px-4 py-3 text-center text-xs text-slate-400">
+        <DrawerFooter className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0">
+          <div className="px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
             {today}
           </div>
 
           <div className="flex items-center justify-center gap-4 pb-4">
-            {[Settings, Maximize2, Power].map((Icon, i) => (
-              <button
-                key={i}
-                className="p-2 rounded text-slate-400 hover:text-white hover:bg-slate-700"
-              >
-                <Icon className="w-5 h-5" />
-              </button>
-            ))}
+            <Link
+              to="/settings"
+              onClick={() => onClose()}
+              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+            <button
+              onClick={() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen().catch(console.error);
+                } else {
+                  document.exitFullscreen();
+                }
+              }}
+              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+            >
+              <Maximize2 className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                onClose();
+              }}
+              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+            >
+              <Power className="w-5 h-5" />
+            </button>
           </div>
         </DrawerFooter>
       </DrawerContent>

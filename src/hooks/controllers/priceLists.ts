@@ -30,6 +30,7 @@ export function wholeSaleToLabel(wholeSale: boolean): PriceLabel {
 
 export const productPriceKeys = {
   all: ["productPrices"] as const,
+  allLabels: ["productPrices", "groupedByLabel"] as const,
   byProduct: (productId: string) =>
     [...productPriceKeys.all, "product", productId] as const,
   byLabel: (label: PriceLabel) =>
@@ -139,7 +140,7 @@ export function useProductPriceByLabel(productId: string, label: PriceLabel) {
  */
 export function useAllLabelPrices() {
   return useQuery({
-    queryKey: productPriceKeys.all,
+    queryKey: productPriceKeys.allLabels,
     queryFn: async () => {
       const rows = await db.query.productPrices.findMany({
         orderBy: (p) => p.createdAt,

@@ -31,7 +31,7 @@ export function ContextMenuContent({
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         className={cn(
-          "z-50 min-w-[180px] overflow-hidden rounded-md border bg-slate-900 text-slate-200 shadow-md",
+          "z-50 min-w-[180px] overflow-hidden rounded-md border bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 shadow-md",
           "animate-in fade-in-0 zoom-in-95",
           className,
         )}
@@ -158,7 +158,7 @@ export function ContextMenuSubContent({
   return (
     <ContextMenuPrimitive.SubContent
       className={cn(
-        "z-50 min-w-[180px] rounded-md border bg-slate-900 shadow-md",
+        "z-50 min-w-[180px] rounded-md border bg-slate-50 dark:bg-slate-900 shadow-md",
         className,
       )}
       {...props}
@@ -173,7 +173,7 @@ export function ContextMenuSeparator(
 ) {
   return (
     <ContextMenuPrimitive.Separator
-      className="my-1 h-px bg-slate-700"
+      className="my-1 h-px bg-slate-100 dark:bg-slate-700"
       {...props}
     />
   );

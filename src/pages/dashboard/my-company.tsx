@@ -50,7 +50,7 @@ function FormRow({
 }) {
   return (
     <>
-      <Label className="text-slate-300 flex items-center gap-1 self-center text-sm">
+      <Label className="text-slate-700 dark:text-slate-300 flex items-center gap-1 self-center text-sm">
         {label}
         {required && <span className="text-red-400">*</span>}
       </Label>
@@ -66,8 +66,8 @@ function StyledInput(
   return (
     <input
       {...rest}
-      className={`bg-slate-700 border ${error ? "border-red-500" : "border-slate-600"}
-        text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500
+      className={`bg-slate-100 dark:bg-slate-700 border ${error ? "border-red-500" : "border-slate-600"}
+        text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500
         placeholder:text-slate-500 ${className}`}
     />
   );
@@ -176,12 +176,12 @@ function VoidReasonsTab({ company }: { company: CompanyWithRelations }) {
 
   return (
     <div className="max-w-xl flex flex-col gap-4">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Void reasons appear as options when a cashier voids an order or item.
       </p>
 
       {/* Existing reasons */}
-      <div className="border border-slate-700 rounded overflow-hidden">
+      <div className="border border-slate-200 dark:border-slate-700 rounded overflow-hidden">
         {company.voidReasons.length === 0 ? (
           <p className="text-sm text-slate-500 px-4 py-6 text-center">
             No void reasons yet
@@ -190,7 +190,7 @@ function VoidReasonsTab({ company }: { company: CompanyWithRelations }) {
           company.voidReasons.map((r) => (
             <div
               key={r.id}
-              className="flex items-center gap-2 px-3 py-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-800/40 group"
+              className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 dark:border-slate-700/50 last:border-0 hover:bg-white dark:bg-slate-800/40 group"
             >
               <GripVertical size={14} className="text-slate-600 shrink-0" />
 
@@ -203,11 +203,11 @@ function VoidReasonsTab({ company }: { company: CompanyWithRelations }) {
                     if (e.key === "Enter") handleSaveEdit(r);
                     if (e.key === "Escape") setEditingId(null);
                   }}
-                  className="flex-1 bg-slate-700 border border-sky-500 text-slate-100 text-sm rounded px-2 py-0.5 focus:outline-none"
+                  className="flex-1 bg-slate-100 dark:bg-slate-700 border border-sky-500 text-slate-900 dark:text-slate-100 text-sm rounded px-2 py-0.5 focus:outline-none"
                 />
               ) : (
                 <span
-                  className="flex-1 text-sm text-slate-200 cursor-pointer"
+                  className="flex-1 text-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                   onDoubleClick={() => {
                     setEditingId(r.id);
                     setEditValue(r.reason);
@@ -251,7 +251,7 @@ function VoidReasonsTab({ company }: { company: CompanyWithRelations }) {
         <button
           onClick={handleAdd}
           disabled={!newReason.trim() || createMutation.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-slate-900 dark:text-white rounded shrink-0"
         >
           <Plus size={13} /> Add
         </button>
@@ -288,13 +288,13 @@ function LogoTab({
 
   return (
     <div className="flex flex-col gap-6 max-w-sm">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         Your logo appears on receipts and invoices. Recommended: PNG or SVG, at
         least 300×100 px.
       </p>
 
       {company.logoPath ? (
-        <div className="relative border border-slate-700 rounded-lg p-4 bg-slate-800 flex flex-col items-center gap-3">
+        <div className="relative border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 flex flex-col items-center gap-3">
           <img
             src={company.logoPath}
             alt="Company logo"
@@ -310,7 +310,7 @@ function LogoTab({
       ) : (
         <button
           onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-slate-600 hover:border-sky-500 rounded-lg p-8 flex flex-col items-center gap-2 text-slate-400 hover:text-sky-400 transition-colors"
+          className="border-2 border-dashed border-slate-600 hover:border-sky-500 rounded-lg p-8 flex flex-col items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-sky-400 transition-colors"
         >
           <Upload size={24} />
           <span className="text-sm">Click to upload logo</span>
@@ -329,7 +329,7 @@ function LogoTab({
       {company.logoPath && (
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 text-xs text-slate-400 hover:text-white border border-slate-600 rounded px-3 py-1.5 w-fit"
+          className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white border border-slate-600 rounded px-3 py-1.5 w-fit"
         >
           <Upload size={12} /> Replace logo
         </button>
@@ -350,7 +350,7 @@ function ResetTab() {
     <div className="max-w-md flex flex-col gap-4">
       <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
         <p className="text-sm font-medium text-red-300 mb-1">⚠ Danger zone</p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Resetting the database will permanently delete all transactions,
           documents, and stock data for this company. Company settings are
           preserved. This action cannot be undone.
@@ -358,7 +358,7 @@ function ResetTab() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs text-slate-400">
+        <label className="text-xs text-slate-500 dark:text-slate-400">
           Type <span className="font-mono text-red-400">RESET</span> to confirm
         </label>
         <StyledInput
@@ -378,7 +378,7 @@ function ResetTab() {
           setConfirmed(true);
           setTyped("");
         }}
-        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded w-fit"
+        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-slate-900 dark:text-white rounded w-fit"
       >
         <RefreshCw size={14} /> Reset database
       </button>
@@ -446,19 +446,19 @@ function CompanyFormTab({
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded transition-colors disabled:opacity-40 ${
             justSaved
               ? "bg-emerald-600/20 text-emerald-400"
-              : "text-slate-300 hover:text-white hover:bg-slate-700"
+              : "text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
           }`}
         >
           {justSaved ? <Check size={14} /> : <Save size={14} />}
           {justSaved ? "Saved" : "Save"}
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700 rounded">
           <HelpCircle size={14} /> Help
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2">
-        <h2 className="text-sm font-medium text-slate-200 mb-4">
+        <h2 className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-4">
           Company details
         </h2>
 
@@ -533,7 +533,7 @@ function CompanyFormTab({
             <select
               value={form.countryCode}
               onChange={(e) => set("countryCode", e.target.value)}
-              className={`bg-slate-700 border ${errors.countryCode ? "border-red-500" : "border-slate-600"} text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500`}
+              className={`bg-slate-100 dark:bg-slate-700 border ${errors.countryCode ? "border-red-500" : "border-slate-600"} text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500`}
             >
               <option value="">Select country…</option>
               {countries.map((c) => (
@@ -559,9 +559,9 @@ function CompanyFormTab({
           </FormRow>
         </div>
 
-        <Separator className="my-5 bg-slate-700" />
+        <Separator className="my-5 bg-slate-100 dark:bg-slate-700" />
 
-        <h3 className="text-sm font-medium text-slate-200 mb-4">
+        <h3 className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-4">
           Bank account
         </h3>
 
@@ -578,7 +578,7 @@ function CompanyFormTab({
               value={form.bankDetails}
               onChange={(e) => set("bankDetails", e.target.value)}
               rows={3}
-              className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500 resize-none placeholder:text-slate-500"
+              className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 w-full focus:outline-none focus:border-sky-500 resize-none placeholder:text-slate-500"
               placeholder="Bank name, branch, SWIFT…"
             />
           </FormRow>
@@ -633,17 +633,17 @@ export default function CompanyDataPage() {
   }
 
   return (
-    <div className="h-screen bg-slate-900 text-slate-100 flex overflow-hidden">
+    <div className="h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex overflow-hidden">
       {/* ── Company sidebar ─────────────────────────────────────────── */}
-      <div className="w-56 border-r border-slate-700 bg-slate-800 flex flex-col shrink-0">
-        <div className="flex items-center justify-between px-3 py-3 border-b border-slate-700">
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+      <div className="w-56 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shrink-0">
+        <div className="flex items-center justify-between px-3 py-3 border-b border-slate-200 dark:border-slate-700">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Locations
           </span>
           <button
             onClick={handleAddCompany}
             disabled={createMutation.isPending}
-            className="text-slate-400 hover:text-sky-400 transition-colors disabled:opacity-40"
+            className="text-slate-500 dark:text-slate-400 hover:text-sky-400 transition-colors disabled:opacity-40"
             title="Add company"
           >
             <Plus size={15} />
@@ -656,7 +656,7 @@ export default function CompanyDataPage() {
           ) : companies.length === 0 ? (
             <button
               onClick={handleAddCompany}
-              className="w-full text-left px-3 py-6 text-xs text-slate-500 hover:text-slate-300 text-center"
+              className="w-full text-left px-3 py-6 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-300 text-center"
             >
               + Add first company
             </button>
@@ -668,7 +668,7 @@ export default function CompanyDataPage() {
                 className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors ${
                   selected?.id === c.id
                     ? "bg-sky-600/20 text-sky-300"
-                    : "text-slate-300 hover:bg-slate-700/50"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700/50"
                 }`}
               >
                 <Building2 size={13} className="shrink-0 opacity-60" />
@@ -683,12 +683,12 @@ export default function CompanyDataPage() {
 
         {/* Sidebar actions */}
         {selected && (
-          <div className="border-t border-slate-700 p-2 flex gap-1">
+          <div className="border-t border-slate-200 dark:border-slate-700 p-2 flex gap-1">
             <button
               onClick={() => setDefaultMutation.mutate(selected.id)}
               disabled={selected.isDefault || setDefaultMutation.isPending}
               title={selected.isDefault ? "Default location" : "Set as default"}
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-slate-400 hover:text-amber-400 hover:bg-slate-700 rounded disabled:opacity-30 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-amber-400 hover:bg-slate-100 dark:bg-slate-700 rounded disabled:opacity-30 transition-colors"
             >
               {selected.isDefault ? (
                 <Star size={13} className="text-amber-400" />
@@ -701,7 +701,7 @@ export default function CompanyDataPage() {
               onClick={handleDeleteCompany}
               disabled={deleteMutation.isPending}
               title="Delete company"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded disabled:opacity-30 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-red-400 hover:bg-slate-100 dark:bg-slate-700 rounded disabled:opacity-30 transition-colors"
             >
               <Trash2 size={13} /> Delete
             </button>
@@ -717,8 +717,8 @@ export default function CompanyDataPage() {
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Company name header */}
-          <div className="px-6 py-3 border-b border-slate-700 bg-slate-800/50 flex items-center gap-2 shrink-0">
-            <Building2 size={15} className="text-slate-400" />
+          <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 flex items-center gap-2 shrink-0">
+            <Building2 size={15} className="text-slate-500 dark:text-slate-400" />
             <span className="text-sm font-medium">{selected.name}</span>
             {selected.isDefault && (
               <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
@@ -732,7 +732,7 @@ export default function CompanyDataPage() {
             defaultValue="company"
             className="flex-1 flex flex-col overflow-hidden"
           >
-            <TabsList className="w-full justify-start rounded-none border-b border-slate-700 bg-slate-800 px-4 shrink-0 h-auto">
+            <TabsList className="w-full justify-start rounded-none border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 shrink-0 h-auto">
               {["company", "void", "logo", "reset"].map((tab) => (
                 <TabsTrigger
                   key={tab}

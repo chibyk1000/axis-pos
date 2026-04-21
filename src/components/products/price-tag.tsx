@@ -24,7 +24,7 @@ import { useNavigate } from "react-router";
 export default function PriceTagsPage() {
     const navigate = useNavigate()
   return (
-    <div className="h-screen w-screen bg-slate-900 text-slate-100 flex flex-col">
+    <div className="h-screen w-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 h-12 border-b border-slalte-800">
         <Button size="icon" variant="ghost" onClick={()=> navigate(-1)}>
@@ -36,7 +36,7 @@ export default function PriceTagsPage() {
       {/* Main */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT PANEL */}
-        <aside className="w-80 shrink-0 border-r border-slate-800 p-4 overflow-y-auto space-y-6">
+        <aside className="w-80 shrink-0 border-r border-slate-300 dark:border-slate-800 p-4 overflow-y-auto space-y-6">
           {/* Label size */}
           <Section title="Label size">
             <TwoInputs a="Label width" b="Label height" />
@@ -56,7 +56,7 @@ export default function PriceTagsPage() {
           {/* Barcode */}
           <Section title="Barcode">
             <Select defaultValue="ean13">
-              <SelectTrigger className="bg-slate-800">
+              <SelectTrigger className="bg-white dark:bg-slate-800">
                 <SelectValue placeholder="Barcode type" />
               </SelectTrigger>
               <SelectContent>
@@ -79,10 +79,10 @@ export default function PriceTagsPage() {
               <Button size="icon" variant="secondary">
                 <Search className="h-4 w-4" />
               </Button>
-              <Input placeholder="Product name" className="bg-slate-800" />
+              <Input placeholder="Product name" className="bg-white dark:bg-slate-800" />
             </div>
 
-            <div className="mt-4 text-xs text-slate-400 text-center">
+            <div className="mt-4 text-xs text-slate-500 dark:text-slate-400 text-center">
               No products selected
               <br />
               All products will be printed
@@ -93,7 +93,7 @@ export default function PriceTagsPage() {
           <Section title="Number of copies">
             <div className="flex items-center gap-2">
               <Button variant="secondary">−</Button>
-              <Input value="1" className="w-16 text-center bg-slate-800" />
+              <Input value="1" className="w-16 text-center bg-white dark:bg-slate-800" />
               <Button variant="secondary">+</Button>
             </div>
           </Section>
@@ -104,7 +104,7 @@ export default function PriceTagsPage() {
         {/* RIGHT PREVIEW */}
         <main className="flex-1 bg-slate-950 flex flex-col">
           {/* Toolbar */}
-          <div className="h-10 flex items-center justify-between px-4 border-b border-slate-800">
+          <div className="h-10 flex items-center justify-between px-4 border-b border-slate-300 dark:border-slate-800">
             <div className="flex gap-2">
               <Button size="icon" variant="ghost">
                 <Printer className="h-4 w-4" />
@@ -156,7 +156,7 @@ export default function PriceTagsPage() {
 function Section({ title, children }: any) {
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-semibold text-slate-400 uppercase">
+      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
         {title}
       </h3>
       {children}
@@ -167,8 +167,8 @@ function Section({ title, children }: any) {
 function TwoInputs({ a, b }: { a: string; b: string }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <Input placeholder={a} className="bg-slate-800" />
-      <Input placeholder={b} className="bg-slate-800" />
+      <Input placeholder={a} className="bg-white dark:bg-slate-800" />
+      <Input placeholder={b} className="bg-white dark:bg-slate-800" />
     </div>
   );
 }
@@ -185,7 +185,7 @@ function Toggle({ label }: { label: string }) {
 function SliderRow({ label }: { label: string }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
       <Slider defaultValue={[50]} />
     </div>
   );

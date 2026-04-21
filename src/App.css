@@ -124,23 +124,22 @@
 
 /* Slate theme for shadcn Calendar */
 .slate-calendar {
-  --accent: 215 20% 65%;           /* slate-400 */
+  --accent: 215 20% 65%; /* slate-400 */
   --accent-foreground: 215 30% 15%;
-  --background: 215 28% 17%;       /* slate-800 */
+  --background: 215 28% 17%; /* slate-800 */
   --muted: 215 25% 25%;
   --border: 215 25% 30%;
 }
 
-
 /* toastify-custom.css */
 .my-custom-toast {
   background: #1e293b; /* dark slate bg */
-  color: #f8fafc;      /* light text */
+  color: #f8fafc; /* light text */
   border-left: 5px solid #3b82f6; /* accent color on left */
   padding: 16px 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-family: "Inter", sans-serif;
   font-weight: 500;
   font-size: 14px;
 }
@@ -160,13 +159,21 @@
 
 /* track */
 ::-webkit-scrollbar-track {
-  background: #0f172a; /* slate-900 */
+  background: #f1f5f9; /* light: slate-100, dark: slate-900 */
+}
+
+::-webkit-scrollbar-track {
+  @apply dark:bg-[#0f172a];
 }
 
 /* thumb */
 ::-webkit-scrollbar-thumb {
-  background: #475569; /* slate-600 */
+  background: #cbd5e1; /* light: slate-300, dark: slate-600 */
   border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply dark:bg-[#475569];
 }
 
 /* hover */

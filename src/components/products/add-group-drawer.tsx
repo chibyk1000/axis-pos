@@ -125,22 +125,22 @@ useEffect(() => {
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent className="w-full max-w-md bg-slate-900 border-l border-slate-700 p-6 flex flex-col gap-4">
+      <DrawerContent className="w-full max-w-md bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
         <DrawerHeader>
-          <DrawerTitle className="text-white">New Group</DrawerTitle>
+          <DrawerTitle className="text-slate-900 dark:text-white">New Group</DrawerTitle>
         </DrawerHeader>
 
         <Tabs defaultValue="details">
           <TabsList className="bg-transparent p-0">
             <TabsTrigger
               value="details"
-              className="rounded-none data-[state=active]:bg-sky-500 data-[state=active]:text-white text-white"
+              className="rounded-none data-[state=active]:bg-sky-500 data-[state=active]:text-slate-900 dark:text-white text-slate-900 dark:text-white"
             >
               Details
             </TabsTrigger>
             <TabsTrigger
               value="img"
-              className="rounded-none data-[state=active]:bg-sky-500 data-[state=active]:text-white text-white"
+              className="rounded-none data-[state=active]:bg-sky-500 data-[state=active]:text-slate-900 dark:text-white text-slate-900 dark:text-white"
             >
               Image & Color
             </TabsTrigger>
@@ -152,7 +152,7 @@ useEffect(() => {
           <TabsContent value="details">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-slate-400">Name</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">Name</label>
                 <Input
                   placeholder="Enter group name"
                   value={name}
@@ -161,12 +161,12 @@ useEffect(() => {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-slate-400">Parent group</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">Parent group</label>
                 <Select value={parentId} onValueChange={setParentId}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="No parent (top-level)" />
                   </SelectTrigger>
-                  <SelectContent className="top-10 bg-slate-800">
+                  <SelectContent className="top-10 bg-white dark:bg-slate-800">
                     {data?.map((g: any) => (
                       <SelectItem key={g.id} value={g.id}>
                         {g.displayName}
@@ -183,12 +183,12 @@ useEffect(() => {
             <div className="flex flex-col gap-4">
               {/* Color */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-slate-400">Color</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">Color</label>
                 <Select value={color} onValueChange={setColor}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800">
+                  <SelectContent className="bg-white dark:bg-slate-800">
                     {[
                       ["transparent", "Transparent", "bg-transparent"],
                       ["slate", "Slate", "bg-slate-500"],
@@ -214,12 +214,12 @@ useEffect(() => {
               {/* Image */}
               {/* Image */}
               <div className="flex flex-col gap-2">
-                <label className="text-sm text-slate-400">Image</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">Image</label>
 
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="bg-transparent text-white"
+                    className="bg-transparent text-slate-900 dark:text-white"
                     onClick={async () => {
                       const result = await uploadImage();
                       if (!result) return;
@@ -244,9 +244,9 @@ useEffect(() => {
                     <img
                       src={image.previewUrl}
                       alt="Preview"
-                      className="w-16 h-16 object-cover rounded border border-slate-700"
+                      className="w-16 h-16 object-cover rounded border border-slate-200 dark:border-slate-700"
                     />
-                    <p className="text-xs text-slate-400 truncate">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {image.name}
                     </p>
                   </div>

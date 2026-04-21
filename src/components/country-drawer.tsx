@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle } from "./ui/drawer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "./ui/drawer";
 
 interface CountryForm {
   name: string;
@@ -39,7 +45,7 @@ export default function CountryDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent  className="bg-slate-900 text-slate-100 px-2">
+      <DrawerContent className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2">
         <DrawerHeader>
           <DrawerTitle>
             {initialData ? "Edit country" : "New country"}
@@ -48,7 +54,9 @@ export default function CountryDrawer({
 
         <div className="flex flex-col gap-4 mt-6">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-400">Country name</label>
+            <label className="text-xs text-slate-600 dark:text-slate-400">
+              Country name
+            </label>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -57,7 +65,9 @@ export default function CountryDrawer({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-400">Country code</label>
+            <label className="text-xs text-slate-600 dark:text-slate-400">
+              Country code
+            </label>
             <Input
               value={form.code}
               onChange={(e) =>

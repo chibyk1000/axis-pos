@@ -37,17 +37,17 @@ console.log(selectedCustomer)
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-900 text-slate-200">
+    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
       <CustomerSupplierDrawer onOpenChange={setOpen} open={open}   initialData={selectedCustomer}  />
       {/* Header */}
-      <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-slate-100">
+      <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex items-center gap-3">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
           Customers & Suppliers
         </h2>
       </div>
 
       {/* Toolbar */}
-      <div className="border-b border-slate-800 px-6 py-3 flex items-center gap-2 bg-slate-800">
+      <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center gap-2 bg-white dark:bg-slate-800">
         {[
           { icon: RotateCw, label: "Refresh" },
           {
@@ -113,7 +113,7 @@ console.log(selectedCustomer)
               ${
                 disabled
                   ? "opacity-50 cursor-not-allowed"
-                  : "hover:text-slate-100 hover:bg-slate-700"
+                  : "hover:text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-700"
               }
               ${mlAuto ? "ml-auto" : ""}
             `}
@@ -128,14 +128,14 @@ console.log(selectedCustomer)
       {/* Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Search Bar */}
-        <div className="px-6 py-4 border-b border-slate-800">
+        <div className="px-6 py-4 border-b border-slate-300 dark:border-slate-800">
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400" />
             <Input
               placeholder="Search customers & suppliers"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-500 focus:border-sky-500"
+              className="pl-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-500 focus:border-sky-500"
             />
           </div>
         </div>
@@ -143,7 +143,7 @@ console.log(selectedCustomer)
         {/* Table */}
         <div className="flex-1 overflow-auto">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
+            <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 {[
                   "Code",
@@ -159,7 +159,7 @@ console.log(selectedCustomer)
                 ].map((col) => (
                   <th
                     key={col}
-                    className="px-6 py-3 text-left text-sm font-medium text-slate-400 border-r last:border-r-0 border-slate-700"
+                    className="px-6 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400 border-r last:border-r-0 border-slate-200 dark:border-slate-700"
                   >
                     {col}
                   </th>
@@ -171,39 +171,39 @@ console.log(selectedCustomer)
                 filteredCustomers.map((customer, ) => (
                   <tr
                     key={customer.id}
-                    className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors cursor-pointer ${
-                      selectedCustomer?.id === customer.id ? "bg-slate-700" : ""
+                    className={`border-b border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700/50 transition-colors cursor-pointer ${
+                      selectedCustomer?.id === customer.id ? "bg-slate-100 dark:bg-slate-700" : ""
                     }`}
                     onClick={() => setSelectedCustomer(customer)}
                   >
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.code}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-200 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-800 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700">
                       {customer.name}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.taxNumber}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.streetName}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.country}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.phoneNumber}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.email}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.active ? "✓" : "X"}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.customer ? "✓" : "✕"}
                     </td>
-                    <td className="px-6 py-3 text-sm text-slate-400 border-r border-slate-700">
+                    <td className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700">
                       {customer.taxExempt ? "✓" : "✕"}
                     </td>
                   </tr>
@@ -212,7 +212,7 @@ console.log(selectedCustomer)
                 <tr>
                   <td
                     colSpan={8}
-                    className="px-6 py-8 text-center text-slate-400"
+                    className="px-6 py-8 text-center text-slate-500 dark:text-slate-400"
                   >
                     No customers or suppliers found
                   </td>

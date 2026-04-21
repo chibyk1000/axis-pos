@@ -143,9 +143,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
   };
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
-      <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-700 bg-slate-900 text-slate-200">
-        <DrawerHeader className="border-b border-slate-700">
-          <DrawerTitle className="text-lg font-medium text-slate-100">
+      <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+        <DrawerHeader className="border-b border-slate-200 dark:border-slate-700">
+          <DrawerTitle className="text-lg font-medium text-slate-900 dark:text-slate-100">
             {product?.title}
           </DrawerTitle>
         </DrawerHeader>
@@ -153,9 +153,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
         <div className="space-y-5 p-4">
           {/* Quantity */}
           <div className="space-y-1">
-            <Label className="text-slate-400">Quantity</Label>
+            <Label className="text-slate-500 dark:text-slate-400">Quantity</Label>
             <Input
-              className="bg-slate-800 border-slate-700 text-white"
+              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               type="number"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
@@ -164,9 +164,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Price */}
           <div className="space-y-1">
-            <Label className="text-slate-400">Price before tax</Label>
+            <Label className="text-slate-500 dark:text-slate-400">Price before tax</Label>
             <Input
-              className="bg-slate-800 border-slate-700 text-white"
+              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               type="number"
               value={priceBeforeTax}
               onChange={(e) =>
@@ -182,7 +182,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
             {selectedTaxes.map((tax) => (
               <div
                 key={tax.id}
-                className="flex items-center justify-between bg-slate-800 px-3 py-2 rounded"
+                className="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded"
               >
                 <span>
                   {tax.name} ({tax.rate}%)
@@ -209,9 +209,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
               </Button>
             )}
             <div className="space-y-1">
-              <Label className="text-slate-400">Price</Label>
+              <Label className="text-slate-500 dark:text-slate-400">Price</Label>
               <Input
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                 type="number"
                 value={price}
                 onChange={(e) => handlePriceChange(Number(e.target.value))}
@@ -255,7 +255,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                 <button
                   onClick={addTax}
                   disabled={!selectedTaxId}
-                  className="p-2 bg-slate-700 rounded"
+                  className="p-2 bg-slate-100 dark:bg-slate-700 rounded"
                 >
                   <Plus size={16} />
                 </button>
@@ -265,7 +265,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                     setIsAddingTax(false);
                     setSelectedTaxId(null);
                   }}
-                  className="p-2 text-slate-400"
+                  className="p-2 text-slate-500 dark:text-slate-400"
                 >
                   <Minus size={16} />
                 </button>
@@ -275,18 +275,18 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Discount */}
           <div className="space-y-2">
-            <Label className="text-slate-400">Discount</Label>
+            <Label className="text-slate-500 dark:text-slate-400">Discount</Label>
 
             <div className="flex gap-2">
               <Select
                 value={discountType}
                 onValueChange={(v) => setDiscountType(v)}
               >
-                <SelectTrigger className="w-40 bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                   <SelectValue />
                 </SelectTrigger>
 
-                <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                <SelectContent className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                   <SelectItem value="percent">Discount percent</SelectItem>
                   <SelectItem value="fixed">Fixed amount</SelectItem>
                 </SelectContent>
@@ -295,41 +295,41 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
               <Input
                 type="number"
                 value={discount}
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                 onChange={(e) => setDiscount(Number(e.target.value))}
               />
 
               {discountType === "percent" && (
-                <div className="flex items-center text-slate-400">%</div>
+                <div className="flex items-center text-slate-500 dark:text-slate-400">%</div>
               )}
             </div>
           </div>
 
           {/* Totals */}
-          <div className="border-t border-slate-700 pt-4 space-y-4">
+          <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
             <div className="space-y-1">
-              <Label className="text-slate-400">Total before tax</Label>
+              <Label className="text-slate-500 dark:text-slate-400">Total before tax</Label>
               <Input
                 disabled
                 value={totalBeforeTax.toFixed(2)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-slate-400">Total</Label>
+              <Label className="text-slate-500 dark:text-slate-400">Total</Label>
               <Input
                 disabled
                 value={total.toFixed(2)}
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               />
             </div>
           </div>
         </div>
 
-        <DrawerFooter className="flex-row gap-3 border-t border-slate-700 p-4">
+        <DrawerFooter className="flex-row gap-3 border-t border-slate-200 dark:border-slate-700 p-4">
           <Button
-            className="flex-1 bg-slate-700 hover:bg-slate-600"
+            className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-600"
             onClick={handleAddItem}
             disabled={!product}
           >
@@ -338,7 +338,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           <Button
             variant="outline"
-            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800"
+            className="flex-1 border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800"
             onClick={() => setOpen(false)}
           >
             Cancel

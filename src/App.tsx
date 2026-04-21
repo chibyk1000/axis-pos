@@ -25,7 +25,7 @@ import LoginPage from "./pages/login";
 import CreateCustomerPage, { CustomerFormData } from "./pages/create-customer";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { useCreateCustomer } from "@/hooks/controllers/customers";
-
+import { ThemeProvider } from "./providers/theme-provider";
 
 /* -------------------------------------------------------------------------- */
 /* AUTH CONTEXT                                                                */
@@ -225,12 +225,12 @@ const PaymentScreen = lazy(() => import("./pages/payment"));
 
 function AppLoader() {
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+    <div className="min-h-screen bg-white dark:bg-[#020617] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-cyan-500 flex items-center justify-center text-black font-bold text-xl animate-pulse">
           A
         </div>
-        <p className="text-sm text-slate-600">Loading…</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
       </div>
     </div>
   );
@@ -239,8 +239,8 @@ function AppLoader() {
 const Loader = () => (
   <div className="flex items-center justify-center h-[60vh]">
     <div className="flex flex-col items-center gap-3">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-600 border-t-white" />
-      <p className="text-sm text-slate-400">Loading...</p>
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 dark:border-slate-600 border-t-slate-900 dark:border-t-white" />
+      <p className="text-sm text-slate-600 dark:text-slate-400">Loading...</p>
     </div>
   </div>
 );
@@ -265,99 +265,104 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <main className="container">
-        <Suspense fallback={<Loader />}>
-          <Routes>
-            {/* ── Public ──────────────────────────────────────────────── */}
-            <Route path="/login" element={<LoginScreen />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <main className="container">
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              {/* ── Public ──────────────────────────────────────────────── */}
+              <Route path="/login" element={<LoginScreen />} />
 
-            {/* ── First-run setup (auth required, no customer check) ─── */}
-            <Route
-              path="/setup/customers"
-              element={
-                <RequireAuth>
-                  <CustomerSetupScreen />
-                </RequireAuth>
-              }
-            />
+              {/* ── First-run setup (auth required, no customer check) ─── */}
+              <Route
+                path="/setup/customers"
+                element={
+                  <RequireAuth>
+                    <CustomerSetupScreen />
+                  </RequireAuth>
+                }
+              />
 
-            {/* ── All protected routes ─────────────────────────────────
+              {/* ── All protected routes ─────────────────────────────────
                 RequireAuth  → must be logged in
                 RequireCustomers → must have ≥1 customer in DB          */}
-            <Route
-              path="/*"
-              element={
-                <RequireAuth>
-                  <RequireCustomers>
-                    <Routes>
-                      {/* POS */}
-                      <Route path="/" element={<Pos />} />
-                      <Route path="/documents" element={<DocumentsPage />} />
-                      <Route path="/price-tags" element={<PriceTagsPage />} />
-                      <Route path="/sorting" element={<SortingScreen />} />
-                      <Route
-                        path="/moving-average-price"
-                        element={<MovingAveragePrice />}
-                      />
-                      <Route path="/cash-in-out" element={<CashInOut />} />
-                      <Route
-                        path="/credit-payments"
-                        element={<CreditPaymentsModal />}
-                      />
-                      <Route path="/end-of-day" element={<EndOfDayModal />} />
-                      <Route path="/payment" element={<PaymentScreen />} />
-                      <Route path="/open-sales" element={<ViewOpenSales />} />
-                      <Route path="/sales-history" element={<SalesHistory />} />
-                      <Route path="/import" element={<ImportModal />} />
-
-                      {/* Dashboard */}
-                      <Route path="/dashboard" element={<Applayout />}>
-                        <Route path="" element={<Dashboard />} />
-                        <Route path="documents" element={<DocumentsView />} />
-                        <Route path="products" element={<ProductsView />} />
-                        <Route path="stocks" element={<Stock />} />
-                        <Route path="reporting" element={<Reporting />} />
+              <Route
+                path="/*"
+                element={
+                  <RequireAuth>
+                    <RequireCustomers>
+                      <Routes>
+                        {/* POS */}
+                        <Route path="/" element={<Pos />} />
+                        <Route path="/documents" element={<DocumentsPage />} />
+                        <Route path="/price-tags" element={<PriceTagsPage />} />
+                        <Route path="/sorting" element={<SortingScreen />} />
                         <Route
-                          path="price-lists"
-                          element={<PriceListsView />}
+                          path="/moving-average-price"
+                          element={<MovingAveragePrice />}
                         />
+                        <Route path="/cash-in-out" element={<CashInOut />} />
                         <Route
-                          path="customer-supplies"
-                          element={<CustomerSupplies />}
+                          path="/credit-payments"
+                          element={<CreditPaymentsModal />}
                         />
-                        <Route path="promotions" element={<Promotions />} />
+                        <Route path="/end-of-day" element={<EndOfDayModal />} />
+                        <Route path="/payment" element={<PaymentScreen />} />
+                        <Route path="/open-sales" element={<ViewOpenSales />} />
                         <Route
-                          path="users-security"
-                          element={<UsersSecurity />}
+                          path="/sales-history"
+                          element={<SalesHistory />}
                         />
-                        <Route path="user-info" element={<UserInfo />} />
-                        <Route path="settings" element={<Settings />} />
-                        <Route path="payments" element={<PaymentTypes />} />
-                        <Route path="countries" element={<Countries />} />
-                        <Route path="company" element={<Mycompany />} />
-                        <Route path="tax-rates" element={<TaxRates />} />
-                      </Route>
+                        <Route path="/import" element={<ImportModal />} />
+    <Route path="settings" element={<Settings />} />
+                        {/* Dashboard */}
+                        <Route path="/dashboard" element={<Applayout />}>
+                          <Route path="" element={<Dashboard />} />
+                          <Route path="documents" element={<DocumentsView />} />
+                          <Route path="products" element={<ProductsView />} />
+                          <Route path="stocks" element={<Stock />} />
+                          <Route path="reporting" element={<Reporting />} />
+                          <Route
+                            path="price-lists"
+                            element={<PriceListsView />}
+                          />
+                          <Route
+                            path="customer-supplies"
+                            element={<CustomerSupplies />}
+                          />
+                          <Route path="promotions" element={<Promotions />} />
+                          <Route
+                            path="users-security"
+                            element={<UsersSecurity />}
+                          />
+                          <Route path="user-info" element={<UserInfo />} />
+                      
+                          <Route path="payments" element={<PaymentTypes />} />
+                          <Route path="countries" element={<Countries />} />
+                          <Route path="company" element={<Mycompany />} />
+                          <Route path="tax-rates" element={<TaxRates />} />
+                        </Route>
 
-                      {/* Fallback */}
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                  </RequireCustomers>
-                </RequireAuth>
-              }
-            />
-          </Routes>
-        </Suspense>
+                        {/* Fallback */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </RequireCustomers>
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </Suspense>
 
-        <ToastContainer
-          position="top-right"
-          autoClose={4000}
-          hideProgressBar={false}
-          pauseOnFocusLoss={false}
-          pauseOnHover={false}
-        />
-      </main>
-    </AuthProvider>
+          <ToastContainer
+            position="top-right"
+            autoClose={4000}
+            hideProgressBar={false}
+            pauseOnFocusLoss={false}
+            pauseOnHover={false}
+          />
+        </main>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

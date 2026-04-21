@@ -25,8 +25,8 @@ import type { User, NewUser } from "@/hooks/controllers/users";
 
 const ACCESS_LEVEL_LABELS: Record<number, { label: string; color: string }> = {
   0: { label: "No access", color: "text-slate-500" },
-  1: { label: "Level 1", color: "text-slate-400" },
-  2: { label: "Level 2", color: "text-slate-400" },
+  1: { label: "Level 1", color: "text-slate-500 dark:text-slate-400" },
+  2: { label: "Level 2", color: "text-slate-500 dark:text-slate-400" },
   3: { label: "Cashier", color: "text-emerald-400" },
   4: { label: "Level 4", color: "text-emerald-400" },
   5: { label: "Level 5", color: "text-sky-400" },
@@ -54,10 +54,10 @@ function FieldInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
       <input
         {...props}
-        className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500 disabled:opacity-40"
+        className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500 disabled:opacity-40"
       />
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
@@ -153,12 +153,12 @@ function UserFormPanel({
   }
 
   return (
-    <div className="w-72 border-l border-slate-700 bg-slate-800 flex flex-col shrink-0">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+    <div className="w-72 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <h3 className="text-sm font-medium">
           {initial ? "Edit user" : "Add user"}
         </h3>
-        <button onClick={onCancel} className="text-slate-400 hover:text-white">
+        <button onClick={onCancel} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">
           <X size={15} />
         </button>
       </div>
@@ -190,25 +190,25 @@ function UserFormPanel({
 
         {/* Access level stepper */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">Access level</label>
+          <label className="text-xs text-slate-500 dark:text-slate-400">Access level</label>
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-slate-700 border border-slate-600 rounded overflow-hidden">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-700 border border-slate-600 rounded overflow-hidden">
               <button
                 onClick={() =>
                   set("accessLevel", Math.max(0, form.accessLevel - 1))
                 }
-                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600 border-r border-slate-600 transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-600 border-r border-slate-600 transition-colors"
               >
                 −
               </button>
-              <span className="w-8 h-8 flex items-center justify-center text-sm font-mono font-medium text-slate-100 select-none">
+              <span className="w-8 h-8 flex items-center justify-center text-sm font-mono font-medium text-slate-900 dark:text-slate-100 select-none">
                 {form.accessLevel}
               </span>
               <button
                 onClick={() =>
                   set("accessLevel", Math.min(9, form.accessLevel + 1))
                 }
-                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-600 border-l border-slate-600 transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-600 border-l border-slate-600 transition-colors"
               >
                 +
               </button>
@@ -258,17 +258,17 @@ function UserFormPanel({
         />
       </div>
 
-      <div className="px-4 py-3 border-t border-slate-700 flex gap-2 justify-end">
+      <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex gap-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-slate-600 rounded"
+          className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white border border-slate-600 rounded"
         >
           Cancel
         </button>
         <button
           onClick={handleSubmit}
           disabled={isSaving}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-slate-900 dark:text-white rounded"
         >
           <Check size={12} />
           {isSaving ? "Saving…" : "Save"}
@@ -294,30 +294,30 @@ function DeleteConfirm({
   isDeleting: boolean;
 }) {
   return (
-    <div className="w-72 border-l border-slate-700 bg-slate-800 flex flex-col shrink-0">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+    <div className="w-72 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <h3 className="text-sm font-medium text-red-400">Delete user</h3>
-        <button onClick={onCancel} className="text-slate-400 hover:text-white">
+        <button onClick={onCancel} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">
           <X size={15} />
         </button>
       </div>
       <div className="p-4 flex flex-col gap-4">
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-slate-700 dark:text-slate-300">
           Deactivate{" "}
-          <span className="text-white font-medium">"{user.name}"</span>? The
+          <span className="text-slate-900 dark:text-white font-medium">"{user.name}"</span>? The
           account will be hidden but not permanently removed.
         </p>
         <div className="flex gap-2 justify-end">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-slate-600 rounded"
+            className="px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white border border-slate-600 rounded"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isDeleting}
-            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white rounded"
+            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-500 disabled:opacity-40 text-slate-900 dark:text-white rounded"
           >
             {isDeleting ? "Removing…" : "Deactivate"}
           </button>
@@ -461,7 +461,7 @@ function UsersTab() {
     <div className="flex flex-1 overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Toolbar */}
-        <div className="border-b border-slate-800 px-3 py-2 flex items-center gap-0.5 bg-slate-800 shrink-0">
+        <div className="border-b border-slate-300 dark:border-slate-800 px-3 py-2 flex items-center gap-0.5 bg-white dark:bg-slate-800 shrink-0">
           {toolbarItems.map(
             ({
               icon: Icon,
@@ -481,10 +481,10 @@ function UsersTab() {
                 ${mlAuto ? "ml-auto" : ""}
                 ${
                   toggled
-                    ? "text-sky-400 bg-slate-700"
+                    ? "text-sky-400 bg-slate-100 dark:bg-slate-700"
                     : primary
-                      ? "text-sky-500 hover:text-sky-400 hover:bg-slate-700"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+                      ? "text-sky-500 hover:text-sky-400 hover:bg-slate-100 dark:bg-slate-700"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -502,7 +502,7 @@ function UsersTab() {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-800 sticky top-0 border-b border-slate-700 z-10">
+              <thead className="bg-white dark:bg-slate-800 sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                 <tr>
                   {[
                     "Name",
@@ -514,7 +514,7 @@ function UsersTab() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left py-2.5 px-4 text-xs font-medium text-slate-400 border-r border-slate-700/50 last:border-r-0"
+                      className="text-left py-2.5 px-4 text-xs font-medium text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-700/50 last:border-r-0"
                     >
                       {h}
                     </th>
@@ -543,16 +543,16 @@ function UsersTab() {
                           setSelectedId(user.id ?? null);
                           setPanelMode("idle");
                         }}
-                        className={`border-b border-slate-700/40 cursor-pointer transition-colors ${
+                        className={`border-b border-slate-200 dark:border-slate-700/40 cursor-pointer transition-colors ${
                           selectedId === user.id
                             ? "bg-sky-600/20"
-                            : "hover:bg-slate-800/60"
+                            : "hover:bg-white dark:bg-slate-800/60"
                         }`}
                       >
-                        <td className="py-2.5 px-4 font-medium text-slate-100">
+                        <td className="py-2.5 px-4 font-medium text-slate-900 dark:text-slate-100">
                           {user.name ?? "—"}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-400">
+                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">
                           {user.email ?? "—"}
                         </td>
                         <td className="py-2.5 px-4">
@@ -579,10 +579,10 @@ function UsersTab() {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-4 text-slate-400">
+                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">
                           {user.city === "NULL" || !user.city ? "—" : user.city}
                         </td>
-                        <td className="py-2.5 px-4 text-slate-400">
+                        <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">
                           {user.age ?? "—"}
                         </td>
                         <td className="py-2.5 px-4">
@@ -591,7 +591,7 @@ function UsersTab() {
                               Active
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded">
+                            <span className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">
                               Inactive
                             </span>
                           )}
@@ -606,7 +606,7 @@ function UsersTab() {
         </div>
 
         {/* Status bar */}
-        <div className="px-4 py-1.5 border-t border-slate-700 bg-slate-800 text-xs text-slate-500 shrink-0">
+        <div className="px-4 py-1.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-500 shrink-0">
           {displayed.length} user{displayed.length !== 1 ? "s" : ""}
           {!showInactive && allUsers.length !== displayed.length && (
             <span className="ml-2 text-slate-600">
@@ -652,8 +652,8 @@ export default function UsersSecurityScreen() {
   const [activeTab, setActiveTab] = useState<"users" | "security">("users");
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 text-slate-200 overflow-hidden">
-      <div className="border-b border-slate-800 px-6 flex gap-6 shrink-0">
+    <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 overflow-hidden">
+      <div className="border-b border-slate-300 dark:border-slate-800 px-6 flex gap-6 shrink-0">
         {(["users", "security"] as const).map((tab) => (
           <button
             key={tab}
@@ -661,7 +661,7 @@ export default function UsersSecurityScreen() {
             className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors capitalize ${
               activeTab === tab
                 ? "border-sky-500 text-sky-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
             }`}
           >
             {tab === "users" ? "Users" : "Security"}
