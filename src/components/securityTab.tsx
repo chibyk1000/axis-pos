@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
 import { RefreshCw, Save, HelpCircle, Minus, Plus, Check } from "lucide-react";
+import { DEFAULT_SECURITY_SECTIONS } from "@/lib/security";
 
 /* -------------------------------------------------------------------------- */
 /*                              TYPES                                         */
 /* -------------------------------------------------------------------------- */
 
-type PermissionItem = {
+export type PermissionItem = {
   id: string;
   label: string;
   value: number;
@@ -20,167 +21,7 @@ type Section = {
   items: PermissionItem[];
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              DEFAULT DATA                                  */
-/* -------------------------------------------------------------------------- */
-
-const DEFAULT_SECTIONS: Section[] = [
-  {
-    id: "general",
-    label: "General",
-    color: "bg-sky-600",
-    items: [
-      {
-        id: "management",
-        label: "Management",
-        value: 0,
-        hasHelp: true,
-        helpText: "Required level to access the management module.",
-      },
-      {
-        id: "settings",
-        label: "Settings",
-        value: 0,
-        hasHelp: true,
-        helpText: "Required level to modify application settings.",
-      },
-      {
-        id: "end-of-day",
-        label: "End of day",
-        value: 0,
-        hasHelp: true,
-        helpText:
-          "Level required to run the end-of-day report and close the register.",
-      },
-      { id: "user-profile", label: "User profile", value: 0 },
-      { id: "design-floor-plans", label: "Design floor plans", value: 0 },
-      { id: "close-application", label: "Close application", value: 0 },
-      { id: "data-export", label: "Data export", value: 0 },
-    ],
-  },
-  {
-    id: "sales",
-    label: "Sales",
-    color: "bg-emerald-600",
-    items: [
-      {
-        id: "view-open-orders",
-        label: "View all open orders",
-        value: 0,
-        hasHelp: true,
-        helpText: "Allows user to see all open orders, not just their own.",
-      },
-      {
-        id: "void-order",
-        label: "Void order",
-        value: 0,
-        hasHelp: true,
-        helpText: "Level required to void an entire order.",
-      },
-      {
-        id: "void-item",
-        label: "Void item",
-        value: 0,
-        hasHelp: true,
-        helpText: "Level required to remove a single item from a sale.",
-      },
-      { id: "lock-sale", label: "Lock sale", value: 0 },
-      { id: "unlock-sale", label: "Unlock sale", value: 0 },
-      {
-        id: "split-order",
-        label: "Split order",
-        value: 0,
-        hasHelp: true,
-        helpText:
-          "Allows splitting a sale between multiple payments or tables.",
-      },
-      { id: "apply-discount", label: "Apply discount", value: 0 },
-      { id: "apply-promotion", label: "Apply promotion", value: 0 },
-      {
-        id: "price-override",
-        label: "Price override",
-        value: 0,
-        hasHelp: true,
-        helpText: "Allow manually overriding a product price during sale.",
-      },
-      { id: "delete-document", label: "Delete document", value: 0 },
-      {
-        id: "refund",
-        label: "Refund",
-        value: 0,
-        hasHelp: true,
-        helpText: "Level required to process a refund.",
-      },
-      { id: "view-sales-history", label: "View sales history", value: 0 },
-      { id: "reprint-receipt", label: "Reprint receipt", value: 0 },
-      { id: "credit-payments", label: "Credit payments", value: 0 },
-      {
-        id: "starting-cash",
-        label: "Starting cash",
-        value: 0,
-        hasHelp: true,
-        helpText:
-          "Level required to set the starting cash amount at the beginning of a shift.",
-      },
-      { id: "open-cash-drawer", label: "Open cash drawer", value: 0 },
-      {
-        id: "zero-stock",
-        label: "Zero stock quantity sale",
-        value: 0,
-        hasHelp: true,
-        helpText: "Allow selling a product even when stock is at zero.",
-      },
-      { id: "no-sale", label: "No sale (open drawer)", value: 0 },
-    ],
-  },
-  {
-    id: "management",
-    label: "Management",
-    color: "bg-violet-600",
-    items: [
-      { id: "products", label: "Products", value: 0 },
-      { id: "product-prices", label: "Product prices", value: 0 },
-      { id: "price-lists", label: "Price lists", value: 0 },
-      { id: "promotions-mgmt", label: "Promotions", value: 0 },
-      { id: "customers", label: "Customers", value: 0 },
-      { id: "suppliers", label: "Suppliers", value: 0 },
-      {
-        id: "stock",
-        label: "Stock",
-        value: 0,
-        hasHelp: true,
-        helpText: "Level required to view and manage stock levels.",
-      },
-      { id: "stock-adjustment", label: "Stock adjustment", value: 0 },
-      { id: "stock-transfer", label: "Stock transfer", value: 0 },
-      { id: "purchase-orders", label: "Purchase orders", value: 0 },
-      { id: "documents", label: "Documents", value: 0 },
-      { id: "reports", label: "Reports", value: 0 },
-      { id: "taxes", label: "Taxes", value: 0 },
-      { id: "payment-types", label: "Payment types", value: 0 },
-      { id: "users-security", label: "Users & security", value: 0 },
-    ],
-  },
-  {
-    id: "stock",
-    label: "Stock",
-    color: "bg-amber-600",
-    items: [
-      { id: "view-stock", label: "View stock levels", value: 0 },
-      { id: "edit-stock", label: "Edit stock quantity", value: 0 },
-      { id: "stock-count", label: "Stock count / audit", value: 0 },
-      { id: "receive-stock", label: "Receive stock", value: 0 },
-      {
-        id: "write-off",
-        label: "Write off stock",
-        value: 0,
-        hasHelp: true,
-        helpText: "Level required to mark stock as damaged or lost.",
-      },
-      { id: "import-stock", label: "Import stock", value: 0 },
-    ],
-  },
-];
+// const DEFAULT_SECTIONS: Section[] = DEFAULT_SECURITY_SECTIONS;
 
 /* -------------------------------------------------------------------------- */
 /*                           TOOLTIP                                          */
@@ -221,7 +62,9 @@ function PermissionRow({
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-slate-200 dark:border-slate-700/40 last:border-0">
       <div className="flex items-center gap-1.5">
-        <span className="text-sm text-slate-800 dark:text-slate-200">{item.label}</span>
+        <span className="text-sm text-slate-800 dark:text-slate-200">
+          {item.label}
+        </span>
         {item.hasHelp && item.helpText && <Tooltip text={item.helpText} />}
       </div>
       <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-600 rounded overflow-hidden shrink-0">
@@ -262,7 +105,9 @@ function SectionBlock({
       <div
         className={`${section.color} px-4 py-2 flex items-center justify-between`}
       >
-        <span className="text-sm font-medium text-slate-900 dark:text-white">{section.label}</span>
+        <span className="text-sm font-medium text-slate-900 dark:text-white">
+          {section.label}
+        </span>
         <div className="flex gap-1">
           <button
             onClick={() =>
@@ -306,7 +151,9 @@ function SectionBlock({
 /* -------------------------------------------------------------------------- */
 
 export default function AccessLevelSettings() {
-  const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
+  const [sections, setSections] = useState<Section[]>(
+    DEFAULT_SECURITY_SECTIONS,
+  );
   const [saved, setSaved] = useState(false);
 
   const handleChange = useCallback(
@@ -341,7 +188,7 @@ export default function AccessLevelSettings() {
   }
 
   function handleRefresh() {
-    setSections(DEFAULT_SECTIONS);
+    setSections(DEFAULT_SECURITY_SECTIONS);
     setSaved(false);
   }
 
@@ -387,7 +234,9 @@ export default function AccessLevelSettings() {
 
       {/* Legend */}
       <div className="px-6 py-2 flex items-center gap-6 text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700 shrink-0">
-        <span className="font-medium text-slate-500 dark:text-slate-400">Quick reference:</span>
+        <span className="font-medium text-slate-500 dark:text-slate-400">
+          Quick reference:
+        </span>
         {[
           { label: "0 — everyone", color: "bg-slate-500" },
           { label: "1-4 — cashier", color: "bg-emerald-600" },

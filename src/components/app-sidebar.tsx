@@ -23,6 +23,7 @@ import {
 
 import { NavMain } from "@/components/nav-main";
 import { useAuth } from "@/App";
+import { hasPermission, permissionForUrl } from "@/lib/security";
 
 // import { NavUser } from "@/components/nav-user"
 
@@ -39,6 +40,9 @@ import { Button } from "./ui/button";
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
   const auth = useAuth();
+  const canAccess = (url: string) =>
+    hasPermission(auth.user?.accessLevel ?? 0, permissionForUrl(url));
+
   // This is sample data.
   const data = {
     user: {
@@ -69,70 +73,79 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/dashboard",
         icon: LayoutDashboard,
         isActive: true,
+        disabled: !canAccess("/dashboard"),
       },
       {
         title: "Documents",
         url: "/dashboard/documents",
         icon: BookText,
+        disabled: !canAccess("/dashboard/documents"),
       },
       {
         title: "Products",
-
         icon: Tags,
         url: "/dashboard/products",
+        disabled: !canAccess("/dashboard/products"),
       },
-
       {
         title: "Price lists",
         url: "/dashboard/price-lists",
         icon: BadgeDollarSign,
+        disabled: !canAccess("/dashboard/price-lists"),
       },
       {
         title: "Stock",
         url: "/dashboard/stocks",
         icon: Archive,
+        disabled: !canAccess("/dashboard/stocks"),
       },
       {
         title: "Reporting",
         url: "/dashboard/reporting",
         icon: ChartBar,
+        disabled: !canAccess("/dashboard/reporting"),
       },
       {
         title: "Customer & Suppliers",
         url: "/dashboard/customer-supplies",
         icon: Contact,
+        disabled: !canAccess("/dashboard/customer-supplies"),
       },
       {
         title: "Promotions",
         url: "/dashboard/promotions",
         icon: Gift,
+        disabled: !canAccess("/dashboard/promotions"),
       },
-
       {
         title: "Users & Security",
         url: "/dashboard/users-security",
         icon: Shield,
+        disabled: !canAccess("/dashboard/users-security"),
       },
       {
         title: "Payment types",
         url: "/dashboard/payments",
         icon: CreditCard,
+        disabled: !canAccess("/dashboard/payments"),
       },
       {
         title: "Countries",
         url: "/dashboard/countries",
         icon: Globe,
+        disabled: !canAccess("/dashboard/countries"),
       },
-
       {
         title: "Tax rates",
         url: "/dashboard/tax-rates",
         icon: CirclePercent,
+        disabled: !canAccess("/dashboard/tax-rates"),
       },
       {
         title: "My company",
         url: "/dashboard/company",
         icon: Building2,
+        disabled: !canAccess("/dashboard/company"),
       },
     ],
   };

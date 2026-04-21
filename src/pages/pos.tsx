@@ -35,6 +35,7 @@ import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
 import { useNavigate } from "react-router";
 import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
+import { useAddStockEntry } from "@/hooks/controllers/stocks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,7 +349,10 @@ function DiscountModal({
         <div className="p-5">
           {tab === "item" && item && (
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 truncate">
-              Applying to: <span className="text-slate-800 dark:text-slate-200">{item.title}</span>
+              Applying to:{" "}
+              <span className="text-slate-800 dark:text-slate-200">
+                {item.title}
+              </span>
             </p>
           )}
           <div className="relative mb-4">
@@ -918,7 +922,9 @@ function RefundScreen({
             confirm.
           </p>
           <div className="w-96 flex flex-col gap-1.5">
-            <label className="text-xs text-slate-500 dark:text-slate-400">Receipt number</label>
+            <label className="text-xs text-slate-500 dark:text-slate-400">
+              Receipt number
+            </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
@@ -1070,7 +1076,9 @@ function TransferScreen({
         className={`flex justify-between border-b border-slate-200 dark:border-slate-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none ${sel ? "bg-slate-100 dark:bg-slate-700 border-l-2 border-l-cyan-400" : "hover:bg-white dark:bg-slate-800/60"}`}
       >
         <div>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.title}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            {item.title}
+          </p>
           <p className="text-xs text-slate-500">
             {item.qty} × ₦
             {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
@@ -1095,7 +1103,9 @@ function TransferScreen({
         className={`flex justify-between border border-cyan-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none ${sel ? "bg-cyan-700/60 border-cyan-400" : "bg-cyan-900/30 hover:bg-cyan-800/40"}`}
       >
         <div>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.title}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+            {item.title}
+          </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {item.qty} × ₦
             {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
@@ -1476,7 +1486,9 @@ function CashDrawerToast({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-emerald-800 border border-emerald-500 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
       <ImDrawer className="w-5 h-5 text-slate-900 dark:text-white" />
-      <p className="text-sm font-semibold text-slate-900 dark:text-white">Cash drawer opened</p>
+      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+        Cash drawer opened
+      </p>
     </div>
   );
 }
@@ -1586,6 +1598,7 @@ export default function AroniumLite() {
   const paymentTypesQuery = usePaymentTypes();
   const documentsQuery = useDocuments();
   const createDocument = useCreateDocument();
+  const addStockEntry = useAddStockEntry();
 
   // Cart state
   const [items, setItems] = useState<CartItem[]>([]);
@@ -1755,6 +1768,19 @@ export default function AroniumLite() {
     await createDocument.mutateAsync(
       buildDocumentPayload("posted", true, payments),
     );
+
+    // Update stock for each item (sale decreases stock, refund increases stock)
+    for (const item of items) {
+      const isRefund = item.qty < 0;
+      await addStockEntry.mutateAsync({
+        productId: item.id,
+        type: isRefund ? "in" : "out",
+        quantity: isRefund ? Math.abs(item.qty) : -Math.abs(item.qty), // Positive for refunds (stock in), negative for sales (stock out)
+        note: isRefund ? "Refund" : "Sale",
+        createdAt: new Date(),
+      });
+    }
+
     clearCart();
     router("/documents");
   };
@@ -2113,7 +2139,9 @@ export default function AroniumLite() {
                   <span className="tabular-nums">₦{taxTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-slate-300 dark:border-slate-800">
-                  <span className="text-slate-800 dark:text-slate-200">Total</span>
+                  <span className="text-slate-800 dark:text-slate-200">
+                    Total
+                  </span>
                   <span className="tabular-nums text-slate-900 dark:text-slate-100">
                     ₦{total.toFixed(2)}
                   </span>
@@ -2238,14 +2266,18 @@ export default function AroniumLite() {
                     <span className="text-[9px] text-slate-500 font-medium">
                       F9
                     </span>
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300">Save</span>
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300">
+                      Save
+                    </span>
                   </button>
                   <button
                     onClick={() => setModal("refund")}
                     className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 rounded py-2.5 transition-colors"
                   >
                     <RefreshCw className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300">Refund</span>
+                    <span className="text-[10px] text-slate-700 dark:text-slate-300">
+                      Refund
+                    </span>
                   </button>
                 </div>
               </div>

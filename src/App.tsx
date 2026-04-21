@@ -26,13 +26,22 @@ import CreateCustomerPage, { CustomerFormData } from "./pages/create-customer";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { useCreateCustomer } from "@/hooks/controllers/customers";
 import { ThemeProvider } from "./providers/theme-provider";
-
+import { db } from "@/db/database";
+import { users } from "@/db/schema";
+import { eq, or } from "drizzle-orm";
+import {
+  getRequiredAccessLevel,
+  hasPermission,
+  PermissionId,
+} from "@/lib/security";
+import { verifyPassword } from "@/lib/auth";
 /* -------------------------------------------------------------------------- */
 /* AUTH CONTEXT                                                                */
 /* -------------------------------------------------------------------------- */
 
 interface AuthUser {
   username: string;
+  accessLevel: number;
 }
 
 interface AuthCtx {
@@ -63,15 +72,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = async (username: string, password: string) => {
-    // Replace with your real auth API call:
-    // const res = await fetch("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
-    // if (!res.ok) throw new Error("Invalid credentials");
-    await new Promise((r) => setTimeout(r, 700));
     if (!username || !password)
       throw new Error("Username and password required.");
-    const u = { username };
+
+    const normalized = username.trim().toLowerCase();
+    const userRecord = await db.query.users.findFirst({
+      where: or(eq(users.email, normalized), eq(users.name, username.trim())),
+    });
+
+    if (!userRecord) throw new Error("User not found.");
+    if (!userRecord.passwordHash)
+      throw new Error("This account has no password set.");
+
+    const valid = await verifyPassword(password, userRecord.passwordHash);
+    if (!valid) throw new Error("Invalid credentials.");
+
+    const u = {
+      username: userRecord.name ?? userRecord.email,
+      accessLevel: userRecord.accessLevel ?? 1,
+    };
+
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    setUser(u);
+    setUser(u as any);
   };
 
   const logout = () => {
@@ -117,6 +139,59 @@ function RequireCustomers({ children }: { children: ReactNode }) {
   if (!hasCustomers) return <Navigate to="/setup/customers" replace />;
 
   return <>{children}</>;
+}
+
+function RequirePermission({
+  permission,
+  children,
+}: {
+  permission?: PermissionId;
+  children: ReactNode;
+}) {
+  const { user } = useAuth();
+  if (!user) return <Unauthorized />;
+  if (!hasPermission(user.accessLevel, permission)) {
+    return (
+      <Unauthorized permission={permission} accessLevel={user.accessLevel} />
+    );
+  }
+  return <>{children}</>;
+}
+
+function Unauthorized({
+  permission,
+  accessLevel,
+}: {
+  permission?: PermissionId;
+  accessLevel?: number;
+}) {
+  const required = permission ? getRequiredAccessLevel(permission) : 0;
+  return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
+      <div className="mb-4 rounded-full bg-red-100 text-red-700 w-16 h-16 flex items-center justify-center text-2xl">
+        !
+      </div>
+      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+        Access denied
+      </h1>
+      <p className="max-w-lg text-sm text-slate-600 dark:text-slate-300">
+        You don&apos;t have permission to view this page.
+        {permission ? (
+          <span>
+            {` Required access level ${required}. Your level is ${accessLevel ?? 0}.`}
+          </span>
+        ) : null}
+      </p>
+      <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        <a
+          href="/"
+          className="inline-flex items-center justify-center rounded-full bg-slate-900 text-white px-5 py-2 text-sm hover:bg-slate-700 transition-colors"
+        >
+          Back to home
+        </a>
+      </div>
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -293,54 +368,225 @@ function App() {
                     <RequireCustomers>
                       <Routes>
                         {/* POS */}
-                        <Route path="/" element={<Pos />} />
-                        <Route path="/documents" element={<DocumentsPage />} />
-                        <Route path="/price-tags" element={<PriceTagsPage />} />
-                        <Route path="/sorting" element={<SortingScreen />} />
+                        <Route
+                          path="/"
+                          element={
+                            <RequirePermission permission="pos">
+                              <Pos />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="/documents"
+                          element={
+                            <RequirePermission permission="documents">
+                              <DocumentsPage />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="/price-tags"
+                          element={
+                            <RequirePermission permission="products">
+                              <PriceTagsPage />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="/sorting"
+                          element={
+                            <RequirePermission permission="products">
+                              <SortingScreen />
+                            </RequirePermission>
+                          }
+                        />
                         <Route
                           path="/moving-average-price"
-                          element={<MovingAveragePrice />}
+                          element={
+                            <RequirePermission permission="price-lists">
+                              <MovingAveragePrice />
+                            </RequirePermission>
+                          }
                         />
-                        <Route path="/cash-in-out" element={<CashInOut />} />
+                        <Route
+                          path="/cash-in-out"
+                          element={
+                            <RequirePermission permission="cash-drawer">
+                              <CashInOut />
+                            </RequirePermission>
+                          }
+                        />
                         <Route
                           path="/credit-payments"
-                          element={<CreditPaymentsModal />}
+                          element={
+                            <RequirePermission permission="credit-payments">
+                              <CreditPaymentsModal />
+                            </RequirePermission>
+                          }
                         />
-                        <Route path="/end-of-day" element={<EndOfDayModal />} />
-                        <Route path="/payment" element={<PaymentScreen />} />
-                        <Route path="/open-sales" element={<ViewOpenSales />} />
+                        <Route
+                          path="/end-of-day"
+                          element={
+                            <RequirePermission permission="end-of-day">
+                              <EndOfDayModal />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="/payment"
+                          element={
+                            <RequirePermission permission="payment">
+                              <PaymentScreen />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="/open-sales"
+                          element={
+                            <RequirePermission permission="open-sales">
+                              <ViewOpenSales />
+                            </RequirePermission>
+                          }
+                        />
                         <Route
                           path="/sales-history"
-                          element={<SalesHistory />}
+                          element={
+                            <RequirePermission permission="sales-history">
+                              <SalesHistory />
+                            </RequirePermission>
+                          }
                         />
-                        <Route path="/import" element={<ImportModal />} />
-    <Route path="settings" element={<Settings />} />
+                        <Route
+                          path="/import"
+                          element={
+                            <RequirePermission permission="import-stock">
+                              <ImportModal />
+                            </RequirePermission>
+                          }
+                        />
+                        <Route
+                          path="settings"
+                          element={
+                            <RequirePermission permission="settings">
+                              <Settings />
+                            </RequirePermission>
+                          }
+                        />
                         {/* Dashboard */}
                         <Route path="/dashboard" element={<Applayout />}>
-                          <Route path="" element={<Dashboard />} />
-                          <Route path="documents" element={<DocumentsView />} />
-                          <Route path="products" element={<ProductsView />} />
-                          <Route path="stocks" element={<Stock />} />
-                          <Route path="reporting" element={<Reporting />} />
+                          <Route
+                            path=""
+                            element={
+                              <RequirePermission permission="dashboard">
+                                <Dashboard />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="documents"
+                            element={
+                              <RequirePermission permission="documents">
+                                <DocumentsView />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="products"
+                            element={
+                              <RequirePermission permission="products">
+                                <ProductsView />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="stocks"
+                            element={
+                              <RequirePermission permission="stock">
+                                <Stock />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="reporting"
+                            element={
+                              <RequirePermission permission="reporting">
+                                <Reporting />
+                              </RequirePermission>
+                            }
+                          />
                           <Route
                             path="price-lists"
-                            element={<PriceListsView />}
+                            element={
+                              <RequirePermission permission="price-lists">
+                                <PriceListsView />
+                              </RequirePermission>
+                            }
                           />
                           <Route
                             path="customer-supplies"
-                            element={<CustomerSupplies />}
+                            element={
+                              <RequirePermission permission="customers">
+                                <CustomerSupplies />
+                              </RequirePermission>
+                            }
                           />
-                          <Route path="promotions" element={<Promotions />} />
+                          <Route
+                            path="promotions"
+                            element={
+                              <RequirePermission permission="promotions-mgmt">
+                                <Promotions />
+                              </RequirePermission>
+                            }
+                          />
                           <Route
                             path="users-security"
-                            element={<UsersSecurity />}
+                            element={
+                              <RequirePermission permission="users-security">
+                                <UsersSecurity />
+                              </RequirePermission>
+                            }
                           />
-                          <Route path="user-info" element={<UserInfo />} />
-                      
-                          <Route path="payments" element={<PaymentTypes />} />
-                          <Route path="countries" element={<Countries />} />
-                          <Route path="company" element={<Mycompany />} />
-                          <Route path="tax-rates" element={<TaxRates />} />
+                          <Route
+                            path="user-info"
+                            element={
+                              <RequirePermission permission="user-profile">
+                                <UserInfo />
+                              </RequirePermission>
+                            }
+                          />
+
+                          <Route
+                            path="payments"
+                            element={
+                              <RequirePermission permission="payment-types">
+                                <PaymentTypes />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="countries"
+                            element={
+                              <RequirePermission permission="countries">
+                                <Countries />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="company"
+                            element={
+                              <RequirePermission permission="company">
+                                <Mycompany />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="tax-rates"
+                            element={
+                              <RequirePermission permission="taxes">
+                                <TaxRates />
+                              </RequirePermission>
+                            }
+                          />
                         </Route>
 
                         {/* Fallback */}

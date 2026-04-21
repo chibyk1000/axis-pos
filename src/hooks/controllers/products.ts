@@ -60,6 +60,7 @@ export function useProducts() {
         with: {
           barcodes: true,
           taxes: { with: { tax: true } },
+          prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
         },
       }),
@@ -89,6 +90,7 @@ export function useProduct(nodeId: string) {
         with: {
           barcodes: true,
           taxes: { with: { tax: true } },
+          prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
         },
       });
@@ -106,6 +108,7 @@ export function useProductById(id: string) {
         with: {
           barcodes: true,
           taxes: { with: { tax: true } },
+          prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
         },
       }),

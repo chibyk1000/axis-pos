@@ -10,22 +10,23 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router";
 
-export default function SortingScreen() {
-    const navigate   = useNavigate()
+export default function SortingScreen({ onClose }: { onClose?: () => void }) {
+  const navigate = useNavigate();
+
   return (
     <div className="h-screen w-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-              <div className="flex items-center gap-2 text-sm">
-                  <button onClick={()=>navigate(-1)}>
-                      
-          <ArrowLeft size={16} />
-                  </button>
+        <div className="flex items-center gap-2 text-sm">
+          <button onClick={onClose || (() => navigate(-1))}>
+            <ArrowLeft size={16} />
+          </button>
           <span className="font-semibold">Sorting</span>
         </div>
         <X
           size={18}
           className="cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+          onClick={onClose || (() => navigate(-1))}
         />
       </div>
 
@@ -74,7 +75,9 @@ function ToolbarItem({ icon: Icon, label, active }: any) {
   return (
     <div
       className={`flex flex-col items-center cursor-pointer ${
-        active ? "text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+        active
+          ? "text-slate-900 dark:text-white"
+          : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
       }`}
     >
       <Icon size={16} />
@@ -102,7 +105,9 @@ function TreeItem({ label, nested, active }: any) {
   return (
     <div
       className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${
-        active ? "bg-sky-600 text-slate-900 dark:text-white" : "hover:bg-slate-100 dark:bg-slate-700"
+        active
+          ? "bg-sky-600 text-slate-900 dark:text-white"
+          : "hover:bg-slate-100 dark:bg-slate-700"
       } ${nested ? "ml-4 text-slate-700 dark:text-slate-300" : ""}`}
     >
       {nested ? <span>+</span> : <span>-</span>}

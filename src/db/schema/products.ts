@@ -83,6 +83,7 @@ export type Product = InferSelectModel<typeof products> & {
     taxId: string;
     tax: InferSelectModel<typeof taxes>;
   }[];
+  prices: InferSelectModel<typeof productPrices>[];
   comments: InferSelectModel<typeof comments>[];
   stockEntries: InferSelectModel<typeof stockEntries>[];
   node: InferSelectModel<typeof nodes>;

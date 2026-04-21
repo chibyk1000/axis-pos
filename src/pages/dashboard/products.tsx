@@ -2,6 +2,8 @@
 
 import { AddGroupDrawer } from "@/components/products/add-group-drawer";
 import AddProductDrawer from "@/components/products/add-product-drawer";
+import ImportModal from "@/components/products/import";
+import SortingScreen from "@/components/products/sorting";
 import {
   useCreateNode,
   useDeleteNode,
@@ -52,6 +54,8 @@ import { useAddStockEntry } from "@/hooks/controllers/stocks";
 import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
 import type { DrawerPriceEntry } from "@/components/products/add-product-drawer";
 import { useQueryClient } from "@tanstack/react-query";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                         RESIZABLE COLUMNS                                  */
@@ -248,6 +252,8 @@ export function ProductsView() {
   const [selectedProduct, setSelectedProduct] = useState<Product>();
   const [addProductDrawerOpen, setAddProductDrawerOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [sortingOpen, setSortingOpen] = useState(false);
 
   const [colWidths, setColWidths] = useState<Record<string, number>>(
     Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth])),
@@ -587,10 +593,140 @@ export function ProductsView() {
         p.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
   function getPriceInfo(product: any) {
-    const prices = product.productPrices || [];
+    const prices = product.prices || [];
     // Prioritize default label, otherwise take the first one
     return prices.find((p: any) => p.isDefault) || prices[0] || null;
   }
+
+  // ── handlers ──────────────────────────────────────────────────────────────
+
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const tableHTML = `
+      <html>
+        <head>
+          <title>Products</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+          </style>
+        </head>
+        <body>
+          <h1>Products</h1>
+          <table>
+            <thead>
+              <tr>
+                ${COLUMNS.map((c) => `<th>${c.label}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${visibleProducts
+                .map((product) => {
+                  const priceInfo = getPriceInfo(product);
+                  const stock = getStockLevel(product);
+                  return `
+                  <tr>
+                    <td>${product.code}</td>
+                    <td>${product.title}</td>
+                    <td>${roots?.find((r) => r.id === product.nodeId)?.name ?? "—"}</td>
+                    <td>${(product as any).barcodes?.map((b: any) => b.value).join(", ") || "—"}</td>
+                    <td>${priceInfo ? priceInfo.cost.toFixed(2) : "—"}</td>
+                    <td>${priceInfo ? priceInfo.salePrice.toFixed(2) : "—"}</td>
+                    <td>${(product as any).taxes?.map((t: any) => `${t.tax.name}(${t.tax.rate}%)`).join(", ") || "—"}</td>
+                    <td>${stock}</td>
+                    <td>${product.active ? "Yes" : "No"}</td>
+                    <td>${product.unit}</td>
+                    <td>${format(product.createdAt, "dd/MM/yy")}</td>
+                    <td>${product.updatedAt ? format(product.updatedAt as Date, "dd/MM/yy") : "—"}</td>
+                  </tr>
+                `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(tableHTML);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const handleSaveAsPDF = () => {
+    const doc = new jsPDF();
+    const tableColumn = COLUMNS.map((c) => c.label);
+    const tableRows = visibleProducts.map((product) => {
+      const priceInfo = getPriceInfo(product);
+      const stock = getStockLevel(product);
+      return [
+        product.code,
+        product.title,
+        roots?.find((r) => r.id === product.nodeId)?.name ?? "—",
+        (product as any).barcodes?.map((b: any) => b.value).join(", ") || "—",
+        priceInfo ? priceInfo.cost.toFixed(2) : "—",
+        priceInfo ? priceInfo.salePrice.toFixed(2) : "—",
+        (product as any).taxes
+          ?.map((t: any) => `${t.tax.name}(${t.tax.rate}%)`)
+          .join(", ") || "—",
+        stock.toString(),
+        product.active ? "Yes" : "No",
+        product.unit,
+        format(product.createdAt, "dd/MM/yy"),
+        product.updatedAt ? format(product.updatedAt as Date, "dd/MM/yy") : "—",
+      ];
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+    });
+
+    doc.save(`products-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const handleExport = () => {
+    const rows = [
+      COLUMNS.map((c) => c.label),
+      ...visibleProducts.map((product) => {
+        const priceInfo = getPriceInfo(product);
+        const stock = getStockLevel(product);
+        return [
+          product.code,
+          product.title,
+          roots?.find((r) => r.id === product.nodeId)?.name ?? "—",
+          (product as any).barcodes?.map((b: any) => b.value).join(", ") || "—",
+          priceInfo ? priceInfo.cost.toFixed(2) : "—",
+          priceInfo ? priceInfo.salePrice.toFixed(2) : "—",
+          (product as any).taxes
+            ?.map((t: any) => `${t.tax.name}(${t.tax.rate}%)`)
+            .join(", ") || "—",
+          stock.toString(),
+          product.active ? "Yes" : "No",
+          product.unit,
+          format(product.createdAt, "dd/MM/yy"),
+          product.updatedAt
+            ? format(product.updatedAt as Date, "dd/MM/yy")
+            : "—",
+        ];
+      }),
+    ];
+    const csv = rows
+      .map((r) => r.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
@@ -614,7 +750,9 @@ export function ProductsView() {
 
       {/* Page header */}
       <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
-        <span className="text-sm text-slate-700 dark:text-slate-300">Management • Products</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300">
+          Management • Products
+        </span>
         <button className="text-slate-500 dark:text-slate-400 hover:text-indigo-400 transition">
           <ChevronDownIcon className="w-5 h-5" />
         </button>
@@ -662,8 +800,12 @@ export function ProductsView() {
               selectedProduct && deleteSelectedProduct(selectedProduct)
             }
           />
-          <ToolbarButton icon="🖨" label="Print" />
-          <ToolbarButton icon="📄" label="Save as PDF" />
+          <ToolbarButton icon="🖨" label="Print" onClick={handlePrint} />
+          <ToolbarButton
+            icon="📄"
+            label="Save as PDF"
+            onClick={handleSaveAsPDF}
+          />
           <ToolbarButton
             icon="#️⃣"
             label="Price tags"
@@ -672,7 +814,7 @@ export function ProductsView() {
           <ToolbarButton
             icon="↕"
             label="Sorting"
-            onClick={() => navigate("/sorting")}
+            onClick={() => setSortingOpen(true)}
           />
           <ToolbarButton
             icon="📊"
@@ -682,9 +824,9 @@ export function ProductsView() {
           <ToolbarButton
             icon="⬇"
             label="Import"
-            onClick={() => navigate("/import")}
+            onClick={() => setImportOpen(true)}
           />
-          <ToolbarButton icon="⬆" label="Export" />
+          <ToolbarButton icon="⬆" label="Export" onClick={handleExport} />
           <ToolbarButton icon="?" label="Help" />
         </div>
       </div>
@@ -873,6 +1015,9 @@ export function ProductsView() {
           </div>
         </div>
       </div>
+
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} />}
+      {sortingOpen && <SortingScreen onClose={() => setSortingOpen(false)} />}
     </div>
   );
 }

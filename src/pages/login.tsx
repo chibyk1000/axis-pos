@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useUsers, useCreateUser } from "@/hooks/controllers/users";
 import type { NewUser } from "@/hooks/controllers/users";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
@@ -37,21 +38,6 @@ const triggerChaos = () => {
     throw new Error(glitches[Math.floor(Math.random() * glitches.length)]);
   }
 };
-// ─── Simple hash (swap for bcrypt/argon2 in production) ──────────────────────
-async function hashPassword(plain: string): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(plain),
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  return (await hashPassword(plain)) === hash;
-}
-
 // ─── Background ───────────────────────────────────────────────────────────────
 
 function DotGrid() {
