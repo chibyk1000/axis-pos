@@ -8,11 +8,10 @@ import {
 import { products } from "./products";
 import { InferInsertModel, InferSelectModel, relations } from "drizzle-orm";
 
-
 export const customers = sqliteTable("customers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code"),
+  code: text("code").unique(),
   taxNumber: text("tax_number"),
   streetName: text("street_name"),
   buildingNumber: text("building_number"),
@@ -43,9 +42,6 @@ export const customers = sqliteTable("customers", {
     () => new Date(),
   ),
 });
-
-
-
 
 export const loyaltyCards = sqliteTable(
   "loyalty_cards",
@@ -108,8 +104,6 @@ export const loyaltyCardsRelations = relations(loyaltyCards, ({ one }) => ({
     references: [customers.id],
   }),
 }));
-
-
 
 export const customerDiscountsRelations = relations(
   customerDiscounts,

@@ -55,10 +55,12 @@ export default function NewDocument({
   title,
   document,
   documentType,
+  onClose,
 }: {
   title: string;
   document?: any;
   documentType?: number;
+  onClose?: () => void;
 }) {
   const [docNumber, setDocNumber] = useState<string>(title);
   const [date, setDate] = useState<Date | undefined>(
@@ -981,7 +983,9 @@ export default function NewDocument({
                       })),
                       payments,
                     });
+                    toast.success("Document created");
                   }
+                  onClose?.();
                 } catch (error) {
                   toast.error("Error saving document");
                 }

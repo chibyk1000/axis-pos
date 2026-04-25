@@ -19,7 +19,7 @@ import NewDocument from "@/components/products/new-document";
 import { useProducts } from "@/hooks/controllers/products";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { useUsers } from "@/hooks/controllers/users";
-import { useAuth } from "@/App";
+import { useAuth } from "@/providers/auth-provider";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { CalendarIcon } from "lucide-react";
@@ -177,6 +177,7 @@ export function DocumentsView() {
     paid: "all",
     number: "",
     external: "",
+    search: "",
     period: undefined as DateRange | undefined,
   };
 
@@ -307,15 +308,15 @@ export function DocumentsView() {
     if (filters.paid === "paid" && !doc.paid) return false;
     if (filters.paid === "unpaid" && doc.paid) return false;
     if (
-      filters.number &&
-      !doc.number?.toLowerCase().includes(filters.number.toLowerCase())
-    )
-      return false;
-    if (
-      filters.external &&
+      filters.search &&
+      !doc.number?.toLowerCase().includes(filters.search.toLowerCase()) &&
       !doc.externalNumber
         ?.toLowerCase()
-        .includes(filters.external.toLowerCase())
+        .includes(filters.search.toLowerCase()) &&
+      !customers
+        .find((c) => c.id === doc.customerId)
+        ?.name.toLowerCase()
+        .includes(filters.search.toLowerCase())
     )
       return false;
     if (filters.period?.from) {
@@ -481,6 +482,14 @@ export function DocumentsView() {
                   title={editingDocument?.number ?? "New Document"}
                   document={editingDocument}
                   documentType={doc.code}
+                  onClose={() => {
+                    const filtered = documents.filter(
+                      (d) => d.code !== doc.code,
+                    );
+                    setDocuments(filtered);
+                    setSelectedDocument(null);
+                    setEditingDocument(null);
+                  }}
                 />
               </div>
             );
@@ -589,16 +598,14 @@ export function DocumentsView() {
                   { id: "unpaid", value: "Unpaid" },
                 ]}
               />
-              <FilterInput
-                label="Document number"
-                value={filters.number}
-                onChange={(v) => handleFilterChange("number", v)}
-              />
-              <FilterInput
-                label="External document"
-                value={filters.external}
-                onChange={(v) => handleFilterChange("external", v)}
-              />
+              <div className="col-span-3">
+                <FilterInput
+                  label="Search"
+                  placeholder="Search by number, external #, or customer..."
+                  value={filters.search}
+                  onChange={(v) => handleFilterChange("search", v)}
+                />
+              </div>
               <FilterDateRange
                 label="Period"
                 value={filters.period}
@@ -858,10 +865,12 @@ function FilterInput({
   label,
   value,
   onChange,
+  placeholder,
 }: {
   label: string;
   value?: string;
   onChange?: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <div className="flex flex-col">
@@ -870,6 +879,7 @@ function FilterInput({
       </label>
       <input
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange?.(e.target.value)}
         className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
       />

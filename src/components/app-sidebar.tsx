@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
-import { useAuth } from "@/App";
+import { useAuth } from "@/providers/auth-provider";
 import { hasPermission, permissionForUrl } from "@/lib/security";
 
 // import { NavUser } from "@/components/nav-user"

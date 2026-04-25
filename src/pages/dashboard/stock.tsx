@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { nanoid } from "nanoid";
+
 
 // PDF
 import {
@@ -45,7 +45,8 @@ import { useRootNodes } from "@/hooks/controllers/nodes";
 import {
   useStockLevels,
   useAllStockHistory,
-  useAddStockEntry,
+
+  useUpdateStockEntry,
 } from "@/hooks/controllers/stocks";
 import {
   PriceLabel,
@@ -128,17 +129,19 @@ function StockPdfDoc({
   generatedAt,
 }: {
   products: EnrichedProduct[];
-  stockLevels: Record<string, number>;
+  stockLevels: Record<string, any>;
   label: string;
   generatedAt: string;
 }) {
   const N = "\u20A6";
+  const getQty = (id: string) => (stockLevels[id] as any)?.preferredQuantity ?? 0;
+
   const totalCost = products.reduce(
-    (s, p) => s + p.cost * Math.max(0, stockLevels[p.id] ?? 0),
+    (s, p) => s + p.cost * Math.max(0, getQty(p.id)),
     0,
   );
   const totalSale = products.reduce(
-    (s, p) => s + p.salePrice * Math.max(0, stockLevels[p.id] ?? 0),
+    (s, p) => s + p.salePrice * Math.max(0, getQty(p.id)),
     0,
   );
 
@@ -163,21 +166,21 @@ function StockPdfDoc({
           ))}
         </View>
         {products.map((p) => {
-          const qty = stockLevels[p.id] ?? 0;
+          const qty = getQty(p.id);
           return (
-            <View key={p.id} style={pdfStyles.trow}>
-              <Text style={pdfStyles.c0}>{p.code}</Text>
-              <Text style={pdfStyles.c1}>{p.title}</Text>
-              <Text style={pdfStyles.c2}>{qty}</Text>
-              <Text style={pdfStyles.c3}>{p.unit}</Text>
-              <Text style={pdfStyles.c4}>
-                {N}
-                {p.cost.toFixed(2)}
-              </Text>
-              <Text style={pdfStyles.c5}>
-                {N}
-                {(qty * p.cost).toFixed(2)}
-              </Text>
+              <View key={p.id} style={pdfStyles.trow}>
+                <Text style={pdfStyles.c0}>{p.code}</Text>
+                <Text style={pdfStyles.c1}>{p.title}</Text>
+                <Text style={pdfStyles.c2}>{qty}</Text>
+                <Text style={pdfStyles.c3}>{p.unit}</Text>
+                <Text style={pdfStyles.c4}>
+                  {N}
+                  {p.cost.toFixed(2)}
+                </Text>
+                <Text style={pdfStyles.c5}>
+                  {N}
+                  {(qty * p.cost).toFixed(2)}
+                </Text>
               <Text style={pdfStyles.c6}>
                 {N}
                 {p.salePrice.toFixed(2)}
@@ -521,7 +524,8 @@ function QuickInventoryDialog({
   };
 
   const btnCls = (v: string) => {
-    if (v === "C") return "bg-red-700/70 hover:bg-red-600 text-slate-900 dark:text-white";
+    if (v === "C")
+      return "bg-red-700/70 hover:bg-red-600 text-slate-900 dark:text-white";
     if (v === "⌫")
       return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 text-lg";
     if (["+", "-", "×", "÷"].includes(v))
@@ -699,7 +703,7 @@ function ProductPickerDialog({
   onClose,
 }: {
   products: EnrichedProduct[];
-  stockLevels: Record<string, number>;
+  stockLevels: Record<string, any>;
   onSelect: (p: EnrichedProduct) => void;
   onClose: () => void;
 }) {
@@ -717,7 +721,9 @@ function ProductPickerDialog({
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-300 dark:border-slate-800">
-          <span className="font-semibold text-slate-900 dark:text-slate-100">Select product</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            Select product
+          </span>
           <button
             onClick={onClose}
             className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
@@ -739,7 +745,7 @@ function ProductPickerDialog({
         </div>
         <div className="flex-1 overflow-auto">
           {filtered.map((p) => {
-            const stock = stockLevels[p.id] ?? 0;
+            const stock = (stockLevels[p.id] as any)?.preferredQuantity ?? 0;
             return (
               <button
                 key={p.id}
@@ -793,7 +799,9 @@ function StatusBadge({
       >
         {count}
       </span>
-      <span className="text-xs text-slate-700 dark:text-slate-300">{label}</span>
+      <span className="text-xs text-slate-700 dark:text-slate-300">
+        {label}
+      </span>
     </div>
   );
 }
@@ -812,7 +820,9 @@ function SummaryBlock({
       </div>
       {rows.map(([label, value]) => (
         <div key={label} className="flex justify-between gap-8">
-          <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {label}
+          </span>
           <span className="text-xs font-medium text-slate-800 dark:text-slate-200 font-mono tabular-nums">
             {value}
           </span>
@@ -832,8 +842,8 @@ export default function StockView() {
   const nodesQuery = useRootNodes();
   const stockLevelsQuery = useStockLevels();
   const stockHistoryQuery = useAllStockHistory();
-  const addStockEntry = useAddStockEntry();
 
+const updateStockEntries = useUpdateStockEntry();
   // Price label selector — determines which price list's cost/salePrice to show
   const [selectedLabel, setSelectedLabel] = useState<PriceLabel>("Retail");
   const { data: labeledPrices = [] } = useProductPricesByLabel(selectedLabel);
@@ -850,7 +860,6 @@ export default function StockView() {
   const rawProducts = productsQuery.data ?? [];
   const rootNodes = (nodesQuery.data ?? []) as TreeNode[];
   const stockLevels = stockLevelsQuery.data ?? {};
-
   // Build productId → { cost, salePrice } from the selected label
   const priceMap = useMemo(() => {
     const map: Record<string, { cost: number; salePrice: number }> = {};
@@ -900,7 +909,8 @@ export default function StockView() {
     );
   }, [filteredByNode, searchQuery]);
 
-  const getStock = (p: EnrichedProduct) => stockLevels[p.id] ?? 0;
+  const getStock = (p: EnrichedProduct) =>
+    (stockLevels[p.id] as any)?.preferredQuantity ?? 0;
 
   const negativeCount = visibleProducts.filter((p) => getStock(p) < 0).length;
   const nonZeroCount = visibleProducts.filter((p) => getStock(p) !== 0).length;
@@ -942,16 +952,15 @@ export default function StockView() {
       const blob = await pdf(
         <StockPdfDoc
           products={visibleProducts}
-          stockLevels={stockLevels}
           label={selectedLabel}
+          stockLevels={stockLevels}
           generatedAt={new Date().toLocaleString()}
         />,
       ).toBlob();
-      const buffer = await blob.arrayBuffer();
-      await writeFile(filePath, new Uint8Array(buffer));
+      await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
       await open(filePath);
     } catch (e) {
-      console.error("PDF export failed:", e);
+      console.error("PDF generation failed:", e);
     } finally {
       setSavingPdf(false);
     }
@@ -963,38 +972,29 @@ export default function StockView() {
     try {
       const filePath = await save({
         defaultPath: `stock-report-${Date.now()}.xlsx`,
-        filters: [{ name: "Excel Workbook", extensions: ["xlsx"] }],
+        filters: [{ name: "Excel", extensions: ["xlsx"] }],
       });
       if (!filePath) return;
 
-      const rows = visibleProducts.map((p) => {
-        const qty = getStock(p);
-        return {
-          Code: p.code,
-          Name: p.title,
-          Quantity: qty,
-          Unit: p.unit,
-          "Cost Price": p.cost,
-          "Stock Value (Cost)": parseFloat((qty * p.cost).toFixed(2)),
-          "Sale Price": p.salePrice,
-          "Stock Value (Sale)": parseFloat((qty * p.salePrice).toFixed(2)),
-          Active: p.active ? "Yes" : "No",
-          "Price Label": selectedLabel,
-        };
-      });
+      const data = visibleProducts.map((p) => ({
+        Code: p.code,
+        Title: p.title,
+        Stock: getStock(p),
+        Unit: p.unit,
+        Cost: p.cost,
+        "Total Cost": getStock(p) * p.cost,
+        "Sale Price": p.salePrice,
+      }));
 
-      const ws = XLSX.utils.json_to_sheet(rows);
+      const ws = XLSX.utils.json_to_sheet(data);
       ws["!cols"] = [
-        { wch: 12 },
+        { wch: 10 },
         { wch: 30 },
         { wch: 10 },
-        { wch: 8 },
         { wch: 12 },
         { wch: 18 },
         { wch: 12 },
         { wch: 18 },
-        { wch: 8 },
-        { wch: 14 },
       ];
 
       const summaryWs = XLSX.utils.json_to_sheet([
@@ -1041,19 +1041,24 @@ export default function StockView() {
 
     const html = `<!DOCTYPE html><html><head><title>Stock Report — ${selectedLabel}</title>
 <style>
-  body{font-family:sans-serif;font-size:11px;color:#1e293b;margin:24px}
-  h1{font-size:18px;margin-bottom:2px}
-  .sub{color:#64748b;font-size:10px;margin-bottom:16px}
-  table{width:100%;border-collapse:collapse}
-  th{background:#f1f5f9;text-align:left;padding:6px 8px;font-size:10px;color:#475569;border-bottom:1px solid #e2e8f0}
-  td{padding:5px 8px;border-bottom:1px solid #f1f5f9}
-  .num{text-align:right;font-variant-numeric:tabular-nums}
-  .neg{color:#ef4444}.zero{color:#94a3b8}.pos{color:#22c55e}
-  .footer{margin-top:16px;display:flex;gap:32px;justify-content:flex-end;border-top:1px solid #e2e8f0;padding-top:12px}
-  .fb{text-align:right}.fl{color:#64748b;font-size:9px}.fv{font-weight:bold;font-size:13px}
-</style></head><body>
-<h1>Stock Report — ${selectedLabel}</h1>
-<div class="sub">Generated: ${new Date().toLocaleString()}</div>
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 30px; color: #1e293b; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .meta { color: #64748b; font-size: 12px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { text-align: left; background: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 8px 4px; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 6px 4px; border-bottom: 1px solid #f1f5f9; }
+  .num { text-align: right; font-family: monospace; }
+  .neg { color: #e11d48; font-weight: 600; }
+  .zero { color: #94a3b8; }
+  .pos { color: #059669; }
+  .footer { margin-top: 32px; border-top: 2px solid #e2e8f0; padding-top: 16px; }
+  .fb { display: flex; justify-content: flex-end; gap: 24px; margin-bottom: 4px; font-size: 13px; }
+  .fl { color: #64748b; }
+  .fv { font-weight: 700; min-width: 120px; text-align: right; }
+</style>
+</head><body>
+<h1>Stock Report</h1>
+<div class="meta">Generated ${new Date().toLocaleString()} • Label: ${selectedLabel}</div>
 <table>
   <thead><tr><th>Code</th><th>Name</th><th>Quantity</th><th>Unit</th><th>Cost price</th><th>Stock value</th><th>Sale price</th></tr></thead>
   <tbody>${rows}</tbody>
@@ -1078,15 +1083,25 @@ export default function StockView() {
     note: string,
   ) => {
     if (!quickInventoryProduct) return;
-    const finalQty = type === "out" ? -Math.abs(qty) : Math.abs(qty);
-    await addStockEntry.mutateAsync({
-      id: nanoid(),
-      productId: quickInventoryProduct.id,
-      type,
-      quantity: finalQty,
-      note: note || null,
-      createdAt: new Date(),
-    });
+    try {
+      await updateStockEntries.mutateAsync({
+        id: stockLevelsQuery?.data?.[quickInventoryProduct.id]?.id,
+        productId: quickInventoryProduct.id,
+        type,
+        quantity: qty, // Pass raw quantity, mutation computes based on type
+        note: note || null,
+        createdAt: new Date(),
+      });
+      // Refetch all related queries to sync data
+      await Promise.all([
+        productsQuery.refetch(),
+        stockLevelsQuery.refetch(),
+        stockHistoryQuery.refetch(),
+        nodesQuery.refetch(),
+      ]);
+    } catch (err) {
+      console.error("Failed to update stock:", err);
+    }
     setQuickInventoryProduct(null);
   };
 
@@ -1119,7 +1134,7 @@ export default function StockView() {
       {quickInventoryProduct && (
         <QuickInventoryDialog
           product={quickInventoryProduct}
-          currentStock={stockLevels[quickInventoryProduct.id] ?? 0}
+          currentStock={(stockLevels[quickInventoryProduct.id] as any)?.preferredQuantity ?? 0}
           onConfirm={handleQuickInventoryConfirm}
           onClose={() => setQuickInventoryProduct(null)}
         />
@@ -1135,7 +1150,10 @@ export default function StockView() {
             <ChevronLeftIcon className="w-5 h-5" />
           </button>
           <span className="text-sm">
-            <span className="text-slate-500 dark:text-slate-400">Management •</span> Stock
+            <span className="text-slate-500 dark:text-slate-400">
+              Management •
+            </span>{" "}
+            Stock
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1182,10 +1200,21 @@ export default function StockView() {
             productsQuery.refetch();
             nodesQuery.refetch();
             stockLevelsQuery.refetch();
+            stockHistoryQuery.refetch();
           }}
           className={tbtn}
         >
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          <RefreshCw
+            className={
+              productsQuery.isLoading ||
+              stockLevelsQuery.isLoading ||
+              stockHistoryQuery.isLoading ||
+              nodesQuery.isLoading
+                ? "w-3.5 h-3.5 animate-spin"
+                : "w-3.5 h-3.5"
+            }
+          />{" "}
+          Refresh
         </button>
         <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
         <button onClick={() => setShowHistory(true)} className={tbtn}>

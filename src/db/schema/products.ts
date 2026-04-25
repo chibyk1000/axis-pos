@@ -33,7 +33,7 @@ export const products = sqliteTable("products", {
   companyId: text("company_id").references(() => companies.id),
 
   title: text("title").notNull(),
-  code: text("code").notNull(),
+  code: text("code").notNull().unique(),
   unit: text("unit").notNull(),
 
   active: integer("active", { mode: "boolean" }).notNull().default(false),

@@ -62,6 +62,7 @@ export function useProducts() {
           taxes: { with: { tax: true } },
           prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
+          supplier: true,
         },
       }),
   });
@@ -71,7 +72,11 @@ export function useProducts() {
 async function getAllChildNodeIds(parentId: string): Promise<string[]> {
   const allNodes = await db.query.nodes.findMany();
   const result: string[] = [];
+  const visited = new Set<string>();
+
   function collect(id: string) {
+    if (visited.has(id)) return;
+    visited.add(id);
     result.push(id);
     allNodes.filter((n) => n.parentId === id).forEach((c) => collect(c.id));
   }
@@ -92,6 +97,7 @@ export function useProduct(nodeId: string) {
           taxes: { with: { tax: true } },
           prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
+          supplier: true,
         },
       });
     },
@@ -110,6 +116,7 @@ export function useProductById(id: string) {
           taxes: { with: { tax: true } },
           prices: true,
           stockEntries: { orderBy: (s) => s.createdAt },
+          supplier: true,
         },
       }),
   });

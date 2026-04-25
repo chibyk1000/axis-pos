@@ -32,7 +32,6 @@ import type { UploadedImage } from "@/helpers/image";
 import {
   PRICE_LABELS,
   type PriceLabel,
-
   wholeSaleToLabel,
 } from "@/hooks/controllers/priceLists";
 import { NewProduct } from "@/db/schema";
@@ -78,6 +77,7 @@ interface AddProductDrawerProps {
   onOpenChange: (open: boolean) => void;
   nodeId: string;
   initialData?: Partial<any>;
+  isDuplicate?: boolean;
   onSave: (
     data: NewProduct,
     groupId: string | null,
@@ -205,7 +205,9 @@ function PricingSection({
 
       {/* Cost */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">Cost</label>
+        <label className="text-sm text-slate-500 dark:text-slate-400">
+          Cost
+        </label>
         <div className="mt-1">
           <Input
             className="w-34 h-8"
@@ -220,7 +222,9 @@ function PricingSection({
 
       {/* Markup */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">Markup</label>
+        <label className="text-sm text-slate-500 dark:text-slate-400">
+          Markup
+        </label>
         <div className="mt-1 flex items-center gap-2">
           <Input
             className="w-34 h-8"
@@ -236,7 +240,9 @@ function PricingSection({
 
       {/* Sale price */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">Sale price</label>
+        <label className="text-sm text-slate-500 dark:text-slate-400">
+          Sale price
+        </label>
         <div className="mt-1">
           <Input
             className="w-34 h-8"
@@ -254,7 +260,9 @@ function PricingSection({
           checked={entry.priceAfterTax}
           onCheckedChange={(v) => update({ priceAfterTax: v })}
         />
-        <span className="text-sm text-slate-700 dark:text-slate-300">Price includes tax</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300">
+          Price includes tax
+        </span>
       </div>
 
       <div className="flex items-center gap-2 mt-2">
@@ -279,7 +287,9 @@ function PricingSection({
               <div className="font-medium mb-0.5">{label}</div>
               <div className="text-slate-500 dark:text-slate-400">
                 Cost:{" "}
-                <span className="text-slate-800 dark:text-slate-200">{p.cost.toFixed(2)}</span>
+                <span className="text-slate-800 dark:text-slate-200">
+                  {p.cost.toFixed(2)}
+                </span>
                 {" · "}
                 Sale:{" "}
                 <span className="text-slate-900 dark:text-slate-100 font-semibold">
@@ -304,6 +314,7 @@ const AddProductDrawer = ({
   onSave,
   nodeId,
   initialData,
+  isDuplicate = false,
 }: AddProductDrawerProps) => {
   const [activeTab, setActiveTab] = React.useState("Details");
   const { data = [] } = useRootWithoutChildren();
@@ -356,14 +367,29 @@ const AddProductDrawer = ({
     tax,
   }));
 
+  const availableTaxOptions = taxOptions.filter(
+    (option) => !selectedTaxes.some((tax) => tax.id === option.value),
+  );
+
   // ── save ───────────────────────────────────────────────────────────────────
+  const generateProductCode = () => {
+    // Generate a unique code, e.g., PROD + random number
+    return `PROD${Math.floor(Math.random() * 1000000)
+      .toString()
+      .padStart(6, "0")}`;
+  };
+
   const handleSave = () => {
+    let finalCode = code.trim();
+    if (!finalCode) {
+      finalCode = generateProductCode();
+    }
     const defaultEntry = prices.find((p) => p.isDefault) ?? prices[0];
     onSave(
       {
         title: name,
         id: crypto.randomUUID(),
-        code,
+        code: finalCode,
         unit,
         active,
         defaultQuantity,
@@ -439,7 +465,7 @@ const AddProductDrawer = ({
 
     if (initialData) {
       setName(initialData.title ?? "");
-      setCode(initialData.code ?? "");
+      setCode(isDuplicate ? generateProductCode() : (initialData.code ?? ""));
       setUnit(initialData.unit ?? "");
       setGroupId(initialData.nodeId ?? "root");
       setActive(initialData.active ?? false);
@@ -447,11 +473,32 @@ const AddProductDrawer = ({
       setService(initialData.service ?? false);
       setAgeRestriction(initialData.ageRestriction as number);
       setDescription((initialData.description as string) ?? "");
-      setSupplier(initialData.supplier?.id ?? null);
-      setReorderPoint(initialData.reorderPoint as number);
-      setPreferredQuantity(initialData.preferredQuantity as number);
-      setLowStockWarning(initialData.lowStockWarning ?? false);
-      setLowStockQuantity(initialData.lowStockWarningQuantity as number);
+      const stockEntries = Array.isArray(initialData.stockEntries)
+        ? (initialData.stockEntries as Array<any>)
+        : [];
+
+      const adjustmentEntries = stockEntries.filter(
+        (entry) => entry.type === "adjustment",
+      );
+      const stockControlEntry =
+        adjustmentEntries.length > 0
+          ? adjustmentEntries[adjustmentEntries.length - 1]
+          : stockEntries[stockEntries.length - 1];
+      console.log(stockControlEntry, "stockControlEntry");
+
+      setSupplier(
+        initialData.supplierId ??
+          initialData.supplier?.id ??
+          stockControlEntry?.supplierId ??
+          null,
+      );
+
+      setReorderPoint(stockControlEntry?.reorderPoint ?? undefined);
+      setPreferredQuantity(stockControlEntry?.preferredQuantity ?? undefined);
+      setLowStockWarning(stockControlEntry?.lowStockWarning ?? false);
+      setLowStockQuantity(
+        stockControlEntry?.lowStockWarningQuantity ?? undefined,
+      );
       setColor(initialData.color ?? null);
 
       setBarcodes(
@@ -481,10 +528,10 @@ const AddProductDrawer = ({
       );
       setSelectedTaxId(null);
 
-      // Restore per-label prices from productPrices relation
+      // Restore per-label prices from product price relation
       // DB rows use wholeSale boolean — convert back to PriceLabel for the drawer
       const restored: DrawerPriceEntry[] = makeDefaultPrices();
-      for (const pp of initialData.productPrices ?? []) {
+      for (const pp of initialData.prices ?? initialData.productPrices ?? []) {
         const label = wholeSaleToLabel(pp.wholeSale);
         const idx = restored.findIndex((e) => e.label === label);
         if (idx !== -1) {
@@ -664,7 +711,9 @@ const AddProductDrawer = ({
                     value={ageRestriction ?? ""}
                     onChange={(e) => setAgeRestriction(Number(e.target.value))}
                   />
-                  <span className="text-sm text-slate-500 dark:text-slate-400">year(s)</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    year(s)
+                  </span>
                 </div>
               </Field>
               <Field label="Description">
@@ -682,7 +731,9 @@ const AddProductDrawer = ({
             <div className="space-y-4">
               {/* Taxes */}
               <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Taxes</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                  Taxes
+                </p>
                 {selectedTaxes.length > 0 && (
                   <div className="space-y-2 mb-3">
                     {selectedTaxes.map((tax) => (
@@ -706,7 +757,7 @@ const AddProductDrawer = ({
                 {!isAddingTax ? (
                   <Button
                     variant="ghost"
-                    disabled={taxOptions.length < 1}
+                    disabled={availableTaxOptions.length < 1}
                     onClick={() => setIsAddingTax(true)}
                     className="flex items-center gap-2 text-sm bg-sky-500"
                   >
@@ -715,10 +766,11 @@ const AddProductDrawer = ({
                 ) : (
                   <div className="flex items-center gap-2">
                     <ReactSelect
-                      options={taxOptions}
+                      options={availableTaxOptions}
                       value={
-                        taxOptions.find((o) => o.value === selectedTaxId) ??
-                        null
+                        availableTaxOptions.find(
+                          (o) => o.value === selectedTaxId,
+                        ) ?? null
                       }
                       onChange={(opt) => setSelectedTaxId(opt?.value ?? null)}
                       className="flex-1"
@@ -763,7 +815,9 @@ const AddProductDrawer = ({
 
               {/* Per-label prices */}
               <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Prices per list</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                  Prices per list
+                </p>
                 <PricingSection prices={prices} onChange={setPrices} />
               </div>
             </div>
@@ -782,7 +836,10 @@ const AddProductDrawer = ({
                 </AlertDescription>
               </Alert>
               <Field label="Supplier">
-                <Select onValueChange={setSupplier}>
+                <Select
+                  value={supplier ?? undefined}
+                  onValueChange={setSupplier}
+                >
                   <SelectTrigger className="w-lg">
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
@@ -801,7 +858,10 @@ const AddProductDrawer = ({
                       </SelectItem>
                     ))}
                     {users.length < 1 && (
-                      <SelectItem value="(none)" className="focus:bg-slate-100 dark:bg-slate-700">
+                      <SelectItem
+                        value="(none)"
+                        className="focus:bg-slate-100 dark:bg-slate-700"
+                      >
                         (none)
                       </SelectItem>
                     )}
@@ -885,7 +945,9 @@ const AddProductDrawer = ({
           {activeTab === "Image & color" && (
             <div className="text-sm text-slate-500 dark:text-slate-400 space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-slate-500 dark:text-slate-400">Colors</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">
+                  Colors
+                </label>
                 <Select onValueChange={setColor}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select color" />
@@ -913,7 +975,9 @@ const AddProductDrawer = ({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm text-slate-500 dark:text-slate-400">Image</label>
+                <label className="text-sm text-slate-500 dark:text-slate-400">
+                  Image
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
@@ -975,7 +1039,9 @@ const Field = ({
   className?: string;
 }) => (
   <div className={className} style={{ marginBottom: "1rem" }}>
-    <label className="text-sm text-slate-500 dark:text-slate-400">{label}</label>
+    <label className="text-sm text-slate-500 dark:text-slate-400">
+      {label}
+    </label>
     <div className="mt-1">{children}</div>
   </div>
 );

@@ -20,13 +20,18 @@ export function useRootNodes() {
       });
 
       // 2️⃣ Build tree recursively
+      const visited = new Set<string>();
       function buildTree(nodes: any, parentId: string | null = null) {
         return nodes
           .filter((n: any) => n.parentId === parentId)
-          .map((n: any) => ({
-            ...n,
-            children: buildTree(nodes, n.id), // recursion for children
-          }));
+          .filter((n: any) => !visited.has(n.id))
+          .map((n: any) => {
+            visited.add(n.id);
+            return {
+              ...n,
+              children: buildTree(nodes, n.id), // recursion for children
+            };
+          });
       }
 
       // 3️⃣ Return tree starting from root nodes

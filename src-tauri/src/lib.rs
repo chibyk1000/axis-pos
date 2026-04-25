@@ -18,6 +18,18 @@ pub fn run() {
             sql: include_str!("../migrations/0001_special_spyke.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add_product_code_unique_constraint",
+            sql: include_str!("../migrations/0002_secret_thunderbird.sql"),
+            kind: MigrationKind::Up,
+        },
+            Migration {
+            version: 4,
+            description: "add_stock_entries_unique_constraint",
+            sql: include_str!("../migrations/0003_faulty_fat_cobra.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())

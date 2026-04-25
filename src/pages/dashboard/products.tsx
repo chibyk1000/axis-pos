@@ -25,7 +25,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   useCreateProduct,
@@ -43,13 +43,13 @@ import { format } from "date-fns";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import {
   useCreateBarcode,
-  useDeleteBarcode,
+  useDeleteBarcodesByProductId,
 } from "@/hooks/controllers/barcodes";
 import { UploadedImage } from "@/helpers/image";
 import { Product } from "@/db/schema";
 import { FaRegFileAlt } from "react-icons/fa";
 import { nanoid } from "nanoid";
-import { useAddStockEntry } from "@/hooks/controllers/stocks";
+import { useAddStockEntry,  useStockLevels, useUpdateStockEntry } from "@/hooks/controllers/stocks";
 // Added missing import
 import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
 import type { DrawerPriceEntry } from "@/components/products/add-product-drawer";
@@ -189,7 +189,7 @@ function GroupContextContent({
       <ContextMenuItem
         onClick={onRefresh}
         className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-500 dark:text-slate-400
-          hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:text-slate-200 cursor-pointer"
+          hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
       >
         <span>🔄</span> Refresh
       </ContextMenuItem>
@@ -250,6 +250,7 @@ export function ProductsView() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedSingleProductId, setSelectedSingleProductId] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product>();
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const [addProductDrawerOpen, setAddProductDrawerOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -277,17 +278,23 @@ export function ProductsView() {
   const createBarcode = useCreateBarcode();
   const deleteProductMut = useDeleteProduct();
   const updateProduct = useUpdateProduct();
-  const deleteBarcodes = useDeleteBarcode();
+  const deleteBarcodes = useDeleteBarcodesByProductId();
   const queryClient = useQueryClient();
   const deleteComments = useDeleteComment();
   const { data: rootGroups = [], refetch: refetchRootGroups } = useRootNodes();
+ 
   const createNodeMutation = useCreateNode();
+  const updateStockEntries = useUpdateStockEntry();
   const updateNodeMutation = useUpdateNode();
   const addProductTaxes = useAddProductTax();
   const deleteProductTaxes = useDeleteProductTax(); // fixed: was useDeleteTax (from taxes.ts)
   const addComments = useAddComment();
   const { mutateAsync: createProduct } = useCreateProduct();
   const addStockEntry = useAddStockEntry();
+  const {
+    data: stockLevels = {} as Record<string, any>,
+    refetch: refetchStockLevels,
+  } = useStockLevels();
   // price hooks
   const upsertProductPrice = useUpsertProductPrice();
 
@@ -300,22 +307,30 @@ export function ProductsView() {
     ]);
   }
 
-  const mapGroupsToTree = (groups: any[]): TreeViewElement[] =>
-    groups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      type: "group" as const,
-      isSelectable: true,
-      children: [
-        ...(group.children ? mapGroupsToTree(group.children) : []),
-        ...(group.products ?? []).map((p: any) => ({
-          id: p.id,
-          name: p.title,
-          type: "product" as const,
+  const mapGroupsToTree = (
+    groups: any[],
+    visited = new Set<string>(),
+  ): TreeViewElement[] =>
+    groups
+      .filter((g) => !visited.has(g.id))
+      .map((group) => {
+        visited.add(group.id);
+        return {
+          id: group.id,
+          name: group.name,
+          type: "group" as const,
           isSelectable: true,
-        })),
-      ],
-    }));
+          children: [
+            ...(group.children ? mapGroupsToTree(group.children, visited) : []),
+            ...(group.products ?? []).map((p: any) => ({
+              id: p.id,
+              name: p.title,
+              type: "product" as const,
+              isSelectable: true,
+            })),
+          ],
+        };
+      });
 
   const treeElements = mapGroupsToTree(rootGroups);
 
@@ -433,7 +448,14 @@ export function ProductsView() {
                   const prod = products?.find((p) => p.id === el.id);
                   if (prod) await deleteSelectedProduct(prod as any);
                 }}
-                onDuplicate={() => {}}
+                onDuplicate={() => {
+                  const prod = products?.find((p) => p.id === el.id);
+                  if (prod) {
+                    setSelectedProduct(prod as any);
+                    setIsDuplicate(true);
+                    setAddProductDrawerOpen(true);
+                  }
+                }}
               />
             </ContextMenu>
           );
@@ -493,7 +515,7 @@ export function ProductsView() {
     barcodes: { id: string; text: string }[],
     prices: DrawerPriceEntry[],
   ) => {
-    const isEditing = Boolean(selectedProduct?.id);
+    const isEditing = Boolean(selectedProduct?.id) && !isDuplicate;
     const productId = isEditing ? selectedProduct!.id : crypto.randomUUID();
 
     const productData = {
@@ -517,8 +539,35 @@ export function ProductsView() {
       await deleteProductTaxes.mutateAsync({ productId });
       await deleteComments.mutateAsync({ id: productId });
       await deleteBarcodes.mutateAsync(productId);
+      // Save Stock Control Settings
+      console.log("supplier", supplier);
+      if (data.reorderPoint !== undefined || data.lowStockWarning) {
+        await updateStockEntries.mutateAsync({
+          productId,
+          type: "adjustment",
+          quantity: data.preferredQuantity,
+          note: "Stock-control settings",
+          reorderPoint: data.reorderPoint ?? null,
+          preferredQuantity: data.preferredQuantity ?? null,
+          supplierId: supplier ?? null,
+          lowStockWarning: data.lowStockWarning ?? false,
+          lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
+        });
+      }
     } else {
       await createProduct({ ...productData, id: productId });
+      await addStockEntry.mutateAsync({
+        id: nanoid(),
+        productId,
+        type: "adjustment",
+        quantity: data.preferredQuantity ?? 0,
+        note: "Initial stock",
+        reorderPoint: data.reorderPoint ?? null,
+        preferredQuantity: data.preferredQuantity ?? null,
+        supplierId: supplier ?? null,
+        lowStockWarning: data.lowStockWarning ?? false,
+        lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
+      });
     }
 
     // Save Prices with new Label-based system
@@ -536,21 +585,7 @@ export function ProductsView() {
       });
     }
 
-    // Save Stock Control Settings
-    if (data.reorderPoint !== undefined || data.lowStockWarning) {
-      await addStockEntry.mutateAsync({
-        id: nanoid(),
-        productId,
-        type: "adjustment",
-        quantity: 0,
-        note: "Stock-control settings",
-        reorderPoint: data.reorderPoint ?? null,
-        preferredQuantity: data.preferredQuantity ?? null,
-        lowStockWarning: data.lowStockWarning ?? false,
-        lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
-      });
-    }
-
+ 
     // Save other metadata (Taxes, Comments, Barcodes)
     for (const tax of selectedTaxes)
       await addProductTaxes.mutateAsync({ productId, taxId: tax.id });
@@ -570,20 +605,14 @@ export function ProductsView() {
     refetchRootGroups();
     setAddProductDrawerOpen(false);
     setSelectedProduct(undefined);
+    setIsDuplicate(false);
     queryClient.invalidateQueries();
   };
 
   // ── derived ───────────────────────────────────────────────────────────────
 
   function getStockLevel(product: any): number {
-    const entries: any[] = product.stockEntries ?? [];
-    let level = 0;
-    for (const e of entries) {
-      if (e.type === "in") level += e.quantity;
-      else if (e.type === "out") level -= e.quantity;
-      else level = e.quantity;
-    }
-    return level;
+    return (stockLevels[product.id] as any)?.preferredQuantity ?? 0;
   }
 
   const visibleProducts = (products ?? []).filter((p) =>
@@ -628,6 +657,11 @@ export function ProductsView() {
                 .map((product) => {
                   const priceInfo = getPriceInfo(product);
                   const stock = getStockLevel(product);
+                  console.log(
+                    "Stock entries for product",
+                    product.title,
+                    stock,
+                  );
                   return `
                   <tr>
                     <td>${product.code}</td>
@@ -727,6 +761,12 @@ export function ProductsView() {
     URL.revokeObjectURL(url);
   };
 
+  // ── effects for stock synchronization ──────────────────────────────────────
+  useEffect(() => {
+    // Refetch stock levels on mount to ensure they're fresh
+    refetchStockLevels();
+  }, [refetchStockLevels]);
+
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
@@ -742,7 +782,11 @@ export function ProductsView() {
       />
       <AddProductDrawer
         initialData={selectedProduct}
-        onOpenChange={() => setAddProductDrawerOpen(false)}
+        isDuplicate={isDuplicate}
+        onOpenChange={() => {
+          setAddProductDrawerOpen(false);
+          setIsDuplicate(false);
+        }}
         nodeId={selectedId}
         open={addProductDrawerOpen}
         onSave={handleProductSave}
@@ -1004,7 +1048,11 @@ export function ProductsView() {
                             setAddProductDrawerOpen(true);
                           }}
                           onDelete={() => deleteSelectedProduct(product as any)}
-                          onDuplicate={() => {}}
+                          onDuplicate={() => {
+                            setSelectedProduct(product as any);
+                            setIsDuplicate(true);
+                            setAddProductDrawerOpen(true);
+                          }}
                         />
                       </ContextMenu>
                     );

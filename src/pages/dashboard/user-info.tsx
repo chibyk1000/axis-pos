@@ -1,4 +1,4 @@
-import { useAuth } from "@/App";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function UserInfo() {
   const auth = useAuth();

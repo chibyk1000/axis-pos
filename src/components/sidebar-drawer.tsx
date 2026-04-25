@@ -22,7 +22,8 @@ import {
 
 import { FaDownload, FaRunning } from "react-icons/fa";
 import { Link, useNavigate } from "react-router";
-import { useAuth } from "../App";
+import { useAuth } from "@/providers/auth-provider";
+
 
 interface SidebarDrawerProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ interface SidebarDrawerProps {
 export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
   const today = new Date().toLocaleDateString("en-GB");
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout,user } = useAuth();
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent
@@ -42,7 +43,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
         {/* Header */}
         <DrawerHeader className="border-b border-slate-200 dark:border-slate-700 px-4 py-4 flex flex-row items-center justify-between">
           <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
-            POS – chibuike Okorie
+            POS – {user?.username}
           </span>
 
           <DrawerClose asChild>
@@ -93,6 +94,8 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
             </div>
 
             {[
+              { icon: "📄", label: "Documents", action: () => { navigate("/"); onClose(); } },
+              { icon: "🛒", label: "POS", action: () => { navigate("/pos"); onClose(); } },
               { icon: "👤", label: "User info", action: () => { navigate("/user-info"); onClose(); } },
               { icon: "🚪", label: "Sign out", action: () => { logout(); onClose(); } },
             ].map((item) => (
@@ -142,7 +145,8 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
                 logout();
                 onClose();
               }}
-              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              title="Logout"
             >
               <Power className="w-5 h-5" />
             </button>

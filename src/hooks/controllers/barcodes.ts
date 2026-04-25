@@ -94,20 +94,16 @@ export function useUpdateBarcode() {
   });
 }
 
-// Delete a barcode
-export function useDeleteBarcode() {
+// Delete all barcodes for a product
+export function useDeleteBarcodesByProductId() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const existing = await db.query.barcodes.findFirst({
-        where: eq(barcodes.id, id),
-      });
-      if (!existing) throw new Error("Barcode not found");
-      await db.delete(barcodes).where(eq(barcodes.id, id));
+    mutationFn: async (productId: string) => {
+      await db.delete(barcodes).where(eq(barcodes.productId, productId));
       return true;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: barcodeKeys.all });
+    onSuccess: (_, productId) => {
+      qc.invalidateQueries({ queryKey: barcodeKeys.byProduct(productId) });
     },
   });
 }

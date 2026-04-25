@@ -29,13 +29,14 @@ import Select from "react-select";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { SidebarDrawer } from "@/components/sidebar-drawer";
 import { ResponsiveIcon } from "@/components/responsive-icon";
-import { useAuth } from "@/App";
+import { useAuth } from "@/providers/auth-provider";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
 import { useNavigate } from "react-router";
 import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
-import { useAddStockEntry } from "@/hooks/controllers/stocks";
+import { useUpdateStockEntry, useStockLevels } from "@/hooks/controllers/stocks";
+import { toast } from "react-toastify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1598,7 +1599,9 @@ export default function AroniumLite() {
   const paymentTypesQuery = usePaymentTypes();
   const documentsQuery = useDocuments();
   const createDocument = useCreateDocument();
-  const addStockEntry = useAddStockEntry();
+  const updateStockEntries = useUpdateStockEntry();
+  const stockLevelsQuery = useStockLevels();
+  const stockLevels = stockLevelsQuery.data || {};
 
   // Cart state
   const [items, setItems] = useState<CartItem[]>([]);
@@ -1657,6 +1660,23 @@ export default function AroniumLite() {
   };
 
   const addOrUpdateItem = (product: any, qty: number) => {
+    const stock = stockLevels[product.id];
+    const available = stock?.preferredQuantity ?? 0;
+
+    if (available <= 0) {
+      toast.error(`Cannot add ${product.title}. Stock is empty (0).`);
+      return;
+    }
+
+    if (qty > available) {
+      toast.warn(`Only ${available} ${product.unit ?? "units"} available for ${product.title}.`);
+      qty = available;
+    }
+
+    if (stock?.lowStockWarning && available <= (stock.lowStockWarningQuantity ?? 0)) {
+      toast.warn(`${product.title} is running low on stock!`);
+    }
+
     const taxRate = product.taxes?.[0]?.tax?.rate ?? 0;
     setItems((prev) => {
       const existing = prev.find((i) => i.id === product.id);
@@ -1772,17 +1792,19 @@ export default function AroniumLite() {
     // Update stock for each item (sale decreases stock, refund increases stock)
     for (const item of items) {
       const isRefund = item.qty < 0;
-      await addStockEntry.mutateAsync({
+      await updateStockEntries.mutateAsync({
         productId: item.id,
         type: isRefund ? "in" : "out",
-        quantity: isRefund ? Math.abs(item.qty) : -Math.abs(item.qty), // Positive for refunds (stock in), negative for sales (stock out)
+        quantity: Math.abs(item.qty),
         note: isRefund ? "Refund" : "Sale",
         createdAt: new Date(),
       });
     }
 
+    await stockLevelsQuery.refetch();
+
     clearCart();
-    router("/documents");
+    router("/");
   };
 
   const openPayment = () => {
@@ -1948,6 +1970,15 @@ export default function AroniumLite() {
               onChange={async (option: any) => {
                 if (!option) return;
                 const p = option.product;
+
+                // Immediate stock check
+                const stock = stockLevels[p.id];
+                const available = stock?.preferredQuantity ?? 0;
+                if (available <= 0) {
+                  toast.error(`Cannot add ${p.title}. Stock is empty (0).`);
+                  return;
+                }
+
                 const prices = await getProductPrices(p.id);
                 const defaultPrice =
                   prices.find((pr) => pr.isDefault) || prices[0];

@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { documents, documentItems, documentPayments } from "@/db/schema";
+import {
+  documents,
+  documentItems,
+  documentPayments,
+  customers,
+} from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 export type Document = typeof documents.$inferSelect;
@@ -12,14 +17,18 @@ export function useDocuments() {
   return useQuery({
     queryKey: ["documents"],
     queryFn: async () => {
-      const [docs, items, payments] = await Promise.all([
+      const [docs, items, payments, custs] = await Promise.all([
         db.select().from(documents).orderBy(desc(documents.createdAt)),
         db.select().from(documentItems),
         db.select().from(documentPayments),
+        db.select().from(customers),
       ]);
+
+      const customerMap = Object.fromEntries(custs.map((c) => [c.id, c]));
 
       return docs.map((doc) => ({
         ...doc,
+        customer: customerMap[doc.customerId] || null,
         items: items.filter((i) => i.documentId === doc.id),
         payments: payments.filter((p) => p.documentId === doc.id),
       }));

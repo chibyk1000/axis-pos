@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Clock,
   Eye,
-  ArrowLeft,
+
   Calendar,
   CreditCard,
   Banknote,
@@ -25,18 +25,24 @@ import {
 import { useNavigate } from "react-router";
 import { useDocuments } from "@/hooks/controllers/documents";
 import { useCreateDocument } from "@/hooks/controllers/documents";
-import { useAuth } from "@/App";
+import { useAuth } from "@/providers/auth-provider";
+import { toast } from "react-toastify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DocStatus = "posted" | "draft" | "refund" | "void";
+type DocStatus = "posted" | "draft" | "cancelled" | "refund" | "void";
+
+interface Customer {
+  id: string;
+  name: string;
+}
 
 interface Document {
   id: string;
   number: string;
   customerId?: string;
-  customer?: { id: string; name: string } | null;
-  date: Date | string;
+  customer?: Customer | null;
+  date: Date;
   status: DocStatus;
   paid: boolean;
   totalBeforeTax: number;
@@ -71,7 +77,7 @@ interface DocumentPayment {
   date: Date | string;
 }
 
-type FilterStatus = "all" | DocStatus;
+type FilterStatus = "all" | "paid" ;
 type DateRange = "today" | "week" | "month" | "all";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -125,32 +131,92 @@ function isThisMonth(d: Date | string) {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: DocStatus }) {
-  const map: Record<DocStatus, { label: string; cls: string }> = {
-    posted: {
-      label: "Posted",
+function StatusBadge({ paid } : { paid: boolean }) {
+  const map: Record<"paid" | "unpaid", { label: string; cls: string }> = {
+    paid: {
+      label: "Paid",
       cls: "bg-emerald-950 text-emerald-400 border border-emerald-800",
     },
-    draft: {
-      label: "Draft",
-      cls: "bg-blue-950 text-blue-400 border border-blue-800",
-    },
-    refund: {
-      label: "Refund",
-      cls: "bg-red-950 text-red-400 border border-red-900",
-    },
-    void: {
-      label: "Void",
-      cls: "bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700",
+    unpaid: {
+      label: "Unpaid",
+      cls: "bg-red-950 text-red-400 border border-red-800",
     },
   };
-  const { label, cls } = map[status] ?? map.void;
+
+  const { label, cls } = paid ? map.paid : map.unpaid;
+
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${cls}`}
     >
       {label}
     </span>
+  );
+}
+
+// ─── Print Receipt (Hidden by default) ────────────────────────────────────────
+
+function PrintReceipt({ doc }: { doc: Document | null }) {
+  if (!doc) return null;
+  const items = doc.items ?? [];
+  const payments = doc.payments ?? [];
+
+  return (
+    <div id="print-receipt" className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 text-slate-950 font-sans">
+      <div className="max-w-[400px] mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold m-0">Axis POS</h1>
+          <p className="text-sm text-slate-600 m-1">Receipt / Tax Invoice</p>
+        </div>
+
+        <div className="border-y border-slate-200 py-3 mb-5 text-[13px] flex flex-col gap-1">
+          <div className="flex justify-between"><span>Document #</span> <span>{doc.number}</span></div>
+          <div className="flex justify-between"><span>Date</span> <span>{fmtDateTime(doc.date)}</span></div>
+          <div className="flex justify-between"><span>Customer</span> <span>{doc.customer?.name ?? "Walk-in"}</span></div>
+        </div>
+
+        <table className="w-full border-collapse mb-5">
+          <thead>
+            <tr className="text-[12px] text-slate-500 text-left border-b border-slate-100">
+              <th className="pb-2 font-semibold">Item</th>
+              <th className="pb-2 font-semibold text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id} className="border-b border-slate-50">
+                <td className="py-2">
+                  <div className="font-medium text-sm">{item.name}</div>
+                  <div className="text-[11px] text-slate-500">{Math.abs(item.quantity)} x {fmt(item.priceBeforeTax)}</div>
+                </td>
+                <td className="py-2 text-right text-sm">{fmt(item.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="border-t-2 border-slate-900 pt-3 flex flex-col gap-1">
+          <div className="flex justify-between text-sm"><span>Subtotal</span> <span>{fmt(doc.totalBeforeTax)}</span></div>
+          <div className="flex justify-between text-sm"><span>Tax Total</span> <span>{fmt(doc.taxTotal)}</span></div>
+          <div className="flex justify-between text-lg font-bold mt-2"><span>Total</span> <span>{fmt(doc.total)}</span></div>
+        </div>
+
+        <div className="mt-5">
+          <p className="text-xs font-bold mb-2">Payments</p>
+          {payments.map((p) => (
+            <div key={p.id} className="flex justify-between text-[13px] mt-1">
+              <span>{p.paymentType}</span>
+              <span>{fmt(p.amount)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center mt-10 text-xs text-slate-400">
+          <p>Thank you for your business!</p>
+          <p>{new Date().toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -272,12 +338,8 @@ function SidePanel({
       <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <StatusBadge status={doc.status} />
-            {doc.paid && (
-              <span className="text-[10px] text-emerald-500 font-medium">
-                PAID
-              </span>
-            )}
+            <StatusBadge paid={doc.paid} />
+            
           </div>
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
             {doc.customer?.name ?? "Walk-in"}
@@ -462,8 +524,7 @@ export default function DocumentsPage() {
   const documentsQuery = useDocuments();
   const createDocument = useCreateDocument();
   const { user } = useAuth();
-  // @ts-ignore
-  const docs: Document[] = documentsQuery.data ?? [];
+  const docs: Document[] = (documentsQuery.data as any) ?? [];
 
   // ── State ──
   const [search, setSearch] = useState("");
@@ -489,8 +550,17 @@ export default function DocumentsPage() {
       result = result.filter((d) => isThisMonth(d.date));
 
     // Status
-    if (filterStatus !== "all")
-      result = result.filter((d) => d.status === filterStatus);
+    if (filterStatus !== "all") {
+      if (filterStatus === "paid") {
+        result = result.filter((d) => d.paid === true && d.status !== "draft");
+      } else if (filterStatus === "unpaid") {
+        result = result.filter((d) => d.paid === false && d.status !== "draft");
+      } else if (filterStatus === "refund") {
+        result = result.filter((d) => d.total < 0);
+      } else {
+        result = result.filter((d) => d.status === filterStatus);
+      }
+    }
 
     // Search
     if (search.trim()) {
@@ -562,8 +632,10 @@ export default function DocumentsPage() {
   };
 
   const handlePrint = (doc: Document) => {
-    console.log("Print", doc);
-    window.print();
+    setSelectedDoc(doc);
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleDuplicate = async (doc: Document) => {
@@ -591,9 +663,9 @@ export default function DocumentsPage() {
     documentsQuery.refetch?.();
   };
 
-  const handleExportCSV = () => {
-    const rows = [
-      [
+  const handleExportCSV = async () => {
+    try {
+      const headers = [
         "Number",
         "Customer",
         "Date",
@@ -602,43 +674,91 @@ export default function DocumentsPage() {
         "Subtotal",
         "Tax",
         "Total",
-      ],
-      ...filtered.map((d) => [
-        d.number,
-        d.customer?.name ?? "Walk-in",
-        fmtDate(d.date),
-        d.status,
-        String(d.items?.length ?? 0),
-        d.totalBeforeTax.toFixed(2),
-        d.taxTotal.toFixed(2),
-        d.total.toFixed(2),
-      ]),
-    ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `documents-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+      ];
+
+      const rows = filtered.map((d) => {
+        let dateStr = "N/A";
+        try {
+          if (d.date) dateStr = fmtDate(d.date);
+        } catch (e) {
+          console.error("Date formatting error", e);
+        }
+
+        return [
+          d.number || "N/A",
+          d.customer?.name || "Walk-in",
+          dateStr,
+          d.paid ? "Paid" : "Unpaid",
+          String(d.items?.length ?? 0),
+          (d.totalBeforeTax || 0).toFixed(2),
+          (d.taxTotal || 0).toFixed(2),
+          (d.total || 0).toFixed(2),
+        ];
+      });
+
+      const escape = (val: any) => {
+        const str = String(val ?? "");
+        const sanitized = str.replace(/"/g, '""');
+        return `"${sanitized}"`;
+      };
+
+      const csvContent = [
+        headers.map(escape).join(","),
+        ...rows.map((row) => row.map(escape).join(",")),
+      ].join("\n");
+
+      // Try Tauri save dialog first
+      try {
+        const { save } = await import("@tauri-apps/plugin-dialog");
+        const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+
+        const path = await save({
+          filters: [{ name: "CSV", extensions: ["csv"] }],
+          defaultPath: `documents-${new Date().toISOString().slice(0, 10)}.csv`,
+        });
+
+        if (path) {
+          await writeTextFile(path, csvContent);
+          toast.success("File saved successfully!");
+          return;
+        }
+      } catch (tauriErr) {
+        console.warn("Tauri export failed, falling back to browser download", tauriErr);
+        
+        // Fallback for browser
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute(
+          "download",
+          `documents-${new Date().toISOString().slice(0, 10)}.csv`,
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("Export CSV failed", err);
+      toast.error("Failed to export CSV. Please check console for details.");
+    }
   };
 
   const statusFilters: { key: FilterStatus; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "posted", label: "Posted" },
-    { key: "draft", label: "Drafts" },
-    { key: "refund", label: "Refunds" },
-    { key: "void", label: "Void" },
+    { key: "paid", label: "Paid" },
+
   ];
+
 
   const statusCounts: Record<FilterStatus, number> = useMemo(
     () => ({
       all: docs.length,
-      posted: docs.filter((d) => d.status === "posted").length,
+      paid: docs.filter((d) => d.paid === true && d.status !== "draft").length,
+      unpaid: docs.filter((d) => d.paid === false && d.status !== "draft").length,
       draft: docs.filter((d) => d.status === "draft").length,
-      refund: docs.filter((d) => d.status === "refund").length,
-      void: docs.filter((d) => d.status === "void").length,
+      refund: docs.filter((d) => d.total < 0).length,
     }),
     [docs],
   );
@@ -668,15 +788,10 @@ export default function DocumentsPage() {
       )}
 
       {/* ── Header ── */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0">
+      <PrintReceipt doc={selectedDoc} />
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 print:hidden">
         {/* Brand + back */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => router("/")}
-            className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors mr-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
           <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
             A
           </div>
@@ -736,7 +851,7 @@ export default function DocumentsPage() {
             Export CSV
           </button>
           <button
-            onClick={() => router("/")}
+            onClick={() => router("/pos")}
             className="flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-medium transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -954,7 +1069,7 @@ export default function DocumentsPage() {
                     </div>
                     {/* Status */}
                     <div className="flex items-center justify-end">
-                      <StatusBadge status={doc.status} />
+                      <StatusBadge paid={doc.paid} />
                     </div>
                     {/* Actions */}
                     <div
@@ -1026,14 +1141,16 @@ export default function DocumentsPage() {
 
         {/* Side Panel */}
         {selectedDoc && (
-          <SidePanel
-            doc={selectedDoc}
-            onClose={() => setSelectedDoc(null)}
-            onVoid={(doc) => setConfirmModal({ type: "void", doc })}
-            onRefund={(doc) => setConfirmModal({ type: "refund", doc })}
-            onPrint={handlePrint}
-            onDuplicate={handleDuplicate}
-          />
+          <div className="print:hidden h-full flex shrink-0">
+            <SidePanel
+              doc={selectedDoc}
+              onClose={() => setSelectedDoc(null)}
+              onVoid={(doc) => setConfirmModal({ type: "void", doc })}
+              onRefund={(doc) => setConfirmModal({ type: "refund", doc })}
+              onPrint={handlePrint}
+              onDuplicate={handleDuplicate}
+            />
+          </div>
         )}
       </div>
     </div>
