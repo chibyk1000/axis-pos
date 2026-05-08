@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   Sheet,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 
 
@@ -38,14 +38,13 @@ import * as XLSX from "xlsx";
 // Tauri v2
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { open } from "@tauri-apps/plugin-shell";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 import { useProducts } from "@/hooks/controllers/products";
 import { useRootNodes } from "@/hooks/controllers/nodes";
 import {
   useStockLevels,
-  useAllStockHistory,
-
+  useStockLogs,
   useUpdateStockEntry,
 } from "@/hooks/controllers/stocks";
 import {
@@ -134,7 +133,7 @@ function StockPdfDoc({
   generatedAt: string;
 }) {
   const N = "\u20A6";
-  const getQty = (id: string) => (stockLevels[id] as any)?.preferredQuantity ?? 0;
+  const getQty = (id: string) => (stockLevels[id] as any)?.quantity ?? 0;
 
   const totalCost = products.reduce(
     (s, p) => s + p.cost * Math.max(0, getQty(p.id)),
@@ -458,7 +457,7 @@ function QuickInventoryDialog({
   const [type, setType] = useState<"in" | "out" | "adjustment">("in");
   const [note, setNote] = useState("");
 
-  const handle = (val: string) => {
+  const handle = useCallback((val: string) => {
     if (val === "C") {
       setDisplay("0");
       setExpr("");
@@ -515,13 +514,33 @@ function QuickInventoryDialog({
       return;
     }
     setDisplay((p) => (p === "0" ? val : p + val));
-  };
+  }, [display, hasResult]);
 
-  const confirm = () => {
+  const confirm = useCallback(() => {
     const qty = parseFloat(display);
     if (isNaN(qty) || qty === 0) return;
     onConfirm(qty, type, note);
-  };
+  }, [display, type, note, onConfirm]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= "0" && e.key <= "9") handle(e.key);
+      else if (e.key === ".") handle(".");
+      else if (e.key === "+") handle("+");
+      else if (e.key === "-") handle("-");
+      else if (e.key === "*") handle("×");
+      else if (e.key === "/") handle("÷");
+      else if (e.key === "Enter") {
+        const hasOp = /[+\-×÷]/.test(display);
+        if (hasResult || !hasOp) confirm();
+        else handle("=");
+      } else if (e.key === "Backspace") handle("⌫");
+      else if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "c") handle("C");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handle, confirm, onClose, display, hasResult]);
 
   const btnCls = (v: string) => {
     if (v === "C")
@@ -745,7 +764,7 @@ function ProductPickerDialog({
         </div>
         <div className="flex-1 overflow-auto">
           {filtered.map((p) => {
-            const stock = (stockLevels[p.id] as any)?.preferredQuantity ?? 0;
+            const stock = (stockLevels[p.id] as any)?.quantity ?? 0;
             return (
               <button
                 key={p.id}
@@ -841,7 +860,7 @@ export default function StockView() {
   const productsQuery = useProducts();
   const nodesQuery = useRootNodes();
   const stockLevelsQuery = useStockLevels();
-  const stockHistoryQuery = useAllStockHistory();
+  const stockHistoryQuery = useStockLogs();
 
 const updateStockEntries = useUpdateStockEntry();
   // Price label selector — determines which price list's cost/salePrice to show
@@ -910,7 +929,7 @@ const updateStockEntries = useUpdateStockEntry();
   }, [filteredByNode, searchQuery]);
 
   const getStock = (p: EnrichedProduct) =>
-    (stockLevels[p.id] as any)?.preferredQuantity ?? 0;
+    (stockLevels[p.id] as any)?.quantity ?? 0;
 
   const negativeCount = visibleProducts.filter((p) => getStock(p) < 0).length;
   const nonZeroCount = visibleProducts.filter((p) => getStock(p) !== 0).length;
@@ -958,7 +977,7 @@ const updateStockEntries = useUpdateStockEntry();
         />,
       ).toBlob();
       await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
-      await open(filePath);
+      await openPath(filePath);
     } catch (e) {
       console.error("PDF generation failed:", e);
     } finally {
@@ -1014,7 +1033,7 @@ const updateStockEntries = useUpdateStockEntry();
 
       const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
       await writeFile(filePath, new Uint8Array(buffer));
-      await open(filePath);
+      await openPath(filePath);
     } catch (e) {
       console.error("Excel export failed:", e);
     } finally {
@@ -1134,7 +1153,7 @@ const updateStockEntries = useUpdateStockEntry();
       {quickInventoryProduct && (
         <QuickInventoryDialog
           product={quickInventoryProduct}
-          currentStock={(stockLevels[quickInventoryProduct.id] as any)?.preferredQuantity ?? 0}
+          currentStock={(stockLevels[quickInventoryProduct.id] as any)?.quantity ?? 0}
           onConfirm={handleQuickInventoryConfirm}
           onClose={() => setQuickInventoryProduct(null)}
         />

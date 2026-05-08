@@ -18,7 +18,11 @@
     "fs:allow-temp-read",
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "$TEMP/**" }]
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "shell:allow-open",
+      "allow": [{ "open": "^(.*)$" }]
     }
   ]
 }

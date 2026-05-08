@@ -9,27 +9,16 @@ pub fn run() {
         Migration {
             version: 1,
             description: "create_initial_tables",
-            sql: include_str!("../migrations/0000_mysterious_carmella_unuscione.sql"),
+            sql: include_str!("../migrations/0000_rich_daimon_hellstrom.sql"),
             kind: MigrationKind::Up,
         },
         Migration {
             version: 2,
-            description: "add_document_type",
-            sql: include_str!("../migrations/0001_special_spyke.sql"),
+            description: "add_paid_and_total_paid_to_documents",
+            sql: include_str!("../migrations/0001_gigantic_violations.sql"),
             kind: MigrationKind::Up,
         },
-        Migration {
-            version: 3,
-            description: "add_product_code_unique_constraint",
-            sql: include_str!("../migrations/0002_secret_thunderbird.sql"),
-            kind: MigrationKind::Up,
-        },
-            Migration {
-            version: 4,
-            description: "add_stock_entries_unique_constraint",
-            sql: include_str!("../migrations/0003_faulty_fat_cobra.sql"),
-            kind: MigrationKind::Up,
-        },
+    
     ];
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())

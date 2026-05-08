@@ -10,6 +10,7 @@ import {
   useCustomerLoyaltyCards,
   useDeleteLoyaltyCard,
   useUpdateCustomer,
+  useNextCustomerCode,
 } from "@/hooks/controllers/customers";
 import {
   useAddCustomerDiscount,
@@ -189,6 +190,7 @@ export default function CustomerSupplierDrawer({
   const addCustomerDiscount = useAddCustomerDiscount();
   const getLoyaltyCards = useCustomerLoyaltyCards(initialData?.id as string);
   const deletLoyaltyCard = useDeleteLoyaltyCard(initialData?.id as string);
+  const { data: nextCode } = useNextCustomerCode();
 
   const getDiscount = useCustomerDiscounts(initialData?.id as string);
 
@@ -285,11 +287,14 @@ export default function CustomerSupplierDrawer({
       setIsActive(initialData.active ?? true);
       setIsCustomer(initialData.customer ?? true);
       setIsTaxExempt(initialData.taxExempt ?? false);
+    } else if (open && !initialData) {
+      // New customer - pre-fill code
+      setForm((prev) => ({ ...prev, code: nextCode ?? "" }));
     } else if (!open) {
       // Reset form when closing drawer
       resetForm();
     }
-  }, [open, initialData]);
+  }, [open, initialData, nextCode]);
 
   const resetForm = () => {
     setForm({

@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useCreateProduct } from "@/hooks/controllers/products";
+import { useCreateProduct, useNextProductCode } from "@/hooks/controllers/products";
 import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
 import { useCreateBarcode } from "@/hooks/controllers/barcodes";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
   const upsertPrice = useUpsertProductPrice();
   const createBarcode = useCreateBarcode();
   const queryClient = useQueryClient();
+  const { data: nextCodeBase } = useNextProductCode();
 
   const fields = [
     { key: "code", label: "Code" },
@@ -83,12 +84,18 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
   const handleImport = async () => {
     if (!parsedData.length) return;
     setIsImporting(true);
+    let currentCode = parseInt(nextCodeBase || "1", 10);
     try {
       for (const row of parsedData) {
+        let code = row[columnMapping.code] || "";
+        if (!code) {
+          code = currentCode.toString();
+          currentCode++;
+        }
         const productData = {
           id: nanoid(),
           title: row[columnMapping.title] || "Unnamed",
-          code: row[columnMapping.code] || "",
+          code,
           unit: row[columnMapping.unit] || "pcs",
           active: row[columnMapping.active]?.toLowerCase() === "yes" || true,
           nodeId: "root", // Assume root group

@@ -48,6 +48,9 @@ import type {
   SalesFilters,
 } from "@/hooks/controllers/sales-history";
 import { useCustomers } from "@/hooks/controllers/customers";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                              PDF BUILDERS                                  */
@@ -567,32 +570,57 @@ export default function SalesHistory() {
 
   // ── Toolbar handlers ───────────────────────────────────────────────────────
 
-  function handlePrint() {
+  async function handlePrint() {
     if (!selectedDoc) return;
-    const url = URL.createObjectURL(
-      buildDocPdf(selectedDoc, items).output("blob"),
-    );
-    const win = window.open(url, "_blank");
-    win?.addEventListener("load", () => win.print());
-    toast("Print dialog opened");
+    try {
+      const filePath = await save({
+        defaultPath: `${selectedDoc.number.replace(/\//g, "-")}-print.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (!filePath) return;
+      const arrayBuffer = buildDocPdf(selectedDoc, items).output("arraybuffer");
+      await writeFile(filePath, new Uint8Array(arrayBuffer));
+      await openPath(filePath);
+      toast("Opened for printing");
+    } catch (e) {
+      console.error(e);
+      toast("Failed to print", "error");
+    }
   }
 
-  function handleSavePdf() {
+  async function handleSavePdf() {
     if (!selectedDoc) return;
-    buildDocPdf(selectedDoc, items).save(
-      `${selectedDoc.number.replace(/\//g, "-")}.pdf`,
-    );
-    toast("PDF downloaded");
+    try {
+      const filePath = await save({
+        defaultPath: `${selectedDoc.number.replace(/\//g, "-")}.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (!filePath) return;
+      const arrayBuffer = buildDocPdf(selectedDoc, items).output("arraybuffer");
+      await writeFile(filePath, new Uint8Array(arrayBuffer));
+      toast("PDF saved successfully");
+    } catch (e) {
+      console.error(e);
+      toast("Failed to save PDF", "error");
+    }
   }
 
-  function handleReceipt() {
+  async function handleReceipt() {
     if (!selectedDoc) return;
-    const url = URL.createObjectURL(
-      buildReceiptPdf(selectedDoc, items).output("blob"),
-    );
-    const win = window.open(url, "_blank");
-    win?.addEventListener("load", () => win.print());
-    toast("Receipt dialog opened");
+    try {
+      const filePath = await save({
+        defaultPath: `${selectedDoc.number.replace(/\//g, "-")}-receipt.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (!filePath) return;
+      const arrayBuffer = buildReceiptPdf(selectedDoc, items).output("arraybuffer");
+      await writeFile(filePath, new Uint8Array(arrayBuffer));
+      await openPath(filePath);
+      toast("Receipt opened");
+    } catch (e) {
+      console.error(e);
+      toast("Failed to open receipt", "error");
+    }
   }
 
   function handleEmail() {

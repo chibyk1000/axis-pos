@@ -83,6 +83,7 @@ export default function NewDocument({
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [stockDate, setStockDate] = useState<Date>(
     document?.stockDate ? new Date(document.stockDate) : new Date(),
@@ -113,22 +114,38 @@ export default function NewDocument({
   );
 
   const mapGroupsToTree = (groups: any[]): TreeViewElement[] => {
-    return groups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      type: "group",
-      isSelectable: true,
-      children: [
-        ...(group.children ? mapGroupsToTree(group.children) : []),
+    return groups
+      .map((group) => {
+        const children = group.children ? mapGroupsToTree(group.children) : [];
+        const products = (group.products ?? [])
+          .filter((p: any) => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              p.title.toLowerCase().includes(q) ||
+              p.code?.toLowerCase().includes(q)
+            );
+          })
+          .map((p: any) => ({
+            id: p.id,
+            name: p.title,
+            type: "product",
+            isSelectable: true,
+          }));
 
-        ...(group.products ?? []).map((p: any) => ({
-          id: p.id,
-          name: p.title,
-          type: "product",
+        if (searchQuery && children.length === 0 && products.length === 0) {
+          return null;
+        }
+
+        return {
+          id: group.id,
+          name: group.name,
+          type: "group",
           isSelectable: true,
-        })),
-      ],
-    }));
+          children: [...children, ...products],
+        };
+      })
+      .filter(Boolean) as TreeViewElement[];
   };
   const treeElements = mapGroupsToTree(rootGroups);
   function RenderTree({ elements }: { elements: TreeViewElement[] }) {
@@ -490,12 +507,17 @@ export default function NewDocument({
 
           {/* ================= ITEMS TAB ================= */}
           <TabsContent value="items" className="space-y-4 mt-4">
-            <div className="grid grid-cols-12 gap-4">
+            <div className="grid grid-cols-12 gap-2">
               {/* LEFT SIDEBAR */}
               <div className="col-span-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-3">
-                <Input type="text" placeholder="Search prodct" />
+                <Input 
+                  type="text" 
+                  placeholder="Search product" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
 
-                <div className="w-56 border-r border-slate-300 dark:border-slate-800 overflow-y-auto">
+                <div className="w-56 border-r border-slate-300 dark:border-slate-800 overflow-y-auto overflow-x-hidden">
                   <div className="w-56  border-r border-slate-300 dark:border-slate-800 pt-3">
                     <Tree
                       elements={treeElements}

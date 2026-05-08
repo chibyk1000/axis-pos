@@ -15,3 +15,5 @@ export * from "./users";
 export * from "./pos";
 export * from "./priceLists";
 export * from "./paymentTypes";
+export * from "./stockLogs";
+

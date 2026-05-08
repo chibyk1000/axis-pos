@@ -29,11 +29,8 @@ import { useCustomers } from "@/hooks/controllers/customers";
 import { useRootWithoutChildren } from "@/hooks/controllers/nodes";
 import { uploadImage } from "@/helpers/image";
 import type { UploadedImage } from "@/helpers/image";
-import {
-  PRICE_LABELS,
-  type PriceLabel,
-  wholeSaleToLabel,
-} from "@/hooks/controllers/priceLists";
+import { PRICE_LABELS, type PriceLabel, wholeSaleToLabel } from "@/hooks/controllers/priceLists";
+import { useNextProductCode } from "@/hooks/controllers/products";
 import { NewProduct } from "@/db/schema";
 
 /* -------------------------------------------------------------------------- */
@@ -318,6 +315,7 @@ const AddProductDrawer = ({
 }: AddProductDrawerProps) => {
   const [activeTab, setActiveTab] = React.useState("Details");
   const { data = [] } = useRootWithoutChildren();
+  const { data: nextCode } = useNextProductCode();
 
   // ── form fields ────────────────────────────────────────────────────────────
   const [name, setName] = React.useState("");
@@ -373,10 +371,7 @@ const AddProductDrawer = ({
 
   // ── save ───────────────────────────────────────────────────────────────────
   const generateProductCode = () => {
-    // Generate a unique code, e.g., PROD + random number
-    return `PROD${Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, "0")}`;
+    return nextCode ?? "1";
   };
 
   const handleSave = () => {
@@ -552,7 +547,7 @@ const AddProductDrawer = ({
     } else {
       // Reset for new product
       setName("");
-      setCode("");
+      setCode(nextCode ?? "");
       setBarcode("");
       setUnit("");
       setGroupId("root");
@@ -575,7 +570,7 @@ const AddProductDrawer = ({
       setIsAddingTax(false);
       setPrices(makeDefaultPrices());
     }
-  }, [open, initialData]);
+  }, [open, initialData, nextCode]);
 
   // ── render ─────────────────────────────────────────────────────────────────
 

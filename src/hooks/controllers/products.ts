@@ -122,6 +122,27 @@ export function useProductById(id: string) {
   });
 }
 
+export function useNextProductCode() {
+  return useQuery({
+    queryKey: ["products", "next-code"],
+    queryFn: async () => {
+      const allProducts = await db
+        .select({ code: products.code })
+        .from(products);
+      if (allProducts.length === 0) return "1";
+
+      const codes = allProducts
+        .map((p) => parseInt(p.code, 10))
+        .filter((n) => !isNaN(n));
+
+      if (codes.length === 0) return "1";
+
+      const maxCode = Math.max(...codes);
+      return (maxCode + 1).toString();
+    },
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                 MUTATIONS                                  */
 /* -------------------------------------------------------------------------- */

@@ -80,6 +80,25 @@ export function useCustomerLoyaltyCards(customerId: string) {
   });
 }
 
+export function useNextCustomerCode() {
+  return useQuery({
+    queryKey: ["customers", "next-code"],
+    queryFn: async () => {
+      const allCustomers = await db.select({ code: customers.code }).from(customers);
+      if (allCustomers.length === 0) return "1";
+
+      const codes = allCustomers
+        .map((c) => parseInt(c.code ?? "", 10))
+        .filter((n) => !isNaN(n));
+
+      if (codes.length === 0) return "1";
+
+      const maxCode = Math.max(...codes);
+      return (maxCode + 1).toString();
+    },
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  MUTATIONS                                 */
 /* -------------------------------------------------------------------------- */

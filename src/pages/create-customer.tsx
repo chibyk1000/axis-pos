@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   User,
@@ -16,6 +16,7 @@ import {
   SkipForward,
   ChevronRight,
 } from "lucide-react";
+import { useNextCustomerCode } from "@/hooks/controllers/customers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,22 +36,6 @@ interface CreateCustomerPageProps {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function genCode(name: string) {
-  const parts = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, "")
-    .split(/\s+/)
-    .filter(Boolean);
-  const prefix =
-    parts.length >= 2
-      ? parts
-          .slice(0, 3)
-          .map((p) => p[0])
-          .join("")
-      : (parts[0]?.slice(0, 3) ?? "CST");
-  return prefix + Math.floor(Math.random() * 900 + 100);
-}
 
 function initials(name: string) {
   return (
@@ -262,6 +247,7 @@ export default function CreateCustomerPage({
   onCreateCustomer,
   onSkip,
 }: CreateCustomerPageProps) {
+  const { data: nextCode } = useNextCustomerCode();
   const [form, setForm] = useState<CustomerFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<
     Partial<Record<keyof CustomerFormData, string>>
@@ -278,8 +264,8 @@ export default function CreateCustomerPage({
   };
 
   const tryAutoCode = () => {
-    if (!form.code && form.name.trim()) {
-      set("code", genCode(form.name));
+    if (!form.code) {
+      set("code", nextCode ?? "1");
     }
   };
 
@@ -300,7 +286,7 @@ export default function CreateCustomerPage({
     try {
       await onCreateCustomer(form);
       setCreatedCount((c) => c + 1);
-      setForm({ ...EMPTY_FORM, isDefault: false });
+      setForm({ ...EMPTY_FORM, isDefault: false, code: "" });
       setErrors({});
     } catch (err: any) {
       setErrors({ name: err?.message ?? "Failed to create customer." });
@@ -308,6 +294,19 @@ export default function CreateCustomerPage({
       setLoading(false);
     }
   };
+
+  // Pre-fill code when nextCode is available
+  useState(() => {
+    if (!form.code && nextCode) {
+      set("code", nextCode);
+    }
+  });
+
+  useEffect(() => {
+    if (!form.code && nextCode) {
+      set("code", nextCode);
+    }
+  }, [nextCode]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col w-screen">

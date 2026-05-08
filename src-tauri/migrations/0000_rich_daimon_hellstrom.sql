@@ -98,6 +98,7 @@ CREATE TABLE `customers` (
 	`updated_at` integer
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `customers_code_unique` ON `customers` (`code`);--> statement-breakpoint
 CREATE TABLE `loyalty_cards` (
 	`id` text PRIMARY KEY NOT NULL,
 	`customer_id` text NOT NULL,
@@ -145,10 +146,13 @@ CREATE TABLE `documents` (
 	`due_date` integer,
 	`stock_date` integer,
 	`paid` integer DEFAULT false,
+	`type` integer DEFAULT 200,
 	`status` text DEFAULT 'draft',
 	`total_before_tax` real DEFAULT 0,
 	`tax_total` real DEFAULT 0,
 	`total` real DEFAULT 0,
+	`total_paid` real DEFAULT 0,
+	`outstanding_balance` real DEFAULT 0,
 	`created_at` integer NOT NULL,
 	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
@@ -200,6 +204,7 @@ CREATE TABLE `products` (
 	FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `products_code_unique` ON `products` (`code`);--> statement-breakpoint
 CREATE TABLE `taxes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -245,6 +250,8 @@ CREATE TABLE `stock_entries` (
 	FOREIGN KEY (`supplier_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `stock_entries_product_id_unique` ON `stock_entries` (`product_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `stock_entries_product_id_idx` ON `stock_entries` (`product_id`);--> statement-breakpoint
 CREATE TABLE `promotion_bogo` (
 	`id` text PRIMARY KEY NOT NULL,
 	`promotion_id` text NOT NULL,
@@ -375,4 +382,14 @@ CREATE TABLE `payment_types` (
 	`print_receipt` integer DEFAULT false NOT NULL,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
 	`updated_at` integer
+);
+--> statement-breakpoint
+CREATE TABLE `stock_logs` (
+	`id` text PRIMARY KEY NOT NULL,
+	`product_id` text NOT NULL,
+	`type` text NOT NULL,
+	`quantity` real NOT NULL,
+	`note` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
 );

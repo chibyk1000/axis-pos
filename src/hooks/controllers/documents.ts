@@ -13,10 +13,36 @@ export type NewDocument = typeof documents.$inferInsert;
 export type DocumentItem = typeof documentItems.$inferInsert;
 export type DocumentPayment = typeof documentPayments.$inferInsert;
 
+// Enhanced document type with computed properties
+export type DocumentWithComputed = ReturnType<
+  typeof createDocumentWithComputed
+>;
+
+function createDocumentWithComputed(
+  doc: Document,
+  docPayments: DocumentPayment[],
+  customer: any | null,
+  items: DocumentItem[],
+) {
+  const totalPaid = docPayments.reduce((sum, p) => sum + p.amount, 0);
+  const docTotal = doc.total ?? 0;
+  const outstandingBalance = Math.max(0, docTotal - totalPaid);
+
+  return {
+    ...doc,
+    customer,
+    items,
+    payments: docPayments,
+    totalPaid,
+    outstandingBalance,
+  };
+}
+
 export function useDocuments() {
   return useQuery({
     queryKey: ["documents"],
     queryFn: async () => {
+      console.log("useDocuments - Query starting...");
       const [docs, items, payments, custs] = await Promise.all([
         db.select().from(documents).orderBy(desc(documents.createdAt)),
         db.select().from(documentItems),
@@ -24,14 +50,62 @@ export function useDocuments() {
         db.select().from(customers),
       ]);
 
+      console.log("useDocuments - Raw data from DB:", {
+        docsCount: docs.length,
+        itemsCount: items.length,
+        paymentsCount: payments.length,
+        paymentsData: payments.slice(0, 5).map((p) => ({
+          id: p.id,
+          documentId: p.documentId,
+          amount: p.amount,
+          paymentType: p.paymentType,
+        })),
+      });
+
       const customerMap = Object.fromEntries(custs.map((c) => [c.id, c]));
 
-      return docs.map((doc) => ({
-        ...doc,
-        customer: customerMap[doc.customerId] || null,
-        items: items.filter((i) => i.documentId === doc.id),
-        payments: payments.filter((p) => p.documentId === doc.id),
-      }));
+      const result = docs.map((doc) => {
+        const docPayments = payments.filter((p) => p.documentId === doc.id);
+        const itemsForDoc = items.filter((i) => i.documentId === doc.id);
+
+        // Debug: show all recent docs
+        console.log("useDocuments - Doc:", doc.number, {
+          totalPaidDB: doc.totalPaid,
+          paymentsFound: docPayments.length,
+        });
+
+        const withComputed = createDocumentWithComputed(
+          doc,
+          docPayments,
+          customerMap[doc.customerId] || null,
+          itemsForDoc,
+        );
+
+        if (withComputed.totalPaid > 0 || docPayments.length > 0) {
+          console.log(
+            "useDocuments - Retrieved document with payments from DB:",
+            {
+              id: doc.id,
+              number: doc.number,
+              total: doc.total,
+              totalPaidInDB: doc.totalPaid,
+              paymentsInDB: docPayments.length,
+              paymentAmounts: docPayments.map((p) => p.amount),
+              calculatedTotalPaid: withComputed.totalPaid,
+              calculatedOutstandingBalance: withComputed.outstandingBalance,
+            },
+          );
+        }
+
+        return withComputed;
+      });
+
+      console.log(
+        "useDocuments - Query complete, returning",
+        result.length,
+        "documents",
+      );
+      return result;
     },
   });
 }
@@ -56,14 +130,10 @@ export function useDocument(id: string) {
 
       const docPayments = await db
         .select()
-        .from(documentItems)
-        .where(eq(documentItems.documentId, id));
+        .from(documentPayments)
+        .where(eq(documentPayments.documentId, id));
 
-      return {
-        ...doc,
-        items,
-        payments: docPayments,
-      };
+      return createDocumentWithComputed(doc, docPayments, null, items);
     },
   });
 }
@@ -77,36 +147,118 @@ export function useCreateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
-      const docId = data.document.id ?? crypto.randomUUID();
+      try {
+        const docId = data.document.id ?? crypto.randomUUID();
 
-      await db.insert(documents).values({
-        ...data.document,
-        id: docId,
-        createdAt: data.document.createdAt ?? new Date(),
-      });
-
-      if (data.items?.length) {
-        await db.insert(documentItems).values(
-          data.items.map((item) => ({
-            ...item,
-            id: crypto.randomUUID(),
-            documentId: docId,
+        console.log("useCreateDocument - START: Payload received:", {
+          docId,
+          document: {
+            number: data.document.number,
+            total: data.document.total,
+            totalPaid: data.document.totalPaid,
+            outstandingBalance: data.document.outstandingBalance,
+          },
+          paymentsInput: data.payments?.map((p) => ({
+            amount: p.amount,
+            paymentType: p.paymentType,
           })),
-        );
-      }
+        });
 
-      if (data.payments?.length) {
-        await db.insert(documentPayments).values(
-          data.payments.map((p) => ({
+        // Calculate totalPaid and paid status based on actual payments
+        const totalPaid =
+          data.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
+        const docTotal = data.document.total ?? 0;
+        const isPaid = totalPaid >= docTotal;
+
+        console.log("useCreateDocument - Calculated values:", {
+          totalPaid,
+          docTotal,
+          isPaid,
+          outstandingBalance: Math.max(0, docTotal - totalPaid),
+        });
+
+        const insertPayload = {
+          ...data.document,
+          id: docId,
+          totalPaid, // Always use calculated value
+          outstandingBalance: Math.max(0, docTotal - totalPaid), // Always recalculate
+          paid: isPaid, // Update paid status based on totalPaid
+          createdAt: data.document.createdAt ?? new Date(),
+        };
+
+        console.log("useCreateDocument - Inserting document:", {
+          number: insertPayload.number,
+          total: insertPayload.total,
+          totalPaid: insertPayload.totalPaid,
+          outstandingBalance: insertPayload.outstandingBalance,
+          paid: insertPayload.paid,
+        });
+
+        await db.insert(documents).values(insertPayload);
+        console.log("useCreateDocument - Document inserted successfully");
+
+        console.log("useCreateDocument - About to insert items and payments:", {
+          itemsLength: data.items?.length,
+          paymentsLength: data.payments?.length,
+          paymentsArray: data.payments,
+        });
+
+        if (data.items?.length) {
+          console.log(
+            "useCreateDocument - Inserting",
+            data.items.length,
+            "items",
+          );
+          await db.insert(documentItems).values(
+            data.items.map((item) => ({
+              ...item,
+              id: crypto.randomUUID(),
+              documentId: docId,
+            })),
+          );
+          console.log("useCreateDocument - Items inserted successfully");
+        }
+
+        if (data.payments?.length) {
+          const paymentsToInsert = data.payments.map((p) => ({
             ...p,
             id: crypto.randomUUID(),
             documentId: docId,
-          })),
-        );
+          }));
+
+          console.log("useCreateDocument - Inserting payments:", {
+            count: data.payments.length,
+            payments: paymentsToInsert.map((p) => ({
+              amount: p.amount,
+              paymentType: p.paymentType,
+              date: p.date,
+              status: p.status,
+            })),
+          });
+
+          await db.insert(documentPayments).values(paymentsToInsert);
+          console.log("useCreateDocument - Payments inserted successfully");
+        } else {
+          console.log(
+            "useCreateDocument - No payments to insert. data.payments =",
+            data.payments,
+          );
+        }
+
+        console.log("useCreateDocument - COMPLETE: All inserts finished");
+      } catch (err) {
+        console.error("useCreateDocument - CAUGHT ERROR:", err);
+        throw err;
       }
     },
     onSuccess: () => {
+      console.log(
+        "useCreateDocument - onSuccess: Invalidating documents query",
+      );
       qc.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError: (err) => {
+      console.error("useCreateDocument - Mutation onError:", err);
     },
   });
 }
@@ -121,9 +273,29 @@ export function useUpdateDocument() {
       items: DocumentItem[];
       payments?: DocumentPayment[];
     }) => {
+      // Get the current document to calculate totalPaid properly
+      const currentDoc = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, data.id))
+        .get();
+
+      if (!currentDoc) throw new Error("Document not found");
+
+      // Calculate totalPaid and paid status based on actual payments
+      const totalPaid =
+        data.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
+      const docTotal = data.document.total ?? currentDoc.total ?? 0;
+      const isPaid = totalPaid >= docTotal;
+
       await db
         .update(documents)
-        .set(data.document)
+        .set({
+          ...data.document,
+          totalPaid, // Always use calculated value
+          outstandingBalance: Math.max(0, docTotal - totalPaid), // Always recalculate
+          paid: isPaid, // Update paid status based on totalPaid
+        })
         .where(eq(documents.id, data.id));
 
       // remove old children

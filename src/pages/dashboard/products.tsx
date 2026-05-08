@@ -545,10 +545,10 @@ export function ProductsView() {
         await updateStockEntries.mutateAsync({
           productId,
           type: "adjustment",
-          quantity: data.preferredQuantity,
+          quantity:  data.quantity?? 0,
           note: "Stock-control settings",
           reorderPoint: data.reorderPoint ?? null,
-          preferredQuantity: data.preferredQuantity ?? null,
+          preferredQuantity: data.preferredQuantity ?? 0,
           supplierId: supplier ?? null,
           lowStockWarning: data.lowStockWarning ?? false,
           lowStockWarningQuantity: data.lowStockWarningQuantity ?? 0,
@@ -560,7 +560,7 @@ export function ProductsView() {
         id: nanoid(),
         productId,
         type: "adjustment",
-        quantity: data.preferredQuantity ?? 0,
+        quantity:  0,
         note: "Initial stock",
         reorderPoint: data.reorderPoint ?? null,
         preferredQuantity: data.preferredQuantity ?? null,
@@ -612,7 +612,7 @@ export function ProductsView() {
   // ── derived ───────────────────────────────────────────────────────────────
 
   function getStockLevel(product: any): number {
-    return (stockLevels[product.id] as any)?.preferredQuantity ?? 0;
+    return (stockLevels[product.id] as any)?.quantity ?? 0;
   }
 
   const visibleProducts = (products ?? []).filter((p) =>

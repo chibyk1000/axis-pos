@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Search,
@@ -21,6 +21,9 @@ import {
   Banknote,
   AlertTriangle,
   Menu,
+  Unlock,
+  Users,
+  Receipt,
 } from "lucide-react";
 import { BsThreeDots } from "react-icons/bs";
 import { TbBasketPlus } from "react-icons/tb";
@@ -35,19 +38,27 @@ import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
 import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
 import { useNavigate } from "react-router";
 import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
-import { useUpdateStockEntry, useStockLevels } from "@/hooks/controllers/stocks";
+import {
+  useUpdateStockEntry,
+  useStockLevels,
+} from "@/hooks/controllers/stocks";
 import { toast } from "react-toastify";
+import React from "react";
+import { useTaxes } from "@/hooks/controllers/taxes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CartItem {
   id: string;
   title: string;
-  cost: number;
+  cost: number; // current sale price
   unit: string;
   qty: number;
   discount: number;
   taxRate: number;
+  priceLabel: "Retail" | "Wholesale";
+  availablePrices: { label: "Retail" | "Wholesale"; price: number }[];
+  isLocked?: boolean;
 }
 
 type ModalKind =
@@ -59,7 +70,6 @@ type ModalKind =
   | "refund"
   | "transfer"
   | "void"
-  | "lock"
   | "comment"
   | "cashDrawer";
 
@@ -76,6 +86,13 @@ function itemTotal(item: CartItem) {
 
 function itemTax(item: CartItem) {
   return itemTotal(item) * (item.taxRate / 100);
+}
+
+function formatPrice(n: number) {
+  return n.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // ─── Shared backdrop ──────────────────────────────────────────────────────────
@@ -114,69 +131,92 @@ function CalcModal({
   const [expr, setExpr] = useState("");
   const [hasResult, setHasResult] = useState(false);
 
-  const handle = (val: string) => {
-    if (val === "C") {
-      setDisplay("0");
-      setExpr("");
-      setHasResult(false);
-      return;
-    }
-    if (val === "⌫") {
-      if (hasResult) {
+  const handle = React.useCallback(
+    (val: string) => {
+      if (val === "C") {
         setDisplay("0");
         setExpr("");
         setHasResult(false);
         return;
       }
-      setDisplay((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
-      return;
-    }
-    if (val === "=") {
-      try {
-        // eslint-disable-next-line no-eval
-        const result = eval(display.replace(/×/g, "*").replace(/÷/g, "/"));
-        setExpr(display + " =");
-        setDisplay(String(parseFloat(result.toFixed(6))));
-        setHasResult(true);
-      } catch {
-        setDisplay("Error");
-        setHasResult(true);
+      if (val === "⌫") {
+        if (hasResult) {
+          setDisplay("0");
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        return;
       }
-      return;
-    }
-    if (["+", "-", "×", "÷"].includes(val)) {
+      if (val === "=") {
+        try {
+          // eslint-disable-next-line no-eval
+          const result = eval(display.replace(/×/g, "*").replace(/÷/g, "/"));
+          setExpr(display + " =");
+          setDisplay(String(parseFloat(result.toFixed(6))));
+          setHasResult(true);
+        } catch {
+          setDisplay("Error");
+          setHasResult(true);
+        }
+        return;
+      }
+      if (["+", "-", "×", "÷"].includes(val)) {
+        if (hasResult) {
+          setDisplay(display + val);
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((p) =>
+          ["+", "-", "×", "÷"].includes(p.slice(-1))
+            ? p.slice(0, -1) + val
+            : p + val,
+        );
+        return;
+      }
+      if (val === ".") {
+        const parts = display.split(/[+\-×÷]/);
+        if (parts[parts.length - 1].includes(".")) return;
+        setDisplay((p) => p + ".");
+        return;
+      }
       if (hasResult) {
-        setDisplay(display + val);
+        setDisplay(val);
         setExpr("");
         setHasResult(false);
         return;
       }
-      setDisplay((p) =>
-        ["+", "-", "×", "÷"].includes(p.slice(-1))
-          ? p.slice(0, -1) + val
-          : p + val,
-      );
-      return;
-    }
-    if (val === ".") {
-      const parts = display.split(/[+\-×÷]/);
-      if (parts[parts.length - 1].includes(".")) return;
-      setDisplay((p) => p + ".");
-      return;
-    }
-    if (hasResult) {
-      setDisplay(val);
-      setExpr("");
-      setHasResult(false);
-      return;
-    }
-    setDisplay((p) => (p === "0" ? val : p + val));
-  };
+      setDisplay((p) => (p === "0" ? val : p + val));
+    },
+    [display, hasResult],
+  );
 
-  const confirm = () => {
+  const confirm = React.useCallback(() => {
     const qty = parseFloat(display);
     if (!isNaN(qty) && qty > 0) onConfirm(qty);
-  };
+  }, [display, onConfirm]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= "0" && e.key <= "9") handle(e.key);
+      else if (e.key === ".") handle(".");
+      else if (e.key === "+") handle("+");
+      else if (e.key === "-") handle("-");
+      else if (e.key === "*") handle("×");
+      else if (e.key === "/") handle("÷");
+      else if (e.key === "Enter") {
+        const hasOp = /[+−×÷]/.test(display);
+        if (hasResult || !hasOp) confirm();
+        else handle("=");
+      } else if (e.key === "Backspace") handle("⌫");
+      else if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "c") handle("C");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handle, confirm, onClose, display, hasResult]);
 
   const btnCls = (v: string) => {
     if (v === "C")
@@ -495,9 +535,9 @@ function CustomerModal({
   );
 }
 
-// ─── Payment Screen ───────────────────────────────────────────────────────────
+// ─── Split Payment Screen ───────────────────────────────────────────────────────
 
-function PaymentScreen({
+function SplitPaymentScreen({
   total,
   subtotal,
   taxTotal,
@@ -518,7 +558,8 @@ function PaymentScreen({
   ) => void;
   onClose: () => void;
 }) {
-  const enabled = paymentTypes.filter((p) => p.enabled);
+  const router = useNavigate();
+  const enabled = paymentTypes.filter((p) => p.enabled && p.id !== "split");
   const displayTypes =
     enabled.length > 0
       ? enabled
@@ -526,35 +567,33 @@ function PaymentScreen({
           { id: "cash", name: "Cash", changeAllowed: true },
           { id: "card", name: "Card", changeAllowed: false },
           { id: "check", name: "Check", changeAllowed: false },
-          { id: "split", name: "Split Payments", changeAllowed: false },
         ];
 
-  const [selectedId, setSelectedId] = useState<string>(
+  const [paidInput, setPaidInput] = useState("0.00");
+  const [selectedTypeId, setSelectedTypeId] = useState<string>(
     displayTypes[0]?.id ?? "",
   );
-  const [paidInput, setPaidInput] = useState(total.toFixed(2));
 
-  const selectedType = displayTypes.find((p) => p.id === selectedId);
+  const selectedType = displayTypes.find((p) => p.id === selectedTypeId);
   const paidAmount = parseFloat(paidInput) || 0;
-  const change = selectedType?.changeAllowed
-    ? Math.max(0, paidAmount - total)
-    : 0;
+  const remaining = Math.max(0, total - paidAmount);
 
-  const handleKey = (val: string) => {
-    if (val === "⌫") {
-      setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
-    } else if (val === "C") {
-      setPaidInput("0");
-    } else if (val === "↵") {
-      handleConfirm();
-    } else if (val === ".") {
-      setPaidInput((p) => (p.includes(".") ? p : p + "."));
-    } else if (val === "-") {
-      setPaidInput(total.toFixed(2));
-    } else {
-      setPaidInput((p) => (p === "0" ? val : p + val));
-    }
-  };
+  const handleKey = React.useCallback(
+    (val: string) => {
+      if (val === "⌫") {
+        setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+      } else if (val === "C") {
+        setPaidInput("0");
+      } else if (val === ".") {
+        if (!paidInput.includes(".")) setPaidInput((p) => p + ".");
+      } else if (val === "-") {
+        setPaidInput(total.toFixed(2));
+      } else {
+        setPaidInput((p) => (p === "0" ? val : p + val));
+      }
+    },
+    [total],
+  );
 
   const KEYS = [
     "1",
@@ -575,12 +614,959 @@ function PaymentScreen({
     "",
   ];
 
-  const handleConfirm = () => {
-    if (!selectedId || !selectedType) return;
-    onConfirm([
-      { paymentId: selectedId, paymentType: selectedType.name, amount: total },
-    ]);
+  const handleSave = () => {
+    console.log("SplitPaymentScreen handleSave called");
+    if (!selectedType || paidAmount <= 0) return;
+
+    const paymentData = [
+      {
+        paymentId: selectedType.id,
+        paymentType: selectedType.name,
+        amount: paidAmount,
+      },
+    ];
+
+    console.log("SplitPaymentScreen calling onConfirm with:", paymentData);
+    onConfirm(paymentData);
+    // Navigate to documents page after saving
+    setTimeout(() => {
+      console.log("SplitPaymentScreen redirecting to documents");
+      router("/documents");
+    }, 100);
   };
+
+  console.log("SplitPaymentScreen rendering with total:", total);
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Split Payment
+            </p>
+            {customer && (
+              <p className="text-xs text-cyan-400 mt-0.5">{customer.name}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+            Items
+          </p>
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+            >
+              <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
+                {item.qty !== 1 && (
+                  <span className="text-slate-500 mr-1">{item.qty}×</span>
+                )}
+                {item.title}
+              </span>
+              <span className="tabular-nums text-slate-800 dark:text-slate-200">
+                ₦
+                {itemTotal(item).toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 space-y-1.5 text-sm">
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>Subtotal</span>
+            <span>
+              ₦{subtotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>Tax</span>
+            <span>
+              ₦{taxTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex justify-between font-bold text-xl text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+            <span>Total</span>
+            <span>₦{formatPrice(total)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-semibold text-emerald-400">
+            <span>Paid</span>
+            <span>₦{formatPrice(paidAmount)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-semibold text-red-400">
+            <span>Remaining</span>
+            <span>₦{formatPrice(remaining)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Payment Methods
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Payment Type Selection */}
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <label className="text-xs text-slate-500 mb-2 block">
+                Payment Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {displayTypes.map((pt) => (
+                  <button
+                    key={pt.id}
+                    onClick={() => setSelectedTypeId(pt.id)}
+                    className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
+                      selectedTypeId === pt.id
+                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {pt.name.toLowerCase().includes("card") ? (
+                      <CreditCard className="w-4 h-4" />
+                    ) : (
+                      <Banknote className="w-4 h-4" />
+                    )}
+                    {pt.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Calculator Interface */}
+            <div className="flex-1 flex flex-col justify-between min-h-0">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Amount</p>
+                  <input
+                    type="text"
+                    value={paidInput}
+                    onChange={(e) => setPaidInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                    }}
+                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Remaining</p>
+                  <p className="text-2xl font-bold tabular-nums text-red-400">
+                    ₦{formatPrice(remaining)}
+                    {remaining > 0 && (
+                      <span className="text-sm ml-1">(owed)</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2.5">
+                {KEYS.map((key, i) => {
+                  if (key === "") return <div key={i} />;
+                  const isBackspace = key === "⌫";
+                  const isEnter = key === "↵";
+                  const isDash = key === "-";
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleKey(key)}
+                      className={`py-4 rounded text-lg font-medium transition-colors ${
+                        isBackspace
+                          ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                          : isEnter
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                            : isDash
+                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
+                              : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                      }`}
+                      title={isDash ? "Set to exact total" : undefined}
+                    >
+                      {isDash ? "Exact" : key}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={!selectedType || paidAmount <= 0}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              >
+                Save · ₦
+                {paidAmount.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tax Management Screen Component ────────────────────────────────────────────
+
+function TaxManagementScreen({
+  taxes,
+  onClose,
+  onTaxSelect,
+}: {
+  taxes: any[];
+  onClose: () => void;
+  onTaxSelect: (tax: any) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTaxId, setSelectedTaxId] = useState<string>("");
+
+  const filteredTaxes = taxes.filter(
+    (tax) =>
+      tax.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tax.rate.toString().includes(searchTerm),
+  );
+
+  const handleTaxClick = (tax: any) => {
+    setSelectedTaxId(tax.id);
+    onTaxSelect(tax);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Tax Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search taxes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+
+            {/* Tax List */}
+            <div className="space-y-2">
+              {filteredTaxes.map((tax) => (
+                <div
+                  key={tax.id}
+                  onClick={() => handleTaxClick(tax)}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedTaxId === tax.id
+                      ? "border-cyan-500 bg-cyan-950/20"
+                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {tax.name}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {tax.description || "No description"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-cyan-600">
+                        {tax.rate}%
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {tax.compound ? "Compound" : "Standard"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Discount Management Screen Component ───────────────────────────────────────
+
+function DiscountManagementScreen({
+  onClose,
+  onDiscountApply,
+}: {
+  onClose: () => void;
+  onDiscountApply: (discount: {
+    type: "percent" | "amount";
+    value: number;
+  }) => void;
+}) {
+  const [discountType, setDiscountType] = useState<"percent" | "amount">(
+    "percent",
+  );
+  const [discountInput, setDiscountInput] = useState("0");
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
+
+  const presetDiscounts = [
+    { id: "5", label: "5%", value: 5, type: "percent" as const },
+    { id: "10", label: "10%", value: 10, type: "percent" as const },
+    { id: "15", label: "15%", value: 15, type: "percent" as const },
+    { id: "20", label: "20%", value: 20, type: "percent" as const },
+    { id: "25", label: "25%", value: 25, type: "percent" as const },
+    { id: "50", label: "50%", value: 50, type: "percent" as const },
+    { id: "100", label: "₦100", value: 100, type: "amount" as const },
+    { id: "500", label: "₦500", value: 500, type: "amount" as const },
+    { id: "1000", label: "₦1,000", value: 1000, type: "amount" as const },
+  ];
+
+  const handleKey = useCallback(
+    (val: string) => {
+      if (val === "⌫") {
+        setDiscountInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+      } else if (val === "C") {
+        setDiscountInput("0");
+      } else if (val === ".") {
+        if (!discountInput.includes(".")) setDiscountInput((p) => p + ".");
+      } else {
+        setDiscountInput((p) => (p === "0" ? val : p + val));
+      }
+    },
+    [discountInput],
+  );
+
+  const KEYS = [
+    "1",
+    "2",
+    "3",
+    "⌫",
+    "4",
+    "5",
+    "6",
+    "C",
+    "7",
+    "8",
+    "9",
+    "↵",
+    "0",
+    ".",
+    "",
+    "",
+  ];
+
+  const handleApply = () => {
+    const value = parseFloat(discountInput) || 0;
+    if (value > 0) {
+      onDiscountApply({ type: discountType, value });
+      onClose();
+    }
+  };
+
+  const handlePresetClick = (preset: (typeof presetDiscounts)[0]) => {
+    setSelectedPreset(preset.id);
+    setDiscountType(preset.type);
+    setDiscountInput(preset.value.toString());
+  };
+
+  const discountValue = parseFloat(discountInput) || 0;
+  const displayValue =
+    discountType === "percent"
+      ? `${discountValue}%`
+      : `₦${discountValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Discount Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-6">
+            {/* Discount Type Selection */}
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <label className="text-xs text-slate-500 mb-2 block">
+                Discount Type
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDiscountType("percent")}
+                  className={`py-2 rounded text-sm font-medium transition-colors border ${
+                    discountType === "percent"
+                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  <Percent className="w-4 h-4 inline mr-1" />
+                  Percentage
+                </button>
+                <button
+                  onClick={() => setDiscountType("amount")}
+                  className={`py-2 rounded text-sm font-medium transition-colors border ${
+                    discountType === "amount"
+                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  <Banknote className="w-4 h-4 inline mr-1" />
+                  Fixed Amount
+                </button>
+              </div>
+            </div>
+
+            {/* Preset Discounts */}
+            <div>
+              <label className="text-xs text-slate-500 mb-2 block">
+                Quick Presets
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {presetDiscounts.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handlePresetClick(preset)}
+                    className={`py-2 rounded text-sm font-medium transition-colors border ${
+                      selectedPreset === preset.id
+                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Amount Input */}
+            <div>
+              <label className="text-xs text-slate-500 mb-2 block">
+                Custom Amount
+              </label>
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="text"
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleApply();
+                    }}
+                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold tabular-nums text-emerald-400">
+                    {displayValue}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Calculator */}
+            <div className="grid grid-cols-4 gap-2.5">
+              {KEYS.map((key, i) => {
+                if (key === "") return <div key={i} />;
+                const isBackspace = key === "⌫";
+                const isEnter = key === "↵";
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleKey(key)}
+                    className={`py-4 rounded text-lg font-medium transition-colors ${
+                      isBackspace
+                        ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                        : isEnter
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                          : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                    }`}
+                  >
+                    {key}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Apply Button */}
+            <button
+              onClick={handleApply}
+              disabled={discountValue <= 0}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+            >
+              Apply Discount · {displayValue}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Customer Management Screen Component ───────────────────────────────────────
+
+function CustomerManagementScreen({
+  customers,
+  onClose,
+  onCustomerSelect,
+  onCustomerAdd,
+  onCustomerRemove,
+}: {
+  customers: any[];
+  onClose: () => void;
+  onCustomerSelect: (customer: any) => void;
+  onCustomerAdd: (customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => void;
+  onCustomerRemove: (customerId: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.email &&
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (customer.phone && customer.phone.includes(searchTerm)),
+  );
+
+  const handleCustomerClick = (customer: any) => {
+    setSelectedCustomerId(customer.id);
+    onCustomerSelect(customer);
+  };
+
+  const handleAddCustomer = () => {
+    if (newCustomer.name.trim()) {
+      onCustomerAdd({
+        name: newCustomer.name.trim(),
+        email: newCustomer.email.trim() || undefined,
+        phone: newCustomer.phone.trim() || undefined,
+      });
+      setNewCustomer({ name: "", email: "", phone: "" });
+      setShowAddForm(false);
+    }
+  };
+
+  const handleRemoveCustomer = (customerId: string) => {
+    if (confirm("Are you sure you want to remove this customer?")) {
+      onCustomerRemove(customerId);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Customer Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Search and Add */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Customer
+              </button>
+            </div>
+
+            {/* Add Customer Form */}
+            {showAddForm && (
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
+                  Add New Customer
+                </h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Customer Name *"
+                    value={newCustomer.name}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email (optional)"
+                    value={newCustomer.email}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone (optional)"
+                    value={newCustomer.phone}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, phone: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddCustomer}
+                      disabled={!newCustomer.name.trim()}
+                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Add Customer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewCustomer({ name: "", email: "", phone: "" });
+                      }}
+                      className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Customer List */}
+            <div className="space-y-2">
+              {filteredCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors group ${
+                    selectedCustomerId === customer.id
+                      ? "border-cyan-500 bg-cyan-950/20"
+                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="flex-1"
+                      onClick={() => handleCustomerClick(customer)}
+                    >
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {customer.name}
+                      </p>
+                      {customer.email && (
+                        <p className="text-sm text-slate-500">
+                          {customer.email}
+                        </p>
+                      )}
+                      {customer.phone && (
+                        <p className="text-sm text-slate-500">
+                          {customer.phone}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveCustomer(customer.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-600 hover:bg-red-950 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Payment Screen ───────────────────────────────────────────────────────────
+
+function PaymentScreen({
+  total,
+  subtotal,
+  taxTotal,
+  items,
+  paymentTypes,
+  customer,
+  onConfirm,
+  onClose,
+  isContinuingPayment = false,
+}: {
+  total: number;
+  subtotal: number;
+  taxTotal: number;
+  items: CartItem[];
+  paymentTypes: any[];
+  customer: any | null;
+  onConfirm: (
+    payments: { paymentId: string; paymentType: string; amount: number }[],
+  ) => void;
+  onClose: () => void;
+  isContinuingPayment?: boolean;
+}) {
+  const enabled = paymentTypes.filter((p) => p.enabled);
+  const displayTypes =
+    enabled.length > 0
+      ? enabled
+      : [
+          { id: "cash", name: "Cash", changeAllowed: true },
+          { id: "card", name: "Card", changeAllowed: false },
+          { id: "check", name: "Check", changeAllowed: false },
+          { id: "split", name: "Split Payments", changeAllowed: false },
+        ];
+
+  const [selectedId, setSelectedId] = useState<string>(() => {
+    // If continuing payment, automatically select split payment
+    if (isContinuingPayment) {
+      return "split";
+    }
+    return displayTypes[0]?.id ?? "";
+  });
+  const [paidInput, setPaidInput] = useState(total.toFixed(2));
+  const paidInputRef = useRef<HTMLInputElement>(null);
+
+  // Management screen states
+  const [showTaxManagement, setShowTaxManagement] = useState(false);
+  const [showDiscountManagement, setShowDiscountManagement] = useState(false);
+  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
+
+  // State for selected items to display on payment screen
+  const [selectedTax, setSelectedTax] = useState<any>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    type: "percent" | "amount";
+    value: number;
+  } | null>(null);
+
+  // Real taxes from database
+  const taxesQuery = useTaxes();
+  const taxes = taxesQuery.data ?? [];
+
+  // Real customers from database
+  const customersQuery = useCustomers();
+  const customers = customersQuery.data ?? [];
+
+  const selectedType = displayTypes.find((p) => p.id === selectedId);
+  const paidAmount = parseFloat(paidInput) || 0;
+
+  // Calculate discount amount
+  const discountAmount = appliedDiscount
+    ? appliedDiscount.type === "percent"
+      ? subtotal * (appliedDiscount.value / 100)
+      : appliedDiscount.value
+    : 0;
+
+  // Calculate adjusted totals
+  const adjustedSubtotal = subtotal - discountAmount;
+  const adjustedTaxTotal = selectedTax
+    ? adjustedSubtotal * (selectedTax.rate / 100)
+    : taxTotal;
+  const adjustedTotal = adjustedSubtotal + adjustedTaxTotal;
+
+  // Use adjusted total for payment calculations
+  const finalTotal = adjustedTotal;
+  const balance = paidAmount - finalTotal;
+
+  // Management screen handlers
+  const handleTaxSelect = (tax: any) => {
+    console.log("Tax selected:", tax);
+    setSelectedTax(tax);
+    toast.success(`Tax "${tax.name}" (${tax.rate}%) selected`);
+    setShowTaxManagement(false);
+  };
+
+  const handleDiscountApply = (discount: {
+    type: "percent" | "amount";
+    value: number;
+  }) => {
+    console.log("Discount applied:", discount);
+    setAppliedDiscount(discount);
+    const displayValue =
+      discount.type === "percent"
+        ? `${discount.value}%`
+        : `₦${discount.value.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+    toast.success(`Discount of ${displayValue} applied`);
+    setShowDiscountManagement(false);
+  };
+
+  const handleCustomerSelect = (customer: any) => {
+    console.log("Customer selected:", customer);
+    // Update the customer prop in parent component (would need to pass setter in real app)
+    toast.success(`Customer "${customer.name}" selected`);
+    setShowCustomerManagement(false);
+  };
+
+  const handleCustomerAdd = (customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => {
+    console.log("Customer added:", customer);
+    // In a real app, this would add the customer to the database
+    toast.success(`Customer "${customer.name}" added successfully`);
+  };
+
+  const handleCustomerRemove = (customerId: string) => {
+    console.log("Customer removed:", customerId);
+    // In a real app, this would remove the customer from the database
+    toast.success("Customer removed successfully");
+  };
+
+  // Update paid input when final total changes (tax/discount applied)
+  React.useEffect(() => {
+    setPaidInput(finalTotal.toFixed(2));
+  }, [finalTotal]);
+
+  const handleKey = React.useCallback(
+    (val: string) => {
+      if (val === "⌫") {
+        setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+      } else if (val === "C") {
+        setPaidInput("0");
+      } else if (val === ".") {
+        setPaidInput((p) => (p.includes(".") ? p : p + "."));
+      } else if (val === "-") {
+        setPaidInput(total.toFixed(2));
+      } else {
+        setPaidInput((p) => (p === "0" ? val : p + val));
+      }
+    },
+    [total],
+  );
+
+  const KEYS = [
+    "1",
+    "2",
+    "3",
+    "⌫",
+    "4",
+    "5",
+    "6",
+    "C",
+    "7",
+    "8",
+    "9",
+    "↵",
+    "-",
+    "0",
+    ".",
+    "",
+  ];
+
+  const handleConfirm = React.useCallback(() => {
+    if (!selectedId || !selectedType) return;
+    const paymentData = [
+      {
+        paymentId: selectedId,
+        paymentType: selectedType.name,
+        amount: paidAmount,
+      },
+    ];
+    console.log("PaymentScreen - handleConfirm calling onConfirm with:", {
+      paymentData,
+      paidAmount,
+      total,
+    });
+    onConfirm(paymentData);
+  }, [selectedId, selectedType, paidAmount, onConfirm, total]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isInputFocused = document.activeElement === paidInputRef.current;
+
+      // If input is focused, only handle Escape and special keys, not numbers/decimal
+      if (isInputFocused) {
+        if (e.key === "Escape") onClose();
+        return;
+      }
+
+      // When input is not focused, handle all keyboard input for buttons
+      if (e.key >= "0" && e.key <= "9") handleKey(e.key);
+      else if (e.key === ".") handleKey(".");
+      else if (e.key === "Enter") handleConfirm();
+      else if (e.key === "Backspace") handleKey("⌫");
+      else if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "c") handleKey("C");
+      else if (e.key === "-" || e.key === "v") handleKey("-");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleKey, handleConfirm, onClose]);
+
+  // If split payment is selected, show the split payment screen
+  if (selectedType?.id === "split") {
+    return (
+      <SplitPaymentScreen
+        total={total}
+        subtotal={subtotal}
+        taxTotal={taxTotal}
+        items={items}
+        paymentTypes={paymentTypes}
+        customer={customer}
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
@@ -656,20 +1642,91 @@ function PaymentScreen({
             Cancel
           </button>
           <div className="flex gap-2">
-            {["Taxes", "Discount", "Rounds"].map((lbl) => (
-              <button
-                key={lbl}
-                className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
-              >
-                {lbl}
-              </button>
-            ))}
             <button
+              onClick={() => setShowTaxManagement(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+            >
+              Taxes
+            </button>
+            <button
+              onClick={() => setShowDiscountManagement(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+            >
+              Discount
+            </button>
+            <button
+              onClick={() => toast.info("Rounds management coming soon!")}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+            >
+              Rounds
+            </button>
+            <button
+              onClick={() => setShowCustomerManagement(true)}
               className={`text-sm px-4 py-2 rounded transition-colors ${customer ? "bg-cyan-800 hover:bg-cyan-700 text-cyan-200 border border-cyan-600" : "bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
             >
               {customer ? customer.name.split(" ")[0] : "Customer"}
             </button>
           </div>
+        </div>
+
+        {/* Selected Items Display */}
+        <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 space-y-2">
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+            Applied Items
+          </p>
+
+          {/* Selected Tax */}
+          {selectedTax && (
+            <div className="flex items-center justify-between bg-purple-100 dark:bg-purple-900/30 rounded p-2">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-3 h-3 text-purple-600" />
+                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                  Tax
+                </span>
+              </div>
+              <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+                {selectedTax.name} ({selectedTax.rate}%)
+              </span>
+            </div>
+          )}
+
+          {/* Applied Discount */}
+          {appliedDiscount && (
+            <div className="flex items-center justify-between bg-orange-100 dark:bg-orange-900/30 rounded p-2">
+              <div className="flex items-center gap-2">
+                <Percent className="w-3 h-3 text-orange-600" />
+                <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                  Discount
+                </span>
+              </div>
+              <span className="text-xs font-bold text-orange-700 dark:text-orange-300">
+                {appliedDiscount.type === "percent"
+                  ? `${appliedDiscount.value}%`
+                  : `₦${appliedDiscount.value.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`}
+              </span>
+            </div>
+          )}
+
+          {/* Selected Customer */}
+          {customer && (
+            <div className="flex items-center justify-between bg-blue-100 dark:bg-blue-900/30 rounded p-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-3 h-3 text-blue-600" />
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                  Customer
+                </span>
+              </div>
+              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 truncate max-w-24">
+                {customer.name}
+              </span>
+            </div>
+          )}
+
+          {!selectedTax && !appliedDiscount && !customer && (
+            <div className="text-center text-xs text-slate-400 italic">
+              No tax, discount, or customer selected
+            </div>
+          )}
         </div>
 
         <div className="flex gap-6 flex-1 min-h-0">
@@ -701,34 +1758,75 @@ function PaymentScreen({
 
           <div className="flex-1 flex flex-col justify-between min-h-0">
             <div className="space-y-3">
+              {/* Subtotal */}
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Total</p>
-                <p className="text-3xl font-bold text-cyan-400 tabular-nums">
-                  ₦{total.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                <p className="text-xs text-slate-500 mb-0.5">Subtotal</p>
+                <p className="text-lg font-medium text-slate-300 tabular-nums">
+                  ₦{formatPrice(subtotal)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-slate-500 mb-0.5">Paid</p>
-                <div className="border-b-2 border-cyan-500 pb-1">
-                  <span className="text-3xl text-cyan-300 font-mono tabular-nums">
-                    ₦
-                    {parseFloat(paidInput || "0").toLocaleString("en-NG", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </span>
-                </div>
-              </div>
-              {selectedType?.changeAllowed && change > 0 && (
+
+              {/* Discount */}
+              {discountAmount > 0 && (
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Change</p>
-                  <p className="text-2xl font-bold text-emerald-400 tabular-nums">
-                    ₦
-                    {change.toLocaleString("en-NG", {
-                      minimumFractionDigits: 2,
-                    })}
+                  <p className="text-xs text-slate-500 mb-0.5">Discount</p>
+                  <p className="text-lg font-medium text-orange-400 tabular-nums">
+                    -₦{formatPrice(discountAmount)}
                   </p>
                 </div>
               )}
+
+              {/* Tax */}
+              <div>
+                <p className="text-xs text-slate-500 mb-0.5">Tax</p>
+                <p className="text-lg font-medium text-slate-300 tabular-nums">
+                  ₦{formatPrice(adjustedTaxTotal)}
+                </p>
+              </div>
+
+              {/* Final Total */}
+              <div className="pt-2 border-t border-slate-300 dark:border-slate-700">
+                <p className="text-xs text-slate-500 mb-0.5">Total</p>
+                <p className="text-3xl font-bold text-cyan-400 tabular-nums">
+                  ₦{formatPrice(finalTotal)}
+                </p>
+                {(discountAmount > 0 || selectedTax) && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {discountAmount > 0 &&
+                      `Discount: -₦${formatPrice(discountAmount)} `}
+                    {selectedTax && `Tax: ${selectedTax.rate}%`}
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-0.5">Paid</p>
+                <input
+                  ref={paidInputRef}
+                  type="number"
+                  value={paidInput}
+                  onChange={(e) => setPaidInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleConfirm();
+                  }}
+                  className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-0.5">Balance/Change</p>
+                <p
+                  className={`text-2xl font-bold tabular-nums ${
+                    balance > 0
+                      ? "text-emerald-400"
+                      : balance < 0
+                        ? "text-red-400"
+                        : "text-slate-400"
+                  }`}
+                >
+                  ₦{formatPrice(Math.abs(balance))}
+                  {balance < 0 && <span className="text-sm ml-1">(owed)</span>}
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2.5">
@@ -760,15 +1858,41 @@ function PaymentScreen({
 
             <button
               onClick={handleConfirm}
-              disabled={!selectedId || paidAmount < total}
+              disabled={!selectedId || paidAmount <= 0}
               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
             >
               Confirm Payment · ₦
-              {total.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+              {finalTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Management Screen Modals */}
+      {showTaxManagement && (
+        <TaxManagementScreen
+          taxes={taxes}
+          onClose={() => setShowTaxManagement(false)}
+          onTaxSelect={handleTaxSelect}
+        />
+      )}
+
+      {showDiscountManagement && (
+        <DiscountManagementScreen
+          onClose={() => setShowDiscountManagement(false)}
+          onDiscountApply={handleDiscountApply}
+        />
+      )}
+
+      {showCustomerManagement && (
+        <CustomerManagementScreen
+          customers={customers}
+          onClose={() => setShowCustomerManagement(false)}
+          onCustomerSelect={handleCustomerSelect}
+          onCustomerAdd={handleCustomerAdd}
+          onCustomerRemove={handleCustomerRemove}
+        />
+      )}
     </div>
   );
 }
@@ -877,17 +2001,11 @@ function RefundScreen({
                     {item.name}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {item.qty} × ₦
-                    {item.price.toLocaleString("en-NG", {
-                      minimumFractionDigits: 2,
-                    })}
+                    {item.qty} × ₦{formatPrice(item.price)}
                   </p>
                 </div>
                 <span className="text-red-400 tabular-nums">
-                  ₦
-                  {item.total.toLocaleString("en-NG", {
-                    minimumFractionDigits: 2,
-                  })}
+                  ₦{formatPrice(item.total)}
                 </span>
               </div>
             ))
@@ -900,9 +2018,7 @@ function RefundScreen({
           <p
             className={`text-2xl font-bold mt-1 tabular-nums ${refundTotal > 0 ? "text-cyan-400" : "text-slate-600"}`}
           >
-            {refundTotal > 0
-              ? `−₦${refundTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`
-              : "—"}
+            {refundTotal > 0 ? `−₦${formatPrice(refundTotal)}` : "—"}
           </p>
         </div>
       </div>
@@ -948,9 +2064,7 @@ function RefundScreen({
             {matchedDoc && !error && (
               <p className="text-xs text-emerald-400">
                 Found · {new Date(matchedDoc.date).toLocaleDateString()} · ₦
-                {(matchedDoc.total ?? 0).toLocaleString("en-NG", {
-                  minimumFractionDigits: 2,
-                })}
+                {formatPrice(matchedDoc.total ?? 0)}
               </p>
             )}
           </div>
@@ -1351,74 +2465,6 @@ function VoidModal({
   );
 }
 
-// ─── Lock Screen ──────────────────────────────────────────────────────────────
-
-const LOCK_PIN_KEY = "pos_lock_pin";
-
-function LockScreen({ onUnlock }: { onUnlock: () => void }) {
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
-  const savedPin =
-    typeof window !== "undefined"
-      ? (localStorage.getItem(LOCK_PIN_KEY) ?? "1234")
-      : "1234";
-
-  const handleDigit = (d: string) => {
-    if (pin.length >= 4) return;
-    const next = pin + d;
-    setPin(next);
-    setError(false);
-    if (next.length === 4) {
-      setTimeout(() => {
-        if (next === savedPin) onUnlock();
-        else {
-          setError(true);
-          setPin("");
-        }
-      }, 150);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center z-100">
-      <Lock className="w-10 h-10 text-slate-500 mb-6" />
-      <p className="text-slate-700 dark:text-slate-300 text-sm mb-6 font-medium">
-        Enter PIN to unlock
-      </p>
-      <div className="flex gap-3 mb-8">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`w-4 h-4 rounded-full border-2 transition-colors ${pin.length > i ? (error ? "bg-red-500 border-red-500" : "bg-cyan-400 border-cyan-400") : "border-slate-600"}`}
-          />
-        ))}
-      </div>
-      {error && (
-        <p className="text-red-400 text-xs mb-4 -mt-4">Incorrect PIN</p>
-      )}
-      <div className="grid grid-cols-3 gap-3">
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map(
-          (d, i) =>
-            d === "" ? (
-              <div key={i} />
-            ) : (
-              <button
-                key={i}
-                onClick={() =>
-                  d === "⌫" ? setPin((p) => p.slice(0, -1)) : handleDigit(d)
-                }
-                className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-xl font-semibold transition-colors"
-              >
-                {d}
-              </button>
-            ),
-        )}
-      </div>
-      <p className="text-xs text-slate-600 mt-8">Default PIN: 1234</p>
-    </div>
-  );
-}
-
 // ─── Comment Modal ────────────────────────────────────────────────────────────
 
 function CommentModal({
@@ -1603,13 +2649,55 @@ export default function AroniumLite() {
   const stockLevelsQuery = useStockLevels();
   const stockLevels = stockLevelsQuery.data || {};
 
-  // Cart state
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [cartDiscount, setCartDiscount] = useState(0);
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
-  const [dineIn, setDineIn] = useState(false);
-  const [orderNote, setOrderNote] = useState("");
+  // Cart state persistence
+  const POS_STATE_KEY = "pos_cart_state";
+
+  const savedState = useMemo(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(POS_STATE_KEY);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  }, []);
+
+  const [items, setItems] = useState<CartItem[]>(savedState?.items || []);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(
+    savedState?.selectedItemId || null,
+  );
+  const [cartDiscount, setCartDiscount] = useState(
+    savedState?.cartDiscount || 0,
+  );
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(
+    savedState?.selectedCustomer || null,
+  );
+  const [dineIn, setDineIn] = useState(savedState?.dineIn || false);
+  const [orderNote, setOrderNote] = useState(savedState?.orderNote || "");
+
+  // Persistence effect
+  useEffect(() => {
+    const state = {
+      items,
+      selectedItemId,
+      cartDiscount,
+      selectedCustomer,
+      dineIn,
+      orderNote,
+    };
+    localStorage.setItem(POS_STATE_KEY, JSON.stringify(state));
+  }, [
+    items,
+    selectedItemId,
+    cartDiscount,
+    selectedCustomer,
+    dineIn,
+    orderNote,
+  ]);
 
   // UI
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1622,6 +2710,52 @@ export default function AroniumLite() {
   const [calcProduct, setCalcProduct] = useState<CartItem | null>(null);
   const [calcInitialQty, setCalcInitialQty] = useState(1);
   const priceList = useAllPrices();
+
+  // Handle continuing split payments
+  const [continuePaymentDoc, setContinuePaymentDoc] = useState<any | null>(
+    null,
+  );
+
+  useEffect(() => {
+    // Use sessionStorage for split payment document continuation
+    const splitPaymentDocId = sessionStorage.getItem("splitPaymentDocId");
+
+    if (splitPaymentDocId) {
+      console.log("Found splitPaymentDocId:", splitPaymentDocId);
+      const doc = documentsQuery.data?.find(
+        (d: any) => d.id === splitPaymentDocId,
+      );
+      console.log("Found document:", doc);
+      if (doc) {
+        setContinuePaymentDoc(doc);
+        // Clear sessionStorage
+        sessionStorage.removeItem("splitPaymentDocId");
+        // Pre-fill cart with document items
+        const cartItems: CartItem[] =
+          doc.items?.map((item: any) => ({
+            id: item.productId,
+            title: item.name,
+            cost: item.priceBeforeTax,
+            unit: item.unit || "",
+            qty: item.quantity,
+            discount: item.discount,
+            taxRate: item.taxRate,
+            priceLabel: "Retail" as const,
+            availablePrices: [
+              { label: "Retail" as const, price: item.priceBeforeTax },
+            ],
+            isLocked: true, // Lock items for split payment continuation
+          })) || [];
+
+        setItems(cartItems);
+        setSelectedCustomer(doc.customer || null);
+        setDineIn(doc.externalNumber === "DINE-IN");
+
+        // Automatically open payment modal with split payment selected
+        setModal("payment");
+      }
+    }
+  }, [documentsQuery.data, continuePaymentDoc]);
 
   // Derived
   const selectedItem = items.find((i) => i.id === selectedItemId) ?? null;
@@ -1644,9 +2778,10 @@ export default function AroniumLite() {
   const productOptions = useMemo(
     () =>
       (priceList?.data || []).map((p) => ({
-        value: p.product.id,
-        label: `${p.product.title} — ₦${p.salePrice} (${p.wholeSale ? "Wholesale" : "Retail"})`,
+        value: p.id,
+        label: `${p.product.title} — ₦${formatPrice(p.salePrice)} (${p.wholeSale ? "Wholesale" : "Retail"})`,
         product: p.product,
+        priceOption: p,
       })),
     [priceList?.data],
   );
@@ -1661,7 +2796,7 @@ export default function AroniumLite() {
 
   const addOrUpdateItem = (product: any, qty: number) => {
     const stock = stockLevels[product.id];
-    const available = stock?.preferredQuantity ?? 0;
+    const available = stock?.quantity ?? 0;
 
     if (available <= 0) {
       toast.error(`Cannot add ${product.title}. Stock is empty (0).`);
@@ -1669,11 +2804,16 @@ export default function AroniumLite() {
     }
 
     if (qty > available) {
-      toast.warn(`Only ${available} ${product.unit ?? "units"} available for ${product.title}.`);
+      toast.warn(
+        `Only ${available} ${product.unit ?? "units"} available for ${product.title}.`,
+      );
       qty = available;
     }
 
-    if (stock?.lowStockWarning && available <= (stock.lowStockWarningQuantity ?? 0)) {
+    if (
+      stock?.lowStockWarning &&
+      available <= (stock.lowStockWarningQuantity ?? 0)
+    ) {
       toast.warn(`${product.title} is running low on stock!`);
     }
 
@@ -1692,9 +2832,59 @@ export default function AroniumLite() {
           qty,
           discount: 0,
           taxRate,
+          priceLabel: product.priceLabel ?? "Retail",
+          availablePrices: product.availablePrices ?? [],
         },
       ];
     });
+  };
+
+  const togglePriceType = () => {
+    if (!selectedItemId || !selectedItem) return;
+    const nextLabel =
+      selectedItem.priceLabel === "Retail" ? "Wholesale" : "Retail";
+    const nextPrice = (selectedItem.availablePrices || []).find(
+      (p) => p.label === nextLabel,
+    )?.price;
+
+    if (nextPrice === undefined) {
+      toast.warn(`${nextLabel} price not available for this product.`);
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === selectedItemId
+          ? {
+              ...i,
+              priceLabel: nextLabel as "Retail" | "Wholesale",
+              cost: nextPrice,
+            }
+          : i,
+      ),
+    );
+  };
+
+  const toggleItemPrice = (e: React.MouseEvent, itemId: string) => {
+    e.stopPropagation();
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id !== itemId) return i;
+        const nextLabel = i.priceLabel === "Retail" ? "Wholesale" : "Retail";
+        const nextPrice = (i.availablePrices || []).find(
+          (p) => p.label === nextLabel,
+        )?.price;
+        if (nextPrice === undefined) {
+          toast.warn(`${nextLabel} price not available for this product.`);
+          return i;
+        }
+        return {
+          ...i,
+          priceLabel: nextLabel as "Retail" | "Wholesale",
+          cost: nextPrice,
+        };
+      }),
+    );
   };
 
   const deleteSelectedItem = () => {
@@ -1707,6 +2897,15 @@ export default function AroniumLite() {
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, discount: pct } : i)),
     );
+
+  const toggleLock = () => {
+    if (!selectedItemId) return;
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === selectedItemId ? { ...i, isLocked: !i.isLocked } : i,
+      ),
+    );
+  };
 
   const clearCart = () => {
     setItems([]);
@@ -1721,48 +2920,75 @@ export default function AroniumLite() {
 
   const buildDocumentPayload = (
     status: "draft" | "posted",
-    paid: boolean,
     payments?: { paymentId: string; paymentType: string; amount: number }[],
-  ) => ({
-    document: {
-      id: crypto.randomUUID(),
-      number: genDocNumber(),
-      customerId: selectedCustomer!.id,
-      date: new Date(),
+  ) => {
+    // Calculate total amount paid and outstanding balance
+    const totalPaid = payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
+    const outstandingBalance = Math.max(0, total - totalPaid);
+    const isFullyPaid = totalPaid >= total;
+
+    // Determine document status based on payment completion
+    let documentStatus: "draft" | "posted" = status;
+    if (payments && isFullyPaid) {
+      documentStatus = "posted";
+    }
+    // Otherwise keep the original status (draft for new, or passed in status)
+
+    const payload = {
+      document: {
+        id: crypto.randomUUID(),
+        number: genDocNumber(),
+        customerId: selectedCustomer!.id,
+        date: new Date(),
+        status: documentStatus,
+        paid: isFullyPaid,
+        totalBeforeTax: subtotal,
+        taxTotal,
+        total,
+        totalPaid,
+        outstandingBalance,
+        createdAt: new Date(),
+        externalNumber: dineIn ? "DINE-IN" : "TAKE-AWAY",
+      },
+      items: items.map((i) => ({
+        id: crypto.randomUUID(),
+        documentId: "",
+        productId: i.id,
+        name: i.title,
+        unit: i.unit,
+        quantity: i.qty,
+        priceBeforeTax: i.cost,
+        taxRate: i.taxRate,
+        discount: i.discount,
+        total: itemTotal(i),
+      })),
+      ...(payments
+        ? {
+            payments: payments.map((p) => ({
+              id: crypto.randomUUID(),
+              documentId: "",
+              paymentId: p.paymentId,
+              paymentType: p.paymentType,
+              amount: p.amount,
+              status: "paid" as const,
+              date: new Date(),
+            })),
+          }
+        : {}),
+    };
+
+    console.log("buildDocumentPayload - Generated payload:", {
       status,
-      paid,
-      totalBeforeTax: subtotal,
-      taxTotal,
       total,
-      createdAt: new Date(),
-      externalNumber: dineIn ? "DINE-IN" : "TAKE-AWAY",
-    },
-    items: items.map((i) => ({
-      id: crypto.randomUUID(),
-      documentId: "",
-      productId: i.id,
-      name: i.title,
-      unit: i.unit,
-      quantity: i.qty,
-      priceBeforeTax: i.cost,
-      taxRate: i.taxRate,
-      discount: i.discount,
-      total: itemTotal(i),
-    })),
-    ...(payments
-      ? {
-          payments: payments.map((p) => ({
-            id: crypto.randomUUID(),
-            documentId: "",
-            paymentId: p.paymentId,
-            paymentType: p.paymentType,
-            amount: p.amount,
-            status: "paid" as const,
-            date: new Date(),
-          })),
-        }
-      : {}),
-  });
+      totalPaid,
+      outstandingBalance,
+      isFullyPaid,
+      paymentsCount: payments?.length ?? 0,
+      paymentAmounts: payments?.map((p) => p.amount),
+    });
+
+    return payload;
+  };
 
   // ── Save sale ──
 
@@ -1776,8 +3002,9 @@ export default function AroniumLite() {
       setModal("customer");
       return;
     }
-    await createDocument.mutateAsync(buildDocumentPayload("draft", false));
+    await createDocument.mutateAsync(buildDocumentPayload("draft"));
     setShowSaveToast(true);
+    clearCart();
   };
 
   // ── Payment ──
@@ -1785,9 +3012,67 @@ export default function AroniumLite() {
   const handlePaymentConfirm = async (
     payments: { paymentId: string; paymentType: string; amount: number }[],
   ) => {
-    await createDocument.mutateAsync(
-      buildDocumentPayload("posted", true, payments),
-    );
+    console.log("handlePaymentConfirm called with payments:", {
+      count: payments.length,
+      payments: payments.map((p) => ({
+        paymentType: p.paymentType,
+        amount: p.amount,
+      })),
+      total,
+      continuePaymentDoc: continuePaymentDoc?.id,
+    });
+
+    if (continuePaymentDoc) {
+      // Update existing split payment document
+      const existingPayments = continuePaymentDoc.payments || [];
+      const allPayments = [...existingPayments, ...payments];
+
+      const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+      const outstandingBalance = Math.max(0, total - totalPaid);
+      const isFullyPaid = totalPaid >= total;
+
+      // In a real app, you would call an update mutation here
+      // For now, we'll create a new document to simulate the update
+      const docStatus: "draft" | "posted" = isFullyPaid ? "posted" : "draft";
+      const updatedPayload = {
+        document: {
+          id: continuePaymentDoc.id,
+          number: continuePaymentDoc.number,
+          customerId: continuePaymentDoc.customerId,
+          date: continuePaymentDoc.date,
+          status: docStatus,
+          paid: isFullyPaid,
+          totalBeforeTax: continuePaymentDoc.totalBeforeTax,
+          taxTotal: continuePaymentDoc.taxTotal,
+          total: continuePaymentDoc.total,
+          totalPaid,
+          outstandingBalance,
+          createdAt: continuePaymentDoc.createdAt,
+          externalNumber: continuePaymentDoc.externalNumber,
+        },
+        items: continuePaymentDoc.items || [],
+        payments: allPayments.map((p) => ({
+          id: crypto.randomUUID(),
+          documentId: continuePaymentDoc.id,
+          paymentId: p.paymentId,
+          paymentType: p.paymentType,
+          amount: p.amount,
+          status: "paid" as const,
+          date: new Date(),
+        })),
+      };
+
+      await createDocument.mutateAsync(updatedPayload);
+      setContinuePaymentDoc(null);
+    } else {
+      // Create new document
+      const payload = buildDocumentPayload("posted", payments);
+      console.log("handlePaymentConfirm - Payload from buildDocumentPayload:", {
+        paymentsInPayload: payload.payments?.length,
+      });
+
+      await createDocument.mutateAsync(payload);
+    }
 
     // Update stock for each item (sale decreases stock, refund increases stock)
     for (const item of items) {
@@ -1820,6 +3105,40 @@ export default function AroniumLite() {
     setModal("payment");
   };
 
+  const handleQuickPay = async (methodId: string) => {
+    if (items.length === 0) {
+      setWarning("Add at least one item before proceeding to payment.");
+      return;
+    }
+    if (!selectedCustomer) {
+      setWarning("Select a customer before proceeding to payment.");
+      setModal("customer");
+      return;
+    }
+
+    const enabled = paymentTypesQuery.data?.filter((p: any) => p.enabled) || [];
+    const displayTypes =
+      enabled.length > 0
+        ? enabled
+        : [
+            { id: "cash", name: "Cash", changeAllowed: true },
+            { id: "card", name: "Card", changeAllowed: false },
+            { id: "check", name: "Check", changeAllowed: false },
+            { id: "split", name: "Split Payments", changeAllowed: false },
+          ];
+
+    const pType =
+      displayTypes.find((p: any) => p.id === methodId) || displayTypes[0];
+
+    await handlePaymentConfirm([
+      {
+        paymentId: pType.id,
+        paymentType: pType.name,
+        amount: total,
+      },
+    ]);
+  };
+
   const prevCustomerRef = useRef<any>(null);
   useEffect(() => {
     prevCustomerRef.current = selectedCustomer;
@@ -1838,6 +3157,8 @@ export default function AroniumLite() {
       qty: -Math.abs(i.quantity),
       discount: i.discount ?? 0,
       taxRate: i.taxRate ?? 0,
+      priceLabel: "Retail",
+      availablePrices: [{ label: "Retail", price: i.priceBeforeTax }],
     }));
     setItems(refundItems);
   };
@@ -1858,9 +3179,6 @@ export default function AroniumLite() {
 
   return (
     <div className="h-dvh w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden">
-      {/* Lock screen */}
-      {modal === "lock" && <LockScreen onUnlock={() => setModal("none")} />}
-
       {/* Toasts */}
       {showCashDrawer && (
         <CashDrawerToast onClose={() => setShowCashDrawer(false)} />
@@ -1909,6 +3227,7 @@ export default function AroniumLite() {
           customer={selectedCustomer}
           onConfirm={handlePaymentConfirm}
           onClose={() => setModal("none")}
+          isContinuingPayment={!!continuePaymentDoc}
         />
       )}
       {modal === "refund" && (
@@ -1970,28 +3289,38 @@ export default function AroniumLite() {
               onChange={async (option: any) => {
                 if (!option) return;
                 const p = option.product;
+                const selectedPriceOption = option.priceOption;
+                const isSelectedWholesale = selectedPriceOption.wholeSale;
 
                 // Immediate stock check
                 const stock = stockLevels[p.id];
-                const available = stock?.preferredQuantity ?? 0;
+                const available = stock?.quantity ?? 0;
                 if (available <= 0) {
                   toast.error(`Cannot add ${p.title}. Stock is empty (0).`);
                   return;
                 }
 
                 const prices = await getProductPrices(p.id);
-                const defaultPrice =
-                  prices.find((pr) => pr.isDefault) || prices[0];
+                const availablePrices: {
+                  label: "Retail" | "Wholesale";
+                  price: number;
+                }[] = prices.map((pr: any) => ({
+                  label: pr.wholeSale ? "Wholesale" : "Retail",
+                  price: pr.salePrice,
+                }));
                 const existing = items.find((i) => i.id === p.id);
+
                 openQtyModal(
                   existing ?? {
                     id: p.id,
                     title: p.title,
-                    cost: defaultPrice ? defaultPrice.salePrice : (p.cost ?? 0),
+                    cost: selectedPriceOption.salePrice,
                     unit: p.unit ?? "",
                     qty: 1,
                     discount: 0,
                     taxRate: p.taxes?.[0]?.tax?.rate ?? 0,
+                    priceLabel: isSelectedWholesale ? "Wholesale" : "Retail",
+                    availablePrices,
                   },
                   existing?.qty ?? 1,
                 );
@@ -2049,6 +3378,12 @@ export default function AroniumLite() {
               >
                 <Percent className="w-3 h-3" /> {cartDiscount}% off
               </button>
+            )}
+            {continuePaymentDoc && (
+              <div className="flex items-center gap-1 bg-amber-950 border border-amber-700 rounded px-2 py-0.5 text-xs text-amber-300">
+                <CreditCard className="w-3 h-3" />
+                Continuing: {continuePaymentDoc.number}
+              </div>
             )}
             {orderNote && (
               <button
@@ -2109,7 +3444,9 @@ export default function AroniumLite() {
                     <div
                       key={item.id}
                       onClick={() => setSelectedItemId(item.id)}
-                      onDoubleClick={() => openQtyModal(item, item.qty)}
+                      onDoubleClick={() =>
+                        !item.isLocked && openQtyModal(item, item.qty)
+                      }
                       className={`grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors ${
                         selectedItemId === item.id
                           ? "bg-emerald-900/30 border-l-2 border-l-emerald-500"
@@ -2119,17 +3456,26 @@ export default function AroniumLite() {
                       <div className="flex flex-col justify-center min-w-0">
                         <span className="truncate text-sm text-slate-800 dark:text-slate-200">
                           {item.title}
+                          {item.isLocked && (
+                            <Lock className="inline w-3 h-3 text-amber-500 ml-1.5 mb-0.5" />
+                          )}
                         </span>
-                        {item.discount > 0 && (
-                          <span className="text-[10px] text-amber-400">
-                            {item.discount}% disc.
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className={`text-[8px] font-bold px-1 rounded uppercase tracking-tighter ${
+                              item.priceLabel === "Wholesale"
+                                ? "bg-amber-900/40 text-amber-400 border border-amber-800"
+                                : "bg-sky-900/40 text-sky-400 border border-sky-800"
+                            }`}
+                          >
+                            {item.priceLabel}
                           </span>
-                        )}
-                        {item.unit && (
-                          <span className="text-[10px] text-slate-600">
-                            {item.unit}
-                          </span>
-                        )}
+                          {item.unit && (
+                            <span className="text-[10px] text-slate-600">
+                              {item.unit}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div
                         className={`text-right text-sm self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-700 dark:text-slate-300"}`}
@@ -2137,12 +3483,28 @@ export default function AroniumLite() {
                         {item.qty}
                       </div>
                       <div className="text-right text-sm self-center tabular-nums text-slate-500 dark:text-slate-400">
-                        ₦{item.cost.toFixed(2)}
+                        <button
+                          onClick={(e) =>
+                            !item.isLocked && toggleItemPrice(e, item.id)
+                          }
+                          className={`px-1.5 py-0.5 rounded transition-colors ${
+                            item.isLocked
+                              ? "cursor-not-allowed opacity-60"
+                              : "hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          }`}
+                          title={
+                            item.isLocked
+                              ? "Item locked"
+                              : "Click to switch price"
+                          }
+                        >
+                          ₦{formatPrice(item.cost)}
+                        </button>
                       </div>
                       <div
                         className={`text-right text-sm font-medium self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-800 dark:text-slate-200"}`}
                       >
-                        ₦{itemTotal(item).toFixed(2)}
+                        ₦{formatPrice(itemTotal(item))}
                       </div>
                     </div>
                   ))
@@ -2154,27 +3516,27 @@ export default function AroniumLite() {
                 <div className="flex justify-between text-xs text-slate-500">
                   <span>Subtotal</span>
                   <span className="tabular-nums">
-                    ₦{subtotalGross.toFixed(2)}
+                    ₦{formatPrice(subtotalGross)}
                   </span>
                 </div>
                 {cartDiscount > 0 && (
                   <div className="flex justify-between text-xs text-amber-500">
                     <span>Discount ({cartDiscount}%)</span>
                     <span className="tabular-nums">
-                      −₦{cartDiscountAmt.toFixed(2)}
+                      −₦{formatPrice(cartDiscountAmt)}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between text-xs text-slate-500">
                   <span>Tax</span>
-                  <span className="tabular-nums">₦{taxTotal.toFixed(2)}</span>
+                  <span className="tabular-nums">₦{formatPrice(taxTotal)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-slate-300 dark:border-slate-800">
                   <span className="text-slate-800 dark:text-slate-200">
                     Total
                   </span>
                   <span className="tabular-nums text-slate-900 dark:text-slate-100">
-                    ₦{total.toFixed(2)}
+                    ₦{formatPrice(total)}
                   </span>
                 </div>
               </div>
@@ -2194,7 +3556,13 @@ export default function AroniumLite() {
                     icon={X}
                     label="Delete"
                     onClick={deleteSelectedItem}
-                    disabled={!selectedItemId}
+                    disabled={!selectedItemId || selectedItem?.isLocked}
+                  />
+                  <ActBtn
+                    icon={Hash}
+                    label={selectedItem?.priceLabel || "Price"}
+                    onClick={togglePriceType}
+                    disabled={!selectedItemId || selectedItem?.isLocked}
                   />
                   <ActBtn
                     icon={TbBasketPlus}
@@ -2204,18 +3572,20 @@ export default function AroniumLite() {
                       selectedItem &&
                       openQtyModal(selectedItem, selectedItem.qty)
                     }
-                    disabled={!selectedItemId}
+                    disabled={!selectedItemId || selectedItem?.isLocked}
                   />
                   <ActBtn
                     icon={Percent}
                     label="Discount"
                     hotkey="F2"
                     onClick={() => setModal("discount")}
+                    disabled={selectedItem?.isLocked}
                   />
                   <ActBtn
                     icon={MessageSquare}
                     label="Note"
                     onClick={() => setModal("comment")}
+                    disabled={selectedItem?.isLocked}
                   />
                 </div>
               </div>
@@ -2251,13 +3621,13 @@ export default function AroniumLite() {
                 <ZoneLabel>Quick pay</ZoneLabel>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
-                    onClick={openPayment}
+                    onClick={() => handleQuickPay("cash")}
                     className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 border-b-2 border-b-emerald-600 rounded h-10 hover:bg-slate-100 dark:hover:bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     F12 Cash
                   </button>
                   <button
-                    onClick={openPayment}
+                    onClick={() => handleQuickPay("card")}
                     className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 border-b-2 border-b-blue-600 rounded h-10 hover:bg-slate-100 dark:hover:bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     Card
@@ -2278,7 +3648,7 @@ export default function AroniumLite() {
                   <span className="text-base">Payment</span>
                   {items.length > 0 && (
                     <span className="text-xs opacity-80 tabular-nums">
-                      ₦{total.toFixed(2)}
+                      ₦{formatPrice(total)}
                     </span>
                   )}
                 </button>
@@ -2326,11 +3696,20 @@ export default function AroniumLite() {
                     <span className="text-[10px] font-semibold">Void</span>
                   </button>
                   <button
-                    onClick={() => setModal("lock")}
+                    onClick={toggleLock}
                     className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 rounded py-2.5 transition-colors text-slate-500 dark:text-slate-400"
                   >
-                    <Lock className="w-4 h-4" />
-                    <span className="text-[10px]">Lock</span>
+                    {selectedItem?.isLocked ? (
+                      <>
+                        <Unlock className="w-4 h-4" />
+                        <span className="text-[10px]">Unlock</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span className="text-[10px]">Lock</span>
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => setDrawerOpen(true)}

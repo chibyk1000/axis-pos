@@ -2,7 +2,7 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 import { customers } from ".";
-import { paymentTypes } from "./paymentTypes";
+
 import { documentItems } from "./documentItems";
 import { users } from "./users";
 import { companies } from "./company";
@@ -34,6 +34,8 @@ export const documents = sqliteTable("documents", {
   totalBeforeTax: real("total_before_tax").default(0),
   taxTotal: real("tax_total").default(0),
   total: real("total").default(0),
+  totalPaid: real("total_paid").default(0),
+  outstandingBalance: real("outstanding_balance").default(0),
 
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -44,9 +46,7 @@ export const documentPayments = sqliteTable("docmentPayments", {
   documentId: text("document_id")
     .notNull()
     .references(() => documents.id, { onDelete: "cascade" }),
-  paymentId: text("payment_id")
-    .notNull()
-    .references(() => paymentTypes.id, { onDelete: "cascade" }),
+  paymentId: text("payment_id").notNull(),
 
   status: text("status")
     .$type<"pending" | "paid" | "failed">()

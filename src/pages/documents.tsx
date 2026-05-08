@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -15,12 +15,12 @@ import {
   TrendingUp,
   Clock,
   Eye,
-
   Calendar,
   CreditCard,
   Banknote,
   Receipt,
   RotateCcw,
+  Percent,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useDocuments } from "@/hooks/controllers/documents";
@@ -28,13 +28,820 @@ import { useCreateDocument } from "@/hooks/controllers/documents";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "react-toastify";
 
+// ─── Split Payment Screen Component ───────────────────────────────────────────────
+
+function SplitPaymentScreen({
+  document,
+  paymentTypes,
+  onClose,
+  onPaymentComplete,
+}: {
+  document: Document;
+  paymentTypes: any[];
+  onClose: () => void;
+  onPaymentComplete: (
+    payments: { paymentId: string; paymentType: string; amount: number }[],
+  ) => void;
+}) {
+  const enabled = paymentTypes.filter((p) => p.enabled && p.id !== "split");
+  const displayTypes =
+    enabled.length > 0
+      ? enabled
+      : [
+          { id: "cash", name: "Cash", changeAllowed: true },
+          { id: "card", name: "Card", changeAllowed: false },
+          { id: "check", name: "Check", changeAllowed: false },
+        ];
+
+  const [paidInput, setPaidInput] = useState("0.00");
+  const [selectedTypeId, setSelectedTypeId] = useState<string>(
+    displayTypes[0]?.id ?? "",
+  );
+
+  const selectedType = displayTypes.find((p) => p.id === selectedTypeId);
+  const paidAmount = parseFloat(paidInput) || 0;
+  const remaining = Math.max(0, document.outstandingBalance - paidAmount);
+
+  const handleKey = useCallback(
+    (val: string) => {
+      if (val === "⌫") {
+        setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+      } else if (val === "C") {
+        setPaidInput("0");
+      } else if (val === ".") {
+        if (!paidInput.includes(".")) setPaidInput((p) => p + ".");
+      } else if (val === "-") {
+        setPaidInput(document.total.toFixed(2));
+      } else {
+        setPaidInput((p) => (p === "0" ? val : p + val));
+      }
+    },
+    [document.total],
+  );
+
+  const KEYS = [
+    "1",
+    "2",
+    "3",
+    "⌫",
+    "4",
+    "5",
+    "6",
+    "C",
+    "7",
+    "8",
+    "9",
+    "↵",
+    "-",
+    "0",
+    ".",
+    "",
+  ];
+
+  const handleSave = () => {
+    if (!selectedType || paidAmount <= 0) return;
+
+    const paymentData = [
+      {
+        paymentId: selectedType.id,
+        paymentType: selectedType.name,
+        amount: paidAmount,
+      },
+    ];
+
+    onPaymentComplete(paymentData);
+    onClose();
+  };
+
+  const formatPrice = (amount: number) => {
+    return amount.toLocaleString("en-NG", { minimumFractionDigits: 2 });
+  };
+
+  const itemTotal = (item: any) => {
+    return (
+      item.priceBeforeTax *
+      item.quantity *
+      (1 - item.discount / 100) *
+      (1 + item.taxRate / 100)
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Continue Payment
+            </p>
+            <p className="text-xs text-cyan-400 mt-0.5">{document.number}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+            Items
+          </p>
+          {document.items?.map((item: any) => (
+            <div
+              key={item.id}
+              className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+            >
+              <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
+                {item.quantity !== 1 && (
+                  <span className="text-slate-500 mr-1">{item.quantity}×</span>
+                )}
+                {item.name}
+              </span>
+              <span className="tabular-nums text-slate-800 dark:text-slate-200">
+                ₦
+                {itemTotal(item).toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 space-y-1.5 text-sm">
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>Subtotal</span>
+            <span>
+              ₦
+              {document.totalBeforeTax.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>Tax</span>
+            <span>
+              ₦
+              {document.taxTotal.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+          <div className="flex justify-between font-bold text-xl text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+            <span>Total</span>
+            <span>₦{formatPrice(document.total)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-semibold text-emerald-400">
+            <span>Paid</span>
+            <span>₦{formatPrice(document.totalPaid)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-semibold text-red-400">
+            <span>Remaining</span>
+            <span>₦{formatPrice(document.outstandingBalance)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Payment Methods
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Payment Type Selection */}
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <label className="text-xs text-slate-500 mb-2 block">
+                Payment Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {displayTypes.map((pt) => (
+                  <button
+                    key={pt.id}
+                    onClick={() => setSelectedTypeId(pt.id)}
+                    className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
+                      selectedTypeId === pt.id
+                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {pt.name.toLowerCase().includes("card") ? (
+                      <CreditCard className="w-4 h-4" />
+                    ) : (
+                      <Banknote className="w-4 h-4" />
+                    )}
+                    {pt.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Calculator Interface */}
+            <div className="flex-1 flex flex-col justify-between min-h-0">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Amount</p>
+                  <input
+                    type="text"
+                    value={paidInput}
+                    onChange={(e) => setPaidInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                    }}
+                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-0.5">Remaining</p>
+                  <p className="text-2xl font-bold tabular-nums text-red-400">
+                    ₦{formatPrice(remaining)}
+                    {remaining > 0 && (
+                      <span className="text-sm ml-1">(owed)</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2.5">
+                {KEYS.map((key, i) => {
+                  if (key === "") return <div key={i} />;
+                  const isBackspace = key === "⌫";
+                  const isEnter = key === "↵";
+                  const isDash = key === "-";
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleKey(key)}
+                      className={`py-4 rounded text-lg font-medium transition-colors ${
+                        isBackspace
+                          ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                          : isEnter
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                            : isDash
+                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
+                              : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                      }`}
+                      title={isDash ? "Set to exact total" : undefined}
+                    >
+                      {isDash ? "Exact" : key}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={!selectedType || paidAmount <= 0}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              >
+                Save · ₦
+                {paidAmount.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tax Management Screen Component ────────────────────────────────────────────
+
+function TaxManagementScreen({
+  taxes,
+  onClose,
+  onTaxSelect,
+}: {
+  taxes: any[];
+  onClose: () => void;
+  onTaxSelect: (tax: any) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTaxId, setSelectedTaxId] = useState<string>("");
+
+  const filteredTaxes = taxes.filter(
+    (tax) =>
+      tax.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tax.rate.toString().includes(searchTerm),
+  );
+
+  const handleTaxClick = (tax: any) => {
+    setSelectedTaxId(tax.id);
+    onTaxSelect(tax);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Tax Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search taxes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              />
+            </div>
+
+            {/* Tax List */}
+            <div className="space-y-2">
+              {filteredTaxes.map((tax) => (
+                <div
+                  key={tax.id}
+                  onClick={() => handleTaxClick(tax)}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedTaxId === tax.id
+                      ? "border-cyan-500 bg-cyan-950/20"
+                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {tax.name}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {tax.description || "No description"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-cyan-600">
+                        {tax.rate}%
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {tax.compound ? "Compound" : "Standard"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Discount Management Screen Component ───────────────────────────────────────
+
+function DiscountManagementScreen({
+  onClose,
+  onDiscountApply,
+}: {
+  onClose: () => void;
+  onDiscountApply: (discount: {
+    type: "percent" | "amount";
+    value: number;
+  }) => void;
+}) {
+  const [discountType, setDiscountType] = useState<"percent" | "amount">(
+    "percent",
+  );
+  const [discountInput, setDiscountInput] = useState("0");
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
+
+  const presetDiscounts = [
+    { id: "5", label: "5%", value: 5, type: "percent" as const },
+    { id: "10", label: "10%", value: 10, type: "percent" as const },
+    { id: "15", label: "15%", value: 15, type: "percent" as const },
+    { id: "20", label: "20%", value: 20, type: "percent" as const },
+    { id: "25", label: "25%", value: 25, type: "percent" as const },
+    { id: "50", label: "50%", value: 50, type: "percent" as const },
+    { id: "100", label: "₦100", value: 100, type: "amount" as const },
+    { id: "500", label: "₦500", value: 500, type: "amount" as const },
+    { id: "1000", label: "₦1,000", value: 1000, type: "amount" as const },
+  ];
+
+  const handleKey = useCallback(
+    (val: string) => {
+      if (val === "⌫") {
+        setDiscountInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+      } else if (val === "C") {
+        setDiscountInput("0");
+      } else if (val === ".") {
+        if (!discountInput.includes(".")) setDiscountInput((p) => p + ".");
+      } else {
+        setDiscountInput((p) => (p === "0" ? val : p + val));
+      }
+    },
+    [discountInput],
+  );
+
+  const KEYS = [
+    "1",
+    "2",
+    "3",
+    "⌫",
+    "4",
+    "5",
+    "6",
+    "C",
+    "7",
+    "8",
+    "9",
+    "↵",
+    "0",
+    ".",
+    "",
+    "",
+  ];
+
+  const handleApply = () => {
+    const value = parseFloat(discountInput) || 0;
+    if (value > 0) {
+      onDiscountApply({ type: discountType, value });
+      onClose();
+    }
+  };
+
+  const handlePresetClick = (preset: (typeof presetDiscounts)[0]) => {
+    setSelectedPreset(preset.id);
+    setDiscountType(preset.type);
+    setDiscountInput(preset.value.toString());
+  };
+
+  const discountValue = parseFloat(discountInput) || 0;
+  const displayValue =
+    discountType === "percent"
+      ? `${discountValue}%`
+      : `₦${discountValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Discount Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-6">
+            {/* Discount Type Selection */}
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+              <label className="text-xs text-slate-500 mb-2 block">
+                Discount Type
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setDiscountType("percent")}
+                  className={`py-2 rounded text-sm font-medium transition-colors border ${
+                    discountType === "percent"
+                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  <Percent className="w-4 h-4 inline mr-1" />
+                  Percentage
+                </button>
+                <button
+                  onClick={() => setDiscountType("amount")}
+                  className={`py-2 rounded text-sm font-medium transition-colors border ${
+                    discountType === "amount"
+                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                  }`}
+                >
+                  <Banknote className="w-4 h-4 inline mr-1" />
+                  Fixed Amount
+                </button>
+              </div>
+            </div>
+
+            {/* Preset Discounts */}
+            <div>
+              <label className="text-xs text-slate-500 mb-2 block">
+                Quick Presets
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {presetDiscounts.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => handlePresetClick(preset)}
+                    className={`py-2 rounded text-sm font-medium transition-colors border ${
+                      selectedPreset === preset.id
+                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Amount Input */}
+            <div>
+              <label className="text-xs text-slate-500 mb-2 block">
+                Custom Amount
+              </label>
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="text"
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleApply();
+                    }}
+                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold tabular-nums text-emerald-400">
+                    {displayValue}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Calculator */}
+            <div className="grid grid-cols-4 gap-2.5">
+              {KEYS.map((key, i) => {
+                if (key === "") return <div key={i} />;
+                const isBackspace = key === "⌫";
+                const isEnter = key === "↵";
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleKey(key)}
+                    className={`py-4 rounded text-lg font-medium transition-colors ${
+                      isBackspace
+                        ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                        : isEnter
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                          : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                    }`}
+                  >
+                    {key}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Apply Button */}
+            <button
+              onClick={handleApply}
+              disabled={discountValue <= 0}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+            >
+              Apply Discount · {displayValue}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Customer Management Screen Component ───────────────────────────────────────
+
+function CustomerManagementScreen({
+  customers,
+  onClose,
+  onCustomerSelect,
+  onCustomerAdd,
+  onCustomerRemove,
+}: {
+  customers: Customer[];
+  onClose: () => void;
+  onCustomerSelect: (customer: Customer) => void;
+  onCustomerAdd: (customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => void;
+  onCustomerRemove: (customerId: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.email &&
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (customer.phoneNumber && customer.phoneNumber.includes(searchTerm)),
+  );
+
+  const handleCustomerClick = (customer: Customer) => {
+    setSelectedCustomerId(customer.id);
+    onCustomerSelect(customer);
+  };
+
+  const handleAddCustomer = () => {
+    if (newCustomer.name.trim()) {
+      onCustomerAdd({
+        name: newCustomer.name.trim(),
+        email: newCustomer.email.trim() || undefined,
+        phone: newCustomer.phone.trim() || undefined,
+      });
+      setNewCustomer({ name: "", email: "", phone: "" });
+      setShowAddForm(false);
+    }
+  };
+
+  const handleRemoveCustomer = (customerId: string) => {
+    if (confirm("Are you sure you want to remove this customer?")) {
+      onCustomerRemove(customerId);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+      <div className="flex-1 flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+              Customer Management
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          <div className="space-y-4">
+            {/* Search and Add */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Customer
+              </button>
+            </div>
+
+            {/* Add Customer Form */}
+            {showAddForm && (
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
+                  Add New Customer
+                </h3>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Customer Name *"
+                    value={newCustomer.name}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email (optional)"
+                    value={newCustomer.email}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone (optional)"
+                    value={newCustomer.phone}
+                    onChange={(e) =>
+                      setNewCustomer({ ...newCustomer, phone: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddCustomer}
+                      disabled={!newCustomer.name.trim()}
+                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Add Customer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewCustomer({ name: "", email: "", phone: "" });
+                      }}
+                      className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Customer List */}
+            <div className="space-y-2">
+              {filteredCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors group ${
+                    selectedCustomerId === customer.id
+                      ? "border-cyan-500 bg-cyan-950/20"
+                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="flex-1"
+                      onClick={() => handleCustomerClick(customer)}
+                    >
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {customer.name}
+                      </p>
+                      {customer.email && (
+                        <p className="text-sm text-slate-500">
+                          {customer.email}
+                        </p>
+                      )}
+                      {customer.phoneNumber && (
+                        <p className="text-sm text-slate-500">
+                          {customer.phoneNumber}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveCustomer(customer.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-600 hover:bg-red-950 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DocStatus = "posted" | "draft" | "cancelled" | "refund" | "void";
+type DocStatus = "posted" | "draft" | "cancelled" | "refund" | "void" | "split";
 
 interface Customer {
   id: string;
   name: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
 interface Document {
@@ -48,10 +855,12 @@ interface Document {
   totalBeforeTax: number;
   taxTotal: number;
   total: number;
+  totalPaid: number;
+  outstandingBalance: number;
   externalNumber?: string;
   items?: DocumentItem[];
   payments?: DocumentPayment[];
-  createdAt?: Date | string;
+  createdAt: Date;
 }
 
 interface DocumentItem {
@@ -77,7 +886,7 @@ interface DocumentPayment {
   date: Date | string;
 }
 
-type FilterStatus = "all" | "paid" ;
+type FilterStatus = "all" | "paid";
 type DateRange = "today" | "week" | "month" | "all";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -131,8 +940,11 @@ function isThisMonth(d: Date | string) {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ paid } : { paid: boolean }) {
-  const map: Record<"paid" | "unpaid", { label: string; cls: string }> = {
+function StatusBadge({ status, paid }: { status?: DocStatus; paid: boolean }) {
+  const map: Record<
+    "paid" | "unpaid" | "split",
+    { label: string; cls: string }
+  > = {
     paid: {
       label: "Paid",
       cls: "bg-emerald-950 text-emerald-400 border border-emerald-800",
@@ -141,9 +953,22 @@ function StatusBadge({ paid } : { paid: boolean }) {
       label: "Unpaid",
       cls: "bg-red-950 text-red-400 border border-red-800",
     },
+    split: {
+      label: "Split",
+      cls: "bg-amber-950 text-amber-400 border border-amber-800",
+    },
   };
 
-  const { label, cls } = paid ? map.paid : map.unpaid;
+  let label: string;
+  let cls: string;
+
+  if (status === "split") {
+    ({ label, cls } = map.split);
+  } else if (paid) {
+    ({ label, cls } = map.paid);
+  } else {
+    ({ label, cls } = map.unpaid);
+  }
 
   return (
     <span
@@ -162,7 +987,10 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
   const payments = doc.payments ?? [];
 
   return (
-    <div id="print-receipt" className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 text-slate-950 font-sans">
+    <div
+      id="print-receipt"
+      className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 text-slate-950 font-sans"
+    >
       <div className="max-w-[400px] mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold m-0">Axis POS</h1>
@@ -170,9 +998,15 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
         </div>
 
         <div className="border-y border-slate-200 py-3 mb-5 text-[13px] flex flex-col gap-1">
-          <div className="flex justify-between"><span>Document #</span> <span>{doc.number}</span></div>
-          <div className="flex justify-between"><span>Date</span> <span>{fmtDateTime(doc.date)}</span></div>
-          <div className="flex justify-between"><span>Customer</span> <span>{doc.customer?.name ?? "Walk-in"}</span></div>
+          <div className="flex justify-between">
+            <span>Document #</span> <span>{doc.number}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Date</span> <span>{fmtDateTime(doc.date)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Customer</span> <span>{doc.customer?.name ?? "Walk-in"}</span>
+          </div>
         </div>
 
         <table className="w-full border-collapse mb-5">
@@ -187,7 +1021,9 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
               <tr key={item.id} className="border-b border-slate-50">
                 <td className="py-2">
                   <div className="font-medium text-sm">{item.name}</div>
-                  <div className="text-[11px] text-slate-500">{Math.abs(item.quantity)} x {fmt(item.priceBeforeTax)}</div>
+                  <div className="text-[11px] text-slate-500">
+                    {Math.abs(item.quantity)} x {fmt(item.priceBeforeTax)}
+                  </div>
                 </td>
                 <td className="py-2 text-right text-sm">{fmt(item.total)}</td>
               </tr>
@@ -196,9 +1032,24 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
         </table>
 
         <div className="border-t-2 border-slate-900 pt-3 flex flex-col gap-1">
-          <div className="flex justify-between text-sm"><span>Subtotal</span> <span>{fmt(doc.totalBeforeTax)}</span></div>
-          <div className="flex justify-between text-sm"><span>Tax Total</span> <span>{fmt(doc.taxTotal)}</span></div>
-          <div className="flex justify-between text-lg font-bold mt-2"><span>Total</span> <span>{fmt(doc.total)}</span></div>
+          <div className="flex justify-between text-sm">
+            <span>Subtotal</span> <span>{fmt(doc.totalBeforeTax)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span>Tax Total</span> <span>{fmt(doc.taxTotal)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-bold mt-2">
+            <span>Total</span> <span>{fmt(doc.total)}</span>
+          </div>
+          <div className="flex justify-between text-sm mt-1">
+            <span>Paid</span> <span>{fmt(doc.totalPaid)}</span>
+          </div>
+          {doc.outstandingBalance > 0 && (
+            <div className="flex justify-between text-sm">
+              <span>Outstanding</span>{" "}
+              <span>{fmt(doc.outstandingBalance)}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-5">
@@ -315,6 +1166,7 @@ function SidePanel({
   onRefund,
   onPrint,
   onDuplicate,
+  onContinuePayment,
 }: {
   doc: Document;
   onClose: () => void;
@@ -322,9 +1174,23 @@ function SidePanel({
   onRefund: (doc: Document) => void;
   onPrint: (doc: Document) => void;
   onDuplicate: (doc: Document) => void;
+  onContinuePayment: (doc: Document) => void;
 }) {
   const items = doc.items ?? [];
   const payments = doc.payments ?? [];
+
+  console.debug("SidePanel - Document data:", {
+    id: doc.id,
+    number: doc.number,
+    total: doc.total,
+    totalPaid: doc.totalPaid,
+    outstandingBalance:
+      doc.totalPaid > doc.total
+        ? doc.totalPaid - doc.total
+        : doc.outstandingBalance,
+    paid: doc.paid,
+    paymentsCount: payments.length,
+  });
 
   const paymentIcon = (type: string) => {
     const t = type.toLowerCase();
@@ -338,8 +1204,7 @@ function SidePanel({
       <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <StatusBadge paid={doc.paid} />
-            
+            <StatusBadge status={doc.status} paid={doc.paid} />
           </div>
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
             {doc.customer?.name ?? "Walk-in"}
@@ -472,6 +1337,33 @@ function SidePanel({
                 {fmt(doc.total)}
               </span>
             </div>
+            <div className="flex justify-between pt-1">
+              <span className="text-slate-500">Paid</span>
+              <span className="text-emerald-400 tabular-nums font-medium">
+                {fmt(doc.totalPaid)}
+              </span>
+            </div>
+            {doc.outstandingBalance > 0 && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Outstanding</span>
+                <span className="text-red-400 tabular-nums font-medium">
+                  {fmt(doc.outstandingBalance)}
+                </span>
+              </div>
+            )}
+            {doc.totalPaid > doc.total && (
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Overpayment</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-amber-400 font-medium">
+                    OVERPAY
+                  </span>
+                  <span className="text-amber-400 tabular-nums font-medium">
+                    {fmt(doc.totalPaid - doc.total)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -501,6 +1393,15 @@ function SidePanel({
             Refund
           </button>
         )}
+        {doc.status === "split" && (
+          <button
+            onClick={() => onContinuePayment(doc)}
+            className="flex items-center justify-center gap-1.5 bg-amber-950 hover:bg-amber-900 border border-amber-700 rounded-lg py-2 text-xs text-amber-400 transition-colors"
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            Continue Payment
+          </button>
+        )}
         {(doc.status === "posted" || doc.status === "draft") && (
           <button
             onClick={() => onVoid(doc)}
@@ -522,6 +1423,7 @@ const PAGE_SIZE = 12;
 export default function DocumentsPage() {
   const router = useNavigate();
   const documentsQuery = useDocuments();
+
   const createDocument = useCreateDocument();
   const { user } = useAuth();
   const docs: Document[] = (documentsQuery.data as any) ?? [];
@@ -537,6 +1439,65 @@ export default function DocumentsPage() {
     type: "void" | "refund" | "bulkVoid";
     doc?: Document;
   } | null>(null);
+  const [splitPaymentDoc, setSplitPaymentDoc] = useState<Document | null>(null);
+  const [paymentTypesQuery] = useState<any[]>([
+    { id: "cash", name: "Cash", enabled: true },
+    { id: "card", name: "Card", enabled: true },
+    { id: "check", name: "Check", enabled: true },
+  ]);
+
+  // Management screen states
+  const [showTaxManagement, setShowTaxManagement] = useState(false);
+  const [showDiscountManagement, setShowDiscountManagement] = useState(false);
+  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
+
+  // Sample data for demonstration
+  const [taxes] = useState<any[]>([
+    {
+      id: "1",
+      name: "VAT",
+      rate: 7.5,
+      description: "Value Added Tax",
+      compound: false,
+    },
+    {
+      id: "2",
+      name: "Service Tax",
+      rate: 5,
+      description: "Service charge",
+      compound: false,
+    },
+    {
+      id: "3",
+      name: "Luxury Tax",
+      rate: 10,
+      description: "Luxury goods tax",
+      compound: true,
+    },
+    {
+      id: "4",
+      name: "Import Duty",
+      rate: 15,
+      description: "Import tax",
+      compound: false,
+    },
+  ]);
+
+  const [customers, setCustomers] = useState<Customer[]>([
+    {
+      id: "1",
+      name: "John Doe",
+      email: "john@example.com",
+      phoneNumber: "08012345678",
+    } as any,
+    {
+      id: "2",
+      name: "Jane Smith",
+      email: "jane@example.com",
+      phoneNumber: "08087654321",
+    } as any,
+    { id: "3", name: "Bob Johnson", phoneNumber: "08098765432" } as any,
+  ]);
 
   // ── Derived / filtered data ──
   const filtered = useMemo(() => {
@@ -587,16 +1548,23 @@ export default function DocumentsPage() {
   const stats = useMemo(() => {
     const today = docs.filter((d) => isToday(d.date));
     const week = docs.filter((d) => isThisWeek(d.date));
+
+    // Calculate actual sales based on paid amounts, not just totals
     const todaySales = today
       .filter((d) => d.status === "posted")
-      .reduce((s, d) => s + d.total, 0);
+      .reduce((s, d) => s + d.totalPaid, 0);
     const weekSales = week
       .filter((d) => d.status === "posted")
-      .reduce((s, d) => s + d.total, 0);
+      .reduce((s, d) => s + d.totalPaid, 0);
+
+    // Calculate refunds based on negative totals (actual refund amounts)
     const refundTotal = docs
-      .filter((d) => d.status === "refund")
+      .filter((d) => d.status === "refund" || d.total < 0)
       .reduce((s, d) => s + Math.abs(d.total), 0);
+
+    // Count drafts
     const drafts = docs.filter((d) => d.status === "draft").length;
+
     return { todaySales, weekSales, refundTotal, drafts };
   }, [docs]);
 
@@ -638,20 +1606,126 @@ export default function DocumentsPage() {
     }, 100);
   };
 
+  const handleContinuePayment = (doc: Document) => {
+    console.log("Continue payment clicked for document:", doc.id, doc.number);
+    // Show split payment modal
+    setSplitPaymentDoc(doc);
+  };
+
+  const handlePaymentComplete = async (
+    payments: { paymentId: string; paymentType: string; amount: number }[],
+  ) => {
+    if (!splitPaymentDoc) return;
+
+    console.log("Payment complete for document:", splitPaymentDoc.id, payments);
+
+    // Combine existing payments with new payments
+    const existingPayments = splitPaymentDoc.payments || [];
+    const allPayments = [...existingPayments, ...payments];
+
+    const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
+    const outstandingBalance = Math.max(0, splitPaymentDoc.total - totalPaid);
+    const isFullyPaid = totalPaid >= splitPaymentDoc.total;
+
+    // In a real app, you would call an update mutation here
+    // For now, we'll create a new document to simulate the update
+    const docStatus: "draft" | "posted" = isFullyPaid ? "posted" : "draft";
+    const updatedPayload = {
+      document: {
+        id: splitPaymentDoc.id,
+        number: splitPaymentDoc.number,
+        customerId: splitPaymentDoc.customerId || "",
+        date: splitPaymentDoc.date,
+        status: docStatus,
+        paid: isFullyPaid,
+        totalBeforeTax: splitPaymentDoc.totalBeforeTax,
+        taxTotal: splitPaymentDoc.taxTotal,
+        total: splitPaymentDoc.total,
+        totalPaid,
+        outstandingBalance,
+        createdAt: splitPaymentDoc.createdAt,
+        externalNumber: splitPaymentDoc.externalNumber,
+      },
+      items: splitPaymentDoc.items || [],
+      payments: allPayments.map((p) => ({
+        id: crypto.randomUUID(),
+        documentId: splitPaymentDoc.id,
+        paymentId: p.paymentId,
+        paymentType: p.paymentType,
+        amount: p.amount,
+        status: "paid" as const,
+        date: new Date(),
+      })),
+    };
+
+    await createDocument.mutateAsync(updatedPayload);
+    setSplitPaymentDoc(null);
+    documentsQuery.refetch?.();
+  };
+
+  // Management screen handlers
+  const handleTaxSelect = (tax: any) => {
+    console.log("Tax selected:", tax);
+    // In a real app, this would apply the tax to the current document/cart
+    toast.success(`Tax "${tax.name}" (${tax.rate}%) selected`);
+  };
+
+  const handleDiscountApply = (discount: {
+    type: "percent" | "amount";
+    value: number;
+  }) => {
+    console.log("Discount applied:", discount);
+    // In a real app, this would apply the discount to the current document/cart
+    const displayValue =
+      discount.type === "percent"
+        ? `${discount.value}%`
+        : `₦${discount.value.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+    toast.success(`Discount of ${displayValue} applied`);
+  };
+
+  const handleCustomerSelect = (customer: Customer) => {
+    console.log("Customer selected:", customer);
+    // In a real app, this would assign the customer to the current document/cart
+    toast.success(`Customer "${customer.name}" selected`);
+  };
+
+  const handleCustomerAdd = (customer: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => {
+    const newCustomer: Customer = {
+      id: crypto.randomUUID(),
+      name: customer.name,
+      email: customer.email,
+      phoneNumber: customer.phone,
+    } as any;
+    setCustomers((prev) => [...prev, newCustomer]);
+    toast.success(`Customer "${customer.name}" added successfully`);
+  };
+
+  const handleCustomerRemove = (customerId: string) => {
+    setCustomers((prev) => prev.filter((c) => c.id !== customerId));
+    toast.success("Customer removed successfully");
+  };
+
   const handleDuplicate = async (doc: Document) => {
     if (!doc.items) return;
+    const now = new Date();
     await createDocument.mutateAsync({
       document: {
         id: crypto.randomUUID(),
         number: `POS-${Date.now().toString().slice(-8)}`,
-        customerId: doc.customerId as string,
-        date: new Date(),
-        status: "draft",
+        customerId: doc.customerId || "",
+        date: now,
+        status: "draft" as const,
         paid: false,
         totalBeforeTax: doc.totalBeforeTax,
         taxTotal: doc.taxTotal,
         total: doc.total,
-        createdAt: new Date(),
+        totalPaid: 0,
+        outstandingBalance: doc.total,
+        createdAt: now,
         externalNumber: doc.externalNumber,
       },
       items: doc.items.map((i) => ({
@@ -674,6 +1748,8 @@ export default function DocumentsPage() {
         "Subtotal",
         "Tax",
         "Total",
+        "Paid",
+        "Outstanding",
       ];
 
       const rows = filtered.map((d) => {
@@ -693,6 +1769,8 @@ export default function DocumentsPage() {
           (d.totalBeforeTax || 0).toFixed(2),
           (d.taxTotal || 0).toFixed(2),
           (d.total || 0).toFixed(2),
+          (d.totalPaid || 0).toFixed(2),
+          (d.outstandingBalance || 0).toFixed(2),
         ];
       });
 
@@ -723,10 +1801,15 @@ export default function DocumentsPage() {
           return;
         }
       } catch (tauriErr) {
-        console.warn("Tauri export failed, falling back to browser download", tauriErr);
-        
+        console.warn(
+          "Tauri export failed, falling back to browser download",
+          tauriErr,
+        );
+
         // Fallback for browser
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -748,15 +1831,14 @@ export default function DocumentsPage() {
   const statusFilters: { key: FilterStatus; label: string }[] = [
     { key: "all", label: "All" },
     { key: "paid", label: "Paid" },
-
   ];
-
 
   const statusCounts: Record<FilterStatus, number> = useMemo(
     () => ({
       all: docs.length,
       paid: docs.filter((d) => d.paid === true && d.status !== "draft").length,
-      unpaid: docs.filter((d) => d.paid === false && d.status !== "draft").length,
+      unpaid: docs.filter((d) => d.paid === false && d.status !== "draft")
+        .length,
       draft: docs.filter((d) => d.status === "draft").length,
       refund: docs.filter((d) => d.total < 0).length,
     }),
@@ -798,9 +1880,7 @@ export default function DocumentsPage() {
           <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
             Axis Lite
           </span>
-          <span className="text-slate-500 dark:text-slate-400">
-            /
-          </span>
+          <span className="text-slate-500 dark:text-slate-400">/</span>
           <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
             Documents
           </span>
@@ -943,7 +2023,7 @@ export default function DocumentsPage() {
             {/* Table */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
+              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
                 {[
                   <input
                     key="chk"
@@ -960,13 +2040,15 @@ export default function DocumentsPage() {
                   "Date",
                   "Items",
                   "Total",
+                  "Paid",
+                  "Balance",
                   "Status",
                   "",
                 ].map((h, i) => (
                   <div
                     key={i}
                     className={`text-[10px] uppercase tracking-widest font-semibold text-slate-500 flex items-center ${
-                      [4, 5].includes(i) ? "justify-end" : ""
+                      [4, 5, 6, 7].includes(i) ? "justify-end" : ""
                     }`}
                   >
                     {h}
@@ -1004,7 +2086,7 @@ export default function DocumentsPage() {
                         prev?.id === doc.id ? null : doc,
                       )
                     }
-                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
+                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
                       selectedDoc?.id === doc.id
                         ? "bg-cyan-950/40 border-l-2 border-l-cyan-500"
                         : "hover:bg-white dark:bg-slate-800/40"
@@ -1067,9 +2149,42 @@ export default function DocumentsPage() {
                         {doc.status === "void" ? "—" : fmt(doc.total)}
                       </span>
                     </div>
+                    {/* Amount Paid */}
+                    <div className="flex items-center justify-end">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${
+                          doc.totalPaid > 0
+                            ? "text-emerald-400"
+                            : "text-slate-500"
+                        }`}
+                      >
+                        {fmt(doc.totalPaid)}
+                      </span>
+                    </div>
+                    {/* Balance */}
+                    <div className="flex items-center justify-end">
+                      <div className="flex items-center gap-1">
+                        {doc.totalPaid > doc.total && (
+                          <span className="text-[10px] text-amber-400 font-medium">
+                            OVERPAY
+                          </span>
+                        )}
+                        <span
+                          className={`text-sm font-medium tabular-nums ${
+                            doc.outstandingBalance > 0
+                              ? "text-red-400"
+                              : doc.outstandingBalance < 0
+                                ? "text-amber-400"
+                                : "text-slate-500"
+                          }`}
+                        >
+                          {fmt(doc.outstandingBalance)}
+                        </span>
+                      </div>
+                    </div>
                     {/* Status */}
                     <div className="flex items-center justify-end">
-                      <StatusBadge paid={doc.paid} />
+                      <StatusBadge status={doc.status} paid={doc.paid} />
                     </div>
                     {/* Actions */}
                     <div
@@ -1090,6 +2205,15 @@ export default function DocumentsPage() {
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
+                      {doc.status === "split" && (
+                        <button
+                          onClick={() => handleContinuePayment(doc)}
+                          title="Continue Payment"
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-amber-500 hover:text-amber-300 hover:bg-amber-950 transition-colors"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -1149,10 +2273,49 @@ export default function DocumentsPage() {
               onRefund={(doc) => setConfirmModal({ type: "refund", doc })}
               onPrint={handlePrint}
               onDuplicate={handleDuplicate}
+              onContinuePayment={handleContinuePayment}
             />
           </div>
         )}
       </div>
+
+      {/* Split Payment Modal */}
+      {splitPaymentDoc && (
+        <SplitPaymentScreen
+          document={splitPaymentDoc}
+          paymentTypes={paymentTypesQuery}
+          onClose={() => setSplitPaymentDoc(null)}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
+
+      {/* Tax Management Modal */}
+      {showTaxManagement && (
+        <TaxManagementScreen
+          taxes={taxes}
+          onClose={() => setShowTaxManagement(false)}
+          onTaxSelect={handleTaxSelect}
+        />
+      )}
+
+      {/* Discount Management Modal */}
+      {showDiscountManagement && (
+        <DiscountManagementScreen
+          onClose={() => setShowDiscountManagement(false)}
+          onDiscountApply={handleDiscountApply}
+        />
+      )}
+
+      {/* Customer Management Modal */}
+      {showCustomerManagement && (
+        <CustomerManagementScreen
+          customers={customers}
+          onClose={() => setShowCustomerManagement(false)}
+          onCustomerSelect={handleCustomerSelect}
+          onCustomerAdd={handleCustomerAdd}
+          onCustomerRemove={handleCustomerRemove}
+        />
+      )}
     </div>
   );
 

@@ -3,6 +3,7 @@ import { db } from "@/db/database";
 import { eq, desc } from "drizzle-orm";
 import { stockEntries } from "@/db/schema/stockEntries";
 import type { StockEntry, NewStockEntry } from "@/db/schema/stockEntries";
+import { stockLogs } from "@/db/schema/stockLogs";
 import { nanoid } from "nanoid";
 
 export type { StockEntry, NewStockEntry };
@@ -16,6 +17,9 @@ export const stockKeys = {
   byProduct: (productId: string) =>
     [...stockKeys.all, "product", productId] as const,
   history: () => [...stockKeys.all, "history"] as const,
+  logs: () => [...stockKeys.all, "logs"] as const,
+  productLogs: (productId: string) =>
+    [...stockKeys.all, "logs", productId] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -51,8 +55,7 @@ export function getStockEntryByProduct(productId: string) {
   return db.query.stockEntries.findFirst({
     where: eq(stockEntries.productId, productId),
   });
-} 
-    
+}
 
 /** Stock entry for a single product */
 export function useProductStockHistory(productId: string) {
@@ -77,6 +80,31 @@ export function useAllStockHistory() {
       db.query.stockEntries.findMany({
         orderBy: (s) => desc(s.createdAt),
         with: { product: true, supplier: true },
+      }),
+  });
+}
+
+export function useStockLogs() {
+  return useQuery({
+    queryKey: stockKeys.logs(),
+    staleTime: 0,
+    queryFn: () =>
+      db.query.stockLogs.findMany({
+        orderBy: (s) => desc(s.createdAt),
+        with: { product: true },
+      }),
+  });
+}
+
+export function useProductStockLogs(productId: string) {
+  return useQuery({
+    queryKey: stockKeys.productLogs(productId),
+    enabled: !!productId,
+    staleTime: 0,
+    queryFn: () =>
+      db.query.stockLogs.findMany({
+        where: eq(stockLogs.productId, productId),
+        orderBy: (s) => desc(s.createdAt),
       }),
   });
 }
@@ -135,6 +163,17 @@ export function useAddStockEntry() {
           },
         });
 
+      // Insert log entry
+      if (data.type && data.quantity !== undefined) {
+        await db.insert(stockLogs).values({
+          id: nanoid(),
+          productId: data.productId,
+          type: data.type,
+          quantity: data.quantity,
+          note: data.note,
+        });
+      }
+
       const row = await db.query.stockEntries.findFirst({
         where: eq(stockEntries.productId, data.productId),
       });
@@ -144,6 +183,8 @@ export function useAddStockEntry() {
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.byProduct(row.productId) });
       qc.invalidateQueries({ queryKey: stockKeys.history() });
+      qc.invalidateQueries({ queryKey: stockKeys.logs() });
+      qc.invalidateQueries({ queryKey: stockKeys.productLogs(row.productId) });
       // Force immediate refetch to ensure all components get fresh data
       qc.refetchQueries({ queryKey: stockKeys.all });
       qc.refetchQueries({ queryKey: stockKeys.byProduct(row.productId) });
@@ -165,29 +206,49 @@ export function useUpdateStockEntry() {
       productId: string;
       type?: "in" | "out" | "adjustment";
       quantity?: number;
-      data?: Partial<Omit<StockEntry, "id" | "createdAt" | "productId" | "quantity" | "type">>;
+      data?: Partial<
+        Omit<StockEntry, "id" | "createdAt" | "productId" | "quantity" | "type">
+      >;
     } & any) => {
       // Find existing entry by id or productId
-      const existing = id 
-        ? await db.query.stockEntries.findFirst({ where: eq(stockEntries.id, id) })
-        : await db.query.stockEntries.findFirst({ where: eq(stockEntries.productId, productId) });
+      const existing = id
+        ? await db.query.stockEntries.findFirst({
+            where: eq(stockEntries.id, id),
+          })
+        : await db.query.stockEntries.findFirst({
+            where: eq(stockEntries.productId, productId),
+          });
 
       if (!existing) throw new Error("Stock entry not found");
 
-      let newPreferredQty = existing.preferredQuantity ?? 0;
+      let newQuantity = existing.quantity ?? 0;
       if (type && quantity !== undefined) {
-        if (type === "in") newPreferredQty += Math.abs(quantity);
-        else if (type === "out") newPreferredQty -= Math.abs(quantity);
-        else newPreferredQty = quantity; // adjustment
+        if (type === "in") newQuantity += Math.abs(quantity);
+        else if (type === "out") newQuantity -= Math.abs(quantity);
+        else newQuantity = quantity; // adjustment
       }
 
       const updateData = {
         ...data,
-        preferredQuantity: newPreferredQty,
+        quantity: newQuantity,
+        type: type ?? existing.type,
         updatedAt: new Date(),
       };
 
-      await db.update(stockEntries).set(updateData).where(eq(stockEntries.id, existing.id));
+      await db
+        .update(stockEntries)
+        .set(updateData)
+        .where(eq(stockEntries.id, existing.id));
+
+      if (type && quantity !== undefined) {
+        await db.insert(stockLogs).values({
+          id: nanoid(),
+          productId: existing.productId,
+          type: type,
+          quantity: quantity,
+          note: data?.note,
+        });
+      }
 
       const updated = await db.query.stockEntries.findFirst({
         where: eq(stockEntries.id, existing.id),
@@ -198,6 +259,8 @@ export function useUpdateStockEntry() {
       qc.invalidateQueries({ queryKey: stockKeys.all });
       qc.invalidateQueries({ queryKey: stockKeys.byProduct(row.productId) });
       qc.invalidateQueries({ queryKey: stockKeys.history() });
+      qc.invalidateQueries({ queryKey: stockKeys.logs() });
+      qc.invalidateQueries({ queryKey: stockKeys.productLogs(row.productId) });
       // Force immediate refetch
       qc.refetchQueries({ queryKey: stockKeys.all });
       qc.refetchQueries({ queryKey: stockKeys.byProduct(row.productId) });
