@@ -18,11 +18,12 @@ export function useCountries() {
 export function useCreateCountry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; code: string }) => {
+    mutationFn: async (data: { name: string; code: string; position?: number }) => {
       await db.insert(countries).values({
         id: crypto.randomUUID(),
         name: data.name,
         code: data.code,
+        position: data.position ?? 0,
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["countries"] }),
@@ -38,7 +39,7 @@ export function useUpdateCountry() {
       data,
     }: {
       id: string;
-      data: { name: string; code: string };
+      data: { name: string; code: string; position?: number };
     }) => {
       await db.update(countries).set(data).where(eq(countries.id, id));
     },
