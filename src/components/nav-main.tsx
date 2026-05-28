@@ -31,7 +31,7 @@ export function NavMain({
               tooltip={item.title}
               data-active={active}
               className={`
-                py-5 text-base
+                py-3 text-xs
                 ${item.disabled ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50" : "text-slate-700 dark:text-slate-300 hover:text-indigo-400 hover:bg-indigo-500/10"}
                 data-[active=true]:bg-indigo-500
                 data-[active=true]:text-slate-900 dark:text-white
@@ -40,7 +40,7 @@ export function NavMain({
               {item.icon && (
                 <item.icon
                   className={`
-                    size-10
+                    size-6
                     ${item.disabled ? "text-slate-400 dark:text-slate-600" : "text-slate-500 dark:text-slate-400 group-hover:text-indigo-100"}
                     data-[active=true]:text-slate-900 dark:text-white
                   `}

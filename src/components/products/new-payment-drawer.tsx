@@ -107,7 +107,9 @@ export default function PaymentDrawer({
         <div className="p-4 space-y-6">
           {/* Payment type */}
           <div className="space-y-1">
-            <Label className="text-slate-500 dark:text-slate-400">Payment type</Label>
+            <Label className="text-slate-500 dark:text-slate-400">
+              Payment type
+            </Label>
 
             <Select value={type} onValueChange={setType}>
               <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
@@ -165,6 +167,7 @@ export default function PaymentDrawer({
             <Input
               type="number"
               value={amount}
+              onFocus={(e) => e.target.select()}
               onChange={(e) => setAmount(Number(e.target.value))}
               className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
             />

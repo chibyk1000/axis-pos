@@ -202,7 +202,7 @@ function PricingSection({
 
       {/* Cost */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-slate-500 dark:text-slate-400">
           Cost
         </label>
         <div className="mt-1">
@@ -210,7 +210,7 @@ function PricingSection({
             className="w-34 h-8"
             type="number"
             min={0}
-            step="0.01"
+            onFocus={(e) => e.target.select()}
             value={entry.cost || ""}
             onChange={(e) => handleCostChange(Number(e.target.value))}
           />
@@ -219,7 +219,7 @@ function PricingSection({
 
       {/* Markup */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-slate-500 dark:text-slate-400">
           Markup
         </label>
         <div className="mt-1 flex items-center gap-2">
@@ -227,17 +227,17 @@ function PricingSection({
             className="w-34 h-8"
             type="number"
             min={0}
-            step="0.01"
+            onFocus={(e) => e.target.select()}
             value={entry.markup || ""}
             onChange={(e) => handleMarkupChange(Number(e.target.value))}
           />
-          <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">%</span>
         </div>
       </div>
 
       {/* Sale price */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-sm text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-slate-500 dark:text-slate-400">
           Sale price
         </label>
         <div className="mt-1">
@@ -245,7 +245,7 @@ function PricingSection({
             className="w-34 h-8"
             type="number"
             min={0}
-            step="0.01"
+            onFocus={(e) => e.target.select()}
             value={entry.salePrice || ""}
             onChange={(e) => handleSalePriceChange(Number(e.target.value))}
           />
@@ -257,7 +257,7 @@ function PricingSection({
           checked={entry.priceAfterTax}
           onCheckedChange={(v) => update({ priceAfterTax: v })}
         />
-        <span className="text-sm text-slate-700 dark:text-slate-300">
+        <span className="text-xs text-slate-700 dark:text-slate-300">
           Price includes tax
         </span>
       </div>
@@ -267,7 +267,7 @@ function PricingSection({
           checked={entry.priceChangeAllowed}
           onCheckedChange={(v) => update({ priceChangeAllowed: v })}
         />
-        <span className="text-sm text-slate-700 dark:text-slate-300">
+        <span className="text-xs text-slate-700 dark:text-slate-300">
           Price change allowed at POS
         </span>
       </div>
@@ -578,7 +578,7 @@ const AddProductDrawer = ({
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
       <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-2xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-l border-slate-200 dark:border-slate-700">
         <DrawerHeader className="flex flex-row items-center justify-between border-b border-slate-200 dark:border-slate-700">
-          <DrawerTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <DrawerTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             {initialData ? "Edit product" : "New product"}
           </DrawerTitle>
           <Button
@@ -608,7 +608,7 @@ const AddProductDrawer = ({
           ))}
         </div>
 
-        <ScrollArea className="flex-1 overflow-y-auto px-6 py-6 space-y-5 text-sm">
+        <ScrollArea className="flex-1 overflow-y-auto px-6 py-6 space-y-5 text-xs">
           {/* ── Details ── */}
           {activeTab === "Details" && (
             <>
@@ -630,14 +630,14 @@ const AddProductDrawer = ({
                   />
                   <button
                     type="button"
-                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-xs mt-1"
+                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-[10px] mt-1"
                     onClick={handleGenerateBarcode}
                   >
                     Generate
                   </button>
                   <button
                     type="button"
-                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-xs mt-1"
+                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-[10px] mt-1"
                     onClick={handleAddBarcode}
                   >
                     Add
@@ -647,12 +647,12 @@ const AddProductDrawer = ({
                   {barcodes.map((b) => (
                     <div
                       key={b.id}
-                      className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded text-sm"
+                      className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded text-xs"
                     >
                       <span>{b.text}</span>
                       <button
                         type="button"
-                        className="text-red-400 hover:text-red-600 text-xs"
+                        className="text-red-400 hover:text-red-600 text-[10px]"
                         onClick={() => handleRemoveBarcode(b.text)}
                       >
                         ✕
@@ -682,7 +682,7 @@ const AddProductDrawer = ({
                   </SelectContent>
                 </Select>
               </Field>
-              <div className="flex flex-col gap-3 text-sm text-slate-700 dark:text-slate-300">
+              <div className="flex flex-col gap-3 text-xs text-slate-700 dark:text-slate-300">
                 <Toggle
                   label="Active"
                   defaultChecked={active}
@@ -703,10 +703,11 @@ const AddProductDrawer = ({
                   <Input
                     type="number"
                     min={0}
+                    onFocus={(e) => e.target.select()}
                     value={ageRestriction ?? ""}
                     onChange={(e) => setAgeRestriction(Number(e.target.value))}
                   />
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
                     year(s)
                   </span>
                 </div>
@@ -726,7 +727,7 @@ const AddProductDrawer = ({
             <div className="space-y-4">
               {/* Taxes */}
               <div>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
                   Taxes
                 </p>
                 {selectedTaxes.length > 0 && (
@@ -736,7 +737,7 @@ const AddProductDrawer = ({
                         key={tax.id}
                         className="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded"
                       >
-                        <span className="text-sm">
+                        <span className="text-xs">
                           {tax.name} ({tax.rate}%)
                         </span>
                         <button
@@ -754,7 +755,7 @@ const AddProductDrawer = ({
                     variant="ghost"
                     disabled={availableTaxOptions.length < 1}
                     onClick={() => setIsAddingTax(true)}
-                    className="flex items-center gap-2 text-sm bg-sky-500"
+                    className="flex items-center gap-2 text-xs bg-sky-500"
                   >
                     <Plus size={16} /> Add tax
                   </Button>
@@ -868,6 +869,7 @@ const AddProductDrawer = ({
                   className="w-34 h-8"
                   type="number"
                   min={0}
+                  onFocus={(e) => e.target.select()}
                   value={reorderPoint ?? ""}
                   onChange={(e) => setReorderPoint(Number(e.target.value))}
                 />
@@ -877,6 +879,7 @@ const AddProductDrawer = ({
                   className="w-34 h-8"
                   type="number"
                   min={0}
+                  onFocus={(e) => e.target.select()}
                   value={preferredQuantity ?? ""}
                   onChange={(e) => setPreferredQuantity(Number(e.target.value))}
                 />
@@ -895,6 +898,7 @@ const AddProductDrawer = ({
                   className="w-34 h-8"
                   type="number"
                   min={0}
+                  onFocus={(e) => e.target.select()}
                   value={lowStockQuantity ?? ""}
                   onChange={(e) => setLowStockQuantity(Number(e.target.value))}
                   disabled={!lowStockWarning}
@@ -940,7 +944,7 @@ const AddProductDrawer = ({
           {activeTab === "Image & color" && (
             <div className="text-sm text-slate-500 dark:text-slate-400 space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-slate-500 dark:text-slate-400">
+                <label className="text-xs text-slate-500 dark:text-slate-400">
                   Colors
                 </label>
                 <Select onValueChange={setColor}>
@@ -970,7 +974,7 @@ const AddProductDrawer = ({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-sm text-slate-500 dark:text-slate-400">
+                <label className="text-xs text-slate-500 dark:text-slate-400">
                   Image
                 </label>
                 <div className="grid grid-cols-2 gap-3">

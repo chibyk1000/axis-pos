@@ -1,6 +1,23 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setSearch as setSearchAction,
+  setFilterStatus as setFilterStatusAction,
+  setDateRange as setDateRangeAction,
+  setSelectedDoc as setSelectedDocAction,
+  setPage as setPageAction,
+  setSelectedIds as setSelectedIdsAction,
+  setConfirmModal as setConfirmModalAction,
+  setSplitPaymentDoc as setSplitPaymentDocAction,
+  setShowTaxManagement as setShowTaxManagementAction,
+  setShowDiscountManagement as setShowDiscountManagementAction,
+  setShowCustomerManagement as setShowCustomerManagementAction,
+  setCustomers as setCustomersAction,
+} from "@/store/documentsSlice";
+import type { Document as SliceDocument } from "@/store/documentsSlice";
 import {
   Search,
   Plus,
@@ -36,7 +53,7 @@ function SplitPaymentScreen({
   onClose,
   onPaymentComplete,
 }: {
-  document: Document;
+  document: SliceDocument;
   paymentTypes: any[];
   onClose: () => void;
   onPaymentComplete: (
@@ -186,15 +203,15 @@ function SplitPaymentScreen({
               })}
             </span>
           </div>
-          <div className="flex justify-between font-bold text-xl text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between font-bold text-lg text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
             <span>Total</span>
             <span>₦{formatPrice(document.total)}</span>
           </div>
-          <div className="flex justify-between text-lg font-semibold text-emerald-400">
+          <div className="flex justify-between text-base font-semibold text-emerald-400">
             <span>Paid</span>
             <span>₦{formatPrice(document.totalPaid)}</span>
           </div>
-          <div className="flex justify-between text-lg font-semibold text-red-400">
+          <div className="flex justify-between text-base font-semibold text-red-400">
             <span>Remaining</span>
             <span>₦{formatPrice(document.outstandingBalance)}</span>
           </div>
@@ -222,7 +239,7 @@ function SplitPaymentScreen({
                   <button
                     key={pt.id}
                     onClick={() => setSelectedTypeId(pt.id)}
-                    className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
+                    className={`py-2 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors border ${
                       selectedTypeId === pt.id
                         ? "bg-cyan-900 border-cyan-500 text-cyan-200"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
@@ -251,16 +268,16 @@ function SplitPaymentScreen({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSave();
                     }}
-                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-2xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">Remaining</p>
-                  <p className="text-2xl font-bold tabular-nums text-red-400">
+                  <p className="text-xl font-bold tabular-nums text-red-400">
                     ₦{formatPrice(remaining)}
                     {remaining > 0 && (
-                      <span className="text-sm ml-1">(owed)</span>
+                      <span className="text-xs ml-1">(owed)</span>
                     )}
                   </p>
                 </div>
@@ -276,13 +293,13 @@ function SplitPaymentScreen({
                     <button
                       key={i}
                       onClick={() => handleKey(key)}
-                      className={`py-4 rounded text-lg font-medium transition-colors ${
+                      className={`py-4 rounded text-base font-medium transition-colors ${
                         isBackspace
                           ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
                           : isEnter
                             ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
                             : isDash
-                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
+                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-xs"
                               : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                       }`}
                       title={isDash ? "Set to exact total" : undefined}
@@ -296,7 +313,7 @@ function SplitPaymentScreen({
               <button
                 onClick={handleSave}
                 disabled={!selectedType || paidAmount <= 0}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-base font-bold rounded transition-colors"
               >
                 Save · ₦
                 {paidAmount.toLocaleString("en-NG", {
@@ -363,7 +380,7 @@ function TaxManagementScreen({
                 placeholder="Search taxes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             </div>
 
@@ -384,12 +401,12 @@ function TaxManagementScreen({
                       <p className="font-medium text-slate-900 dark:text-slate-100">
                         {tax.name}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-xs text-slate-500">
                         {tax.description || "No description"}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-cyan-600">
+                      <p className="text-base font-bold text-cyan-600">
                         {tax.rate}%
                       </p>
                       <p className="text-xs text-slate-500">
@@ -1161,6 +1178,7 @@ function ConfirmModal({
 
 function SidePanel({
   doc,
+  isRefunded,
   onClose,
   onVoid,
   onRefund,
@@ -1169,6 +1187,7 @@ function SidePanel({
   onContinuePayment,
 }: {
   doc: Document;
+  isRefunded?: boolean;
   onClose: () => void;
   onVoid: (doc: Document) => void;
   onRefund: (doc: Document) => void;
@@ -1384,7 +1403,7 @@ function SidePanel({
           <Copy className="w-3.5 h-3.5" />
           Duplicate
         </button>
-        {doc.status === "posted" && (
+        {doc.status === "posted" && !isRefunded && (
           <button
             onClick={() => onRefund(doc)}
             className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-amber-800 rounded-lg py-2 text-xs text-amber-400 transition-colors"
@@ -1393,7 +1412,17 @@ function SidePanel({
             Refund
           </button>
         )}
-        {doc.status === "split" && (
+        {doc.status === "posted" && isRefunded && (
+          <button
+            disabled
+            className="flex items-center justify-center gap-1.5 bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 rounded-lg py-2 text-xs text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 transition-colors"
+            title="Refund already processed"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Refund
+          </button>
+        )}
+        {doc.status === "split" && doc.outstandingBalance > 0 && (
           <button
             onClick={() => onContinuePayment(doc)}
             className="flex items-center justify-center gap-1.5 bg-amber-950 hover:bg-amber-900 border border-amber-700 rounded-lg py-2 text-xs text-amber-400 transition-colors"
@@ -1429,30 +1458,93 @@ export default function DocumentsPage() {
   const docs: Document[] = (documentsQuery.data as any) ?? [];
 
   // ── State ──
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
-  const [dateRange, setDateRange] = useState<DateRange>("all");
-  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
-  const [page, setPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmModal, setConfirmModal] = useState<{
-    type: "void" | "refund" | "bulkVoid";
-    doc?: Document;
-  } | null>(null);
-  const [splitPaymentDoc, setSplitPaymentDoc] = useState<Document | null>(null);
-  const [paymentTypesQuery] = useState<any[]>([
+  const dispatch = useDispatch();
+  const {
+    search,
+    filterStatus,
+    dateRange,
+    selectedDoc,
+    page,
+    confirmModal,
+    splitPaymentDoc,
+    showTaxManagement,
+    showDiscountManagement,
+    showCustomerManagement,
+    customers,
+  } = useSelector((state: RootState) => state.documents);
+
+  const setSearch = (val: string) => dispatch(setSearchAction(val));
+  const setFilterStatus = (val: FilterStatus) =>
+    dispatch(setFilterStatusAction(val));
+  const setDateRange = (val: DateRange) => dispatch(setDateRangeAction(val));
+
+  const setSelectedDoc = (
+    val:
+      | SliceDocument
+      | null
+      | ((prev: SliceDocument | null) => SliceDocument | null),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setSelectedDocAction(val(selectedDoc)));
+    } else {
+      dispatch(setSelectedDocAction(val));
+    }
+  };
+
+  const setPage = (val: number | ((prev: number) => number)) => {
+    if (typeof val === "function") {
+      dispatch(setPageAction(val(page)));
+    } else {
+      dispatch(setPageAction(val));
+    }
+  };
+
+  const selectedIdsArr = useSelector(
+    (state: RootState) => state.documents.selectedIds,
+  );
+  const selectedIds = useMemo(() => new Set(selectedIdsArr), [selectedIdsArr]);
+  const setSelectedIds = (
+    val: Set<string> | ((prev: Set<string>) => Set<string>),
+  ) => {
+    if (typeof val === "function") {
+      const nextSet = val(selectedIds);
+      dispatch(setSelectedIdsAction(Array.from(nextSet)));
+    } else {
+      dispatch(setSelectedIdsAction(Array.from(val)));
+    }
+  };
+
+  const setConfirmModal = (
+    val:
+      | typeof confirmModal
+      | ((prev: typeof confirmModal) => typeof confirmModal),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setConfirmModalAction(val(confirmModal)));
+    } else {
+      dispatch(setConfirmModalAction(val));
+    }
+  };
+
+  const setSplitPaymentDoc = (val: SliceDocument | null) =>
+    dispatch(setSplitPaymentDocAction(val));
+
+  const paymentTypesQuery = [
     { id: "cash", name: "Cash", enabled: true },
     { id: "card", name: "Card", enabled: true },
     { id: "check", name: "Check", enabled: true },
-  ]);
+  ];
 
   // Management screen states
-  const [showTaxManagement, setShowTaxManagement] = useState(false);
-  const [showDiscountManagement, setShowDiscountManagement] = useState(false);
-  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
+  const setShowTaxManagement = (val: boolean) =>
+    dispatch(setShowTaxManagementAction(val));
+  const setShowDiscountManagement = (val: boolean) =>
+    dispatch(setShowDiscountManagementAction(val));
+  const setShowCustomerManagement = (val: boolean) =>
+    dispatch(setShowCustomerManagementAction(val));
 
   // Sample data for demonstration
-  const [taxes] = useState<any[]>([
+  const taxes = [
     {
       id: "1",
       name: "VAT",
@@ -1481,23 +1573,17 @@ export default function DocumentsPage() {
       description: "Import tax",
       compound: false,
     },
-  ]);
+  ];
 
-  const [customers, setCustomers] = useState<Customer[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      phoneNumber: "08012345678",
-    } as any,
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phoneNumber: "08087654321",
-    } as any,
-    { id: "3", name: "Bob Johnson", phoneNumber: "08098765432" } as any,
-  ]);
+  const setCustomers = (
+    val: Customer[] | ((prev: Customer[]) => Customer[]),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setCustomersAction(val(customers)));
+    } else {
+      dispatch(setCustomersAction(val));
+    }
+  };
 
   // ── Derived / filtered data ──
   const filtered = useMemo(() => {
@@ -1586,7 +1672,7 @@ export default function DocumentsPage() {
   };
 
   // ── Actions ──
-  const handleVoid = async (doc: Document) => {
+  const handleVoid = async (doc: SliceDocument) => {
     console.log(doc);
 
     // In a real app, call update mutation to set status: "void"
@@ -1594,9 +1680,67 @@ export default function DocumentsPage() {
     documentsQuery.refetch?.();
   };
 
-  const handleRefund = (doc: Document) => {
-    // Navigate to POS with refund pre-filled (pass state via router)
-    router("/", { state: { refundDocId: doc.id } });
+  const handleRefund = async (doc: SliceDocument) => {
+    try {
+      // Create a refund document with negative amounts
+      const refundDocument: SliceDocument = {
+        id: crypto.randomUUID(),
+        number: `REF-${doc.number}`,
+        customerId: doc.customerId ?? "",
+        date: new Date(),
+        status: "refund" as const,
+        paid: true,
+        totalBeforeTax: -doc.totalBeforeTax,
+        taxTotal: -doc.taxTotal,
+        total: -doc.total,
+        totalPaid: -doc.total,
+        outstandingBalance: 0,
+        createdAt: new Date(),
+        externalNumber: doc.externalNumber,
+        items:
+          doc.items?.map((item) => ({
+            ...item,
+            id: crypto.randomUUID(),
+            quantity: -item.quantity,
+            total: -item.total,
+          })) || [],
+        payments: [
+          {
+            id: crypto.randomUUID(),
+            documentId: "",
+            paymentId: "refund",
+            paymentType: "Refund",
+            amount: -doc.total,
+            status: "paid" as const,
+            date: new Date(),
+          },
+        ],
+        customer: doc.customer,
+      };
+
+      const refundPayload = {
+        document: {
+          ...refundDocument,
+          customerId: refundDocument.customerId || "walk-in",
+        },
+        items: refundDocument.items || [],
+        payments: refundDocument.payments || [],
+      };
+
+      await createDocument.mutateAsync(refundPayload as any);
+      toast.success(`Refund document REF-${doc.number} created successfully`);
+
+      // Update selected doc if it matches
+      if (selectedDoc?.id === doc.id) {
+        setSelectedDoc(null);
+      }
+
+      // Refetch documents to update the list
+      documentsQuery.refetch?.();
+    } catch (err) {
+      console.error("Refund creation failed", err);
+      toast.error("Failed to create refund document");
+    }
   };
 
   const handlePrint = (doc: Document) => {
@@ -1630,23 +1774,27 @@ export default function DocumentsPage() {
     // In a real app, you would call an update mutation here
     // For now, we'll create a new document to simulate the update
     const docStatus: "draft" | "posted" = isFullyPaid ? "posted" : "draft";
-    const updatedPayload = {
-      document: {
-        id: splitPaymentDoc.id,
-        number: splitPaymentDoc.number,
-        customerId: splitPaymentDoc.customerId || "",
-        date: splitPaymentDoc.date,
-        status: docStatus,
-        paid: isFullyPaid,
-        totalBeforeTax: splitPaymentDoc.totalBeforeTax,
-        taxTotal: splitPaymentDoc.taxTotal,
-        total: splitPaymentDoc.total,
-        totalPaid,
-        outstandingBalance,
-        createdAt: splitPaymentDoc.createdAt,
-        externalNumber: splitPaymentDoc.externalNumber,
-      },
-      items: splitPaymentDoc.items || [],
+    const updatedDocument: Document = {
+      id: splitPaymentDoc.id,
+      number: splitPaymentDoc.number,
+      customerId: splitPaymentDoc.customerId || "",
+      date:
+        typeof splitPaymentDoc.date === "string"
+          ? new Date(splitPaymentDoc.date)
+          : splitPaymentDoc.date,
+      status: docStatus,
+      paid: isFullyPaid,
+      totalBeforeTax: splitPaymentDoc.totalBeforeTax,
+      taxTotal: splitPaymentDoc.taxTotal,
+      total: splitPaymentDoc.total,
+      totalPaid,
+      outstandingBalance,
+      createdAt:
+        typeof splitPaymentDoc.createdAt === "string"
+          ? new Date(splitPaymentDoc.createdAt)
+          : splitPaymentDoc.createdAt,
+      externalNumber: splitPaymentDoc.externalNumber,
+      items: splitPaymentDoc.items,
       payments: allPayments.map((p) => ({
         id: crypto.randomUUID(),
         documentId: splitPaymentDoc.id,
@@ -1656,10 +1804,26 @@ export default function DocumentsPage() {
         status: "paid" as const,
         date: new Date(),
       })),
+      customer: splitPaymentDoc.customer,
     };
 
-    await createDocument.mutateAsync(updatedPayload);
+    const updatedPayload = {
+      document: {
+        ...updatedDocument,
+        customerId: updatedDocument.customerId || "walk-in",
+      },
+      items: splitPaymentDoc.items || [],
+      payments: updatedDocument.payments || [],
+    };
+
+    await createDocument.mutateAsync(updatedPayload as any);
     setSplitPaymentDoc(null);
+
+    // Update selectedDoc with the fresh payment data
+    if (selectedDoc?.id === updatedDocument.id) {
+      setSelectedDoc(updatedDocument);
+    }
+
     documentsQuery.refetch?.();
   };
 
@@ -1870,7 +2034,7 @@ export default function DocumentsPage() {
       )}
 
       {/* ── Header ── */}
-      <PrintReceipt doc={selectedDoc} />
+      <PrintReceipt doc={selectedDoc as any} />
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 print:hidden">
         {/* Brand + back */}
         <div className="flex items-center gap-2">
@@ -2023,7 +2187,7 @@ export default function DocumentsPage() {
             {/* Table */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
+              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
                 {[
                   <input
                     key="chk"
@@ -2041,6 +2205,7 @@ export default function DocumentsPage() {
                   "Items",
                   "Total",
                   "Paid",
+                  "Payment Type",
                   "Balance",
                   "Status",
                   "",
@@ -2048,7 +2213,7 @@ export default function DocumentsPage() {
                   <div
                     key={i}
                     className={`text-[10px] uppercase tracking-widest font-semibold text-slate-500 flex items-center ${
-                      [4, 5, 6, 7].includes(i) ? "justify-end" : ""
+                      [4, 5, 6, 7, 8].includes(i) ? "justify-end" : ""
                     }`}
                   >
                     {h}
@@ -2086,7 +2251,7 @@ export default function DocumentsPage() {
                         prev?.id === doc.id ? null : doc,
                       )
                     }
-                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
+                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
                       selectedDoc?.id === doc.id
                         ? "bg-cyan-950/40 border-l-2 border-l-cyan-500"
                         : "hover:bg-white dark:bg-slate-800/40"
@@ -2161,25 +2326,41 @@ export default function DocumentsPage() {
                         {fmt(doc.totalPaid)}
                       </span>
                     </div>
+                    {/* Payment Type */}
+                    <div className="flex items-center justify-end">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-full">
+                        {doc.payments && doc.payments.length > 0
+                          ? doc.payments.map((p) => p.paymentType).join(", ")
+                          : "-"}
+                      </span>
+                    </div>
                     {/* Balance */}
                     <div className="flex items-center justify-end">
                       <div className="flex items-center gap-1">
-                        {doc.totalPaid > doc.total && (
-                          <span className="text-[10px] text-amber-400 font-medium">
-                            OVERPAY
+                        {doc.totalPaid > doc.total ? (
+                          <>
+                            <span className="text-[10px] text-amber-400 font-medium">
+                              OVERPAY
+                            </span>
+                            <span
+                              className={`text-sm font-medium tabular-nums text-orange-400`}
+                            >
+                              {fmt(doc.totalPaid - doc.total)}
+                            </span>
+                          </>
+                        ) : (
+                          <span
+                            className={`text-sm font-medium tabular-nums ${
+                              doc.outstandingBalance > 0
+                                ? "text-red-400"
+                                : doc.outstandingBalance < 0
+                                  ? "text-amber-400"
+                                  : "text-slate-500"
+                            }`}
+                          >
+                            {fmt(doc.outstandingBalance)}
                           </span>
                         )}
-                        <span
-                          className={`text-sm font-medium tabular-nums ${
-                            doc.outstandingBalance > 0
-                              ? "text-red-400"
-                              : doc.outstandingBalance < 0
-                                ? "text-amber-400"
-                                : "text-slate-500"
-                          }`}
-                        >
-                          {fmt(doc.outstandingBalance)}
-                        </span>
                       </div>
                     </div>
                     {/* Status */}
@@ -2205,7 +2386,7 @@ export default function DocumentsPage() {
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      {doc.status === "split" && (
+                      {doc.status === "split" && doc.outstandingBalance > 0 && (
                         <button
                           onClick={() => handleContinuePayment(doc)}
                           title="Continue Payment"
@@ -2267,7 +2448,12 @@ export default function DocumentsPage() {
         {selectedDoc && (
           <div className="print:hidden h-full flex shrink-0">
             <SidePanel
-              doc={selectedDoc}
+              doc={selectedDoc as any}
+              isRefunded={docs.some(
+                (d) =>
+                  d.number.startsWith("REF-") &&
+                  d.number === `REF-${selectedDoc.number}`,
+              )}
               onClose={() => setSelectedDoc(null)}
               onVoid={(doc) => setConfirmModal({ type: "void", doc })}
               onRefund={(doc) => setConfirmModal({ type: "refund", doc })}
@@ -2282,7 +2468,7 @@ export default function DocumentsPage() {
       {/* Split Payment Modal */}
       {splitPaymentDoc && (
         <SplitPaymentScreen
-          document={splitPaymentDoc}
+          document={splitPaymentDoc as any}
           paymentTypes={paymentTypesQuery}
           onClose={() => setSplitPaymentDoc(null)}
           onPaymentComplete={handlePaymentComplete}

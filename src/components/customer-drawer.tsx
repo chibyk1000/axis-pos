@@ -18,6 +18,7 @@ import {
 } from "@/hooks/controllers/discount";
 import Select from "react-select";
 import { CSS } from "@dnd-kit/utilities";
+import { getNextNumber } from "@/lib/incrementalId";
 interface TreeItem {
   id: string;
   label: string;
@@ -153,6 +154,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData: Customer | null;
+  allCustomers?: Customer[];
 }
 
 interface DiscountItem {
@@ -176,6 +178,7 @@ export default function CustomerSupplierDrawer({
   onOpenChange,
   open,
   initialData,
+  allCustomers = [],
 }: Props) {
   const [activeTab, setActiveTab] = useState("General");
 
@@ -393,12 +396,15 @@ export default function CustomerSupplierDrawer({
         }
       } else {
         /* ---------------- CREATE ---------------- */
+        // Add position for new customer
+        const nextNumber = getNextNumber(allCustomers);
         await createCustomer.mutateAsync({
           id: customerId,
           ...form,
           active: isActive,
           customer: isCustomer,
           taxExempt,
+          position: nextNumber,
         });
 
         for (const card of cards) {
@@ -641,6 +647,7 @@ export default function CustomerSupplierDrawer({
                                   <div className="flex items-center gap-3">
                                     <input
                                       type="number"
+                                      onFocus={(e) => e.target.select()}
                                       className="w-16 bg-white dark:bg-slate-800 border border-slate-50 pl-2 text-slate-900 dark:text-white rounded"
                                       value={d.value}
                                       onChange={(e) =>

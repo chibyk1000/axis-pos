@@ -25,8 +25,24 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../store";
+import {
+  setSearchQuery as setSearchQueryAction,
+  setDrawerOpen as setDrawerOpenAction,
+  setSelectedId as setSelectedIdAction,
+  setSelectedProductId as setSelectedProductIdAction,
+  setSelectedSingleProductId as setSelectedSingleProductIdAction,
+  setSelectedProduct as setSelectedProductAction,
+  setIsDuplicate as setIsDuplicateAction,
+  setAddProductDrawerOpen as setAddProductDrawerOpenAction,
+  setEditingGroup as setEditingGroupAction,
+  setImportOpen as setImportOpenAction,
+  setSortingOpen as setSortingOpenAction,
+  setColWidth,
+} from "../../store/productsSlice";
 import {
   useCreateProduct,
   useDeleteProduct,
@@ -163,7 +179,7 @@ function GroupContextContent({
       </div>
       <ContextMenuItem
         onClick={onNewGroup}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-xs rounded-md text-slate-800 dark:text-slate-200
           hover:bg-indigo-500/15 hover:text-indigo-300 cursor-pointer"
       >
         <span>📁</span> New group
@@ -171,7 +187,7 @@ function GroupContextContent({
       <ContextMenuItem
         disabled={isRoot}
         onClick={onEditGroup}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-xs rounded-md text-slate-800 dark:text-slate-200
           hover:bg-indigo-500/15 hover:text-indigo-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <span>✏️</span> Edit group
@@ -180,7 +196,7 @@ function GroupContextContent({
       <ContextMenuItem
         disabled={isRoot}
         onClick={onDeleteGroup}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md
+        className="flex items-center gap-2.5 px-2 py-2 text-[10px] rounded-md
           text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <span>🗑</span> Delete group
@@ -188,7 +204,7 @@ function GroupContextContent({
       <ContextMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-700/60" />
       <ContextMenuItem
         onClick={onRefresh}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-500 dark:text-slate-400
+        className="flex items-center gap-2.5 px-2 py-2 text-[10px] rounded-md text-slate-500 dark:text-slate-400
           hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
       >
         <span>🔄</span> Refresh
@@ -215,14 +231,14 @@ function ProductContextContent({
       </div>
       <ContextMenuItem
         onClick={onEdit}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-xs rounded-md text-slate-800 dark:text-slate-200
           hover:bg-emerald-500/15 hover:text-emerald-300 cursor-pointer"
       >
         <span>✏️</span> Edit product
       </ContextMenuItem>
       <ContextMenuItem
         onClick={onDuplicate}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md text-slate-800 dark:text-slate-200
+        className="flex items-center gap-2.5 px-2 py-2 text-xs rounded-md text-slate-800 dark:text-slate-200
           hover:bg-emerald-500/15 hover:text-emerald-300 cursor-pointer"
       >
         <span>📋</span> Duplicate
@@ -230,7 +246,7 @@ function ProductContextContent({
       <ContextMenuSeparator className="my-1 bg-slate-100 dark:bg-slate-700/60" />
       <ContextMenuItem
         onClick={onDelete}
-        className="flex items-center gap-2.5 px-2 py-2 text-sm rounded-md
+        className="flex items-center gap-2.5 px-2 py-2 text-xs rounded-md
           text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer"
       >
         <span>🗑</span> Delete product
@@ -244,30 +260,55 @@ function ProductContextContent({
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 export function ProductsView() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState("root");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedSingleProductId, setSelectedSingleProductId] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<Product>();
-  const [isDuplicate, setIsDuplicate] = useState(false);
-  const [addProductDrawerOpen, setAddProductDrawerOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<any | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const [sortingOpen, setSortingOpen] = useState(false);
+  // ── REDUX GLOBAL STATE ──
+  const dispatch = useDispatch();
+  const {
+    searchQuery,
+    drawerOpen,
+    selectedId,
+    selectedProductId,
+    selectedSingleProductId,
+    selectedProduct,
+    isDuplicate,
+    addProductDrawerOpen,
+    editingGroup,
+    importOpen,
+    sortingOpen,
+    colWidths,
+  } = useSelector((state: RootState) => state.products);
 
-  const [colWidths, setColWidths] = useState<Record<string, number>>(
-    Object.fromEntries(COLUMNS.map((c) => [c.key, c.defaultWidth])),
-  );
+  // Dispatch-wrapped setters
+  const setSearchQuery = (v: string) => dispatch(setSearchQueryAction(v));
+  const setDrawerOpen = (v: boolean) => dispatch(setDrawerOpenAction(v));
+  const setSelectedId = (v: string) => dispatch(setSelectedIdAction(v));
+  const setSelectedProductId = (v: string) => dispatch(setSelectedProductIdAction(v));
+  const setSelectedSingleProductId = (v: string) => dispatch(setSelectedSingleProductIdAction(v));
+  const setSelectedProduct = (v: any) => dispatch(setSelectedProductAction(v));
+  const setIsDuplicate = (v: boolean) => dispatch(setIsDuplicateAction(v));
+  const setAddProductDrawerOpen = (v: boolean) => dispatch(setAddProductDrawerOpenAction(v));
+  const setEditingGroup = (v: any | null) => dispatch(setEditingGroupAction(v));
+  const setImportOpen = (v: boolean) => dispatch(setImportOpenAction(v));
+  const setSortingOpen = (v: boolean) => dispatch(setSortingOpenAction(v));
   const resizeCol = useCallback((key: string, delta: number) => {
-    setColWidths((prev) => {
-      const col = COLUMNS.find((c) => c.key === key)!;
-      return {
-        ...prev,
-        [key]: Math.max(col.minWidth, (prev[key] ?? col.defaultWidth) + delta),
-      };
-    });
-  }, []);
+    const COLUMNS_MAP: Record<string, { minWidth: number; defaultWidth: number }> = {
+      code: { minWidth: 48, defaultWidth: 80 },
+      name: { minWidth: 80, defaultWidth: 200 },
+      group: { minWidth: 60, defaultWidth: 120 },
+      barcode: { minWidth: 60, defaultWidth: 130 },
+      cost: { minWidth: 60, defaultWidth: 90 },
+      salePrice: { minWidth: 60, defaultWidth: 100 },
+      taxes: { minWidth: 60, defaultWidth: 130 },
+      stock: { minWidth: 48, defaultWidth: 70 },
+      active: { minWidth: 48, defaultWidth: 70 },
+      unit: { minWidth: 48, defaultWidth: 70 },
+      created: { minWidth: 60, defaultWidth: 90 },
+      updated: { minWidth: 60, defaultWidth: 90 },
+    };
+    const col = COLUMNS_MAP[key];
+    if (!col) return;
+    const newWidth = Math.max(col.minWidth, (colWidths[key] ?? col.defaultWidth) + delta);
+    dispatch(setColWidth({ key, width: newWidth }));
+  }, [colWidths, dispatch]);
 
   const navigate = useNavigate();
 
@@ -794,7 +835,7 @@ export function ProductsView() {
 
       {/* Page header */}
       <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
-        <span className="text-sm text-slate-700 dark:text-slate-300">
+        <span className="text-xs text-slate-700 dark:text-slate-300">
           Management • Products
         </span>
         <button className="text-slate-500 dark:text-slate-400 hover:text-indigo-400 transition">
@@ -900,7 +941,7 @@ export function ProductsView() {
                 placeholder="Product name"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 rounded text-sm w-full placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 rounded text-xs w-full placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="flex gap-4 text-xs text-slate-500">
@@ -913,7 +954,7 @@ export function ProductsView() {
 
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
             <table
-              className="border-collapse text-sm"
+              className="border-collapse text-xs"
               style={{ width: "max-content", minWidth: "100%" }}
             >
               <thead className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -927,7 +968,7 @@ export function ProductsView() {
                         minWidth: col.minWidth,
                       }}
                     >
-                      <div className="px-3 py-2.5 text-xs uppercase tracking-wider text-indigo-400 select-none truncate">
+                      <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider text-indigo-400 select-none truncate">
                         {col.label}
                       </div>
                       <ResizeHandle
@@ -942,7 +983,7 @@ export function ProductsView() {
                   <tr>
                     <td
                       colSpan={COLUMNS.length}
-                      className="px-6 py-12 text-center text-slate-600 text-sm"
+                      className="px-6 py-12 text-center text-slate-600 text-xs"
                     >
                       No products in this group
                     </td>
@@ -1091,7 +1132,7 @@ function ToolbarButton({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       className={cn(
-        "flex flex-col items-center gap-1 px-3 py-2 rounded text-xs transition",
+        "flex flex-col items-center gap-1 px-3 py-2 rounded text-[10px] transition",
         disabled
           ? "text-slate-600 opacity-50 cursor-not-allowed pointer-events-none"
           : danger
@@ -1099,7 +1140,7 @@ function ToolbarButton({
             : "text-slate-500 dark:text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10",
       )}
     >
-      <span className="text-base">{icon}</span>
+      <span className="text-sm">{icon}</span>
       <span>{label}</span>
     </button>
   );

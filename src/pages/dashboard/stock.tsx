@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   X,
   ChevronLeftIcon,
@@ -18,9 +19,20 @@ import {
   CheckCircle2,
   Sheet,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../store";
+import {
+  setSelectedLabel as setSelectedLabelAction,
+  setSearchQuery as setSearchQueryAction,
+  setSelectedNodeId as setSelectedNodeIdAction,
+  setShowHistory as setShowHistoryAction,
+  setQuickInventoryProduct as setQuickInventoryProductAction,
+  setShowProductPicker as setShowProductPickerAction,
+  setSavingPdf as setSavingPdfAction,
+  setSavingExcel as setSavingExcelAction,
+} from "../../store/stockSlice";
 
 // PDF
 import {
@@ -167,19 +179,19 @@ function StockPdfDoc({
         {products.map((p) => {
           const qty = getQty(p.id);
           return (
-              <View key={p.id} style={pdfStyles.trow}>
-                <Text style={pdfStyles.c0}>{p.code}</Text>
-                <Text style={pdfStyles.c1}>{p.title}</Text>
-                <Text style={pdfStyles.c2}>{qty}</Text>
-                <Text style={pdfStyles.c3}>{p.unit}</Text>
-                <Text style={pdfStyles.c4}>
-                  {N}
-                  {p.cost.toFixed(2)}
-                </Text>
-                <Text style={pdfStyles.c5}>
-                  {N}
-                  {(qty * p.cost).toFixed(2)}
-                </Text>
+            <View key={p.id} style={pdfStyles.trow}>
+              <Text style={pdfStyles.c0}>{p.code}</Text>
+              <Text style={pdfStyles.c1}>{p.title}</Text>
+              <Text style={pdfStyles.c2}>{qty}</Text>
+              <Text style={pdfStyles.c3}>{p.unit}</Text>
+              <Text style={pdfStyles.c4}>
+                {N}
+                {p.cost.toFixed(2)}
+              </Text>
+              <Text style={pdfStyles.c5}>
+                {N}
+                {(qty * p.cost).toFixed(2)}
+              </Text>
               <Text style={pdfStyles.c6}>
                 {N}
                 {p.salePrice.toFixed(2)}
@@ -345,7 +357,7 @@ function StockHistoryDialog({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product or note…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
+              className="flex-1 bg-transparent text-xs outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
             />
             {search && (
               <button
@@ -359,15 +371,15 @@ function StockHistoryDialog({
         </div>
         <div className="flex-1 overflow-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-slate-500 gap-2 text-sm">
+            <div className="flex items-center justify-center h-full text-slate-500 gap-2 text-xs">
               <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-500 text-sm py-16">
+            <div className="flex items-center justify-center h-full text-slate-500 text-xs py-16">
               No stock entries found
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   {["Date", "Product", "Type", "Qty", "Note"].map((h) => (
@@ -406,7 +418,7 @@ function StockHistoryDialog({
                         </div>
                       </td>
                       <td
-                        className={`px-4 py-2.5 font-mono tabular-nums font-semibold text-sm ${entry.quantity > 0 ? "text-emerald-400" : "text-red-400"}`}
+                        className={`px-4 py-2.5 font-mono tabular-nums font-semibold text-xs ${entry.quantity > 0 ? "text-emerald-400" : "text-red-400"}`}
                       >
                         {entry.quantity > 0 ? "+" : ""}
                         {entry.quantity}
@@ -424,7 +436,7 @@ function StockHistoryDialog({
         <div className="px-5 py-3 border-t border-slate-300 dark:border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-4 py-1.5 text-sm transition-colors"
+            className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-4 py-1.5 text-xs transition-colors"
           >
             Close
           </button>
@@ -457,64 +469,67 @@ function QuickInventoryDialog({
   const [type, setType] = useState<"in" | "out" | "adjustment">("in");
   const [note, setNote] = useState("");
 
-  const handle = useCallback((val: string) => {
-    if (val === "C") {
-      setDisplay("0");
-      setExpr("");
-      setHasResult(false);
-      return;
-    }
-    if (val === "⌫") {
-      if (hasResult) {
+  const handle = useCallback(
+    (val: string) => {
+      if (val === "C") {
         setDisplay("0");
         setExpr("");
         setHasResult(false);
         return;
       }
-      setDisplay((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
-      return;
-    }
-    if (val === "=") {
-      try {
-        // eslint-disable-next-line no-eval
-        const result = eval(display.replace(/×/g, "*").replace(/÷/g, "/"));
-        setExpr(display + " =");
-        setDisplay(String(parseFloat(result.toFixed(4))));
-        setHasResult(true);
-      } catch {
-        setDisplay("Error");
-        setHasResult(true);
+      if (val === "⌫") {
+        if (hasResult) {
+          setDisplay("0");
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        return;
       }
-      return;
-    }
-    if (["+", "-", "×", "÷"].includes(val)) {
+      if (val === "=") {
+        try {
+          // eslint-disable-next-line no-eval
+          const result = eval(display.replace(/×/g, "*").replace(/÷/g, "/"));
+          setExpr(display + " =");
+          setDisplay(String(parseFloat(result.toFixed(4))));
+          setHasResult(true);
+        } catch {
+          setDisplay("Error");
+          setHasResult(true);
+        }
+        return;
+      }
+      if (["+", "-", "×", "÷"].includes(val)) {
+        if (hasResult) {
+          setDisplay(display + val);
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((p) =>
+          ["+", "-", "×", "÷"].includes(p.slice(-1))
+            ? p.slice(0, -1) + val
+            : p + val,
+        );
+        return;
+      }
+      if (val === ".") {
+        const parts = display.split(/[+\-×÷]/);
+        if (parts[parts.length - 1].includes(".")) return;
+        setDisplay((p) => p + ".");
+        return;
+      }
       if (hasResult) {
-        setDisplay(display + val);
+        setDisplay(val);
         setExpr("");
         setHasResult(false);
         return;
       }
-      setDisplay((p) =>
-        ["+", "-", "×", "÷"].includes(p.slice(-1))
-          ? p.slice(0, -1) + val
-          : p + val,
-      );
-      return;
-    }
-    if (val === ".") {
-      const parts = display.split(/[+\-×÷]/);
-      if (parts[parts.length - 1].includes(".")) return;
-      setDisplay((p) => p + ".");
-      return;
-    }
-    if (hasResult) {
-      setDisplay(val);
-      setExpr("");
-      setHasResult(false);
-      return;
-    }
-    setDisplay((p) => (p === "0" ? val : p + val));
-  }, [display, hasResult]);
+      setDisplay((p) => (p === "0" ? val : p + val));
+    },
+    [display, hasResult],
+  );
 
   const confirm = useCallback(() => {
     const qty = parseFloat(display);
@@ -546,10 +561,10 @@ function QuickInventoryDialog({
     if (v === "C")
       return "bg-red-700/70 hover:bg-red-600 text-slate-900 dark:text-white";
     if (v === "⌫")
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 text-base";
     if (["+", "-", "×", "÷"].includes(v))
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-xl";
-    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-lg";
+    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-base";
   };
 
   const types = [
@@ -580,7 +595,7 @@ function QuickInventoryDialog({
           <div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
                 Quick Inventory
               </span>
             </div>
@@ -624,7 +639,7 @@ function QuickInventoryDialog({
           )}
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate mt-0.5
-            ${display.length > 10 ? "text-2xl" : display.length > 7 ? "text-3xl" : "text-4xl"}
+            ${display.length > 10 ? "text-xl" : display.length > 7 ? "text-2xl" : "text-3xl"}
             ${display === "Error" ? "text-red-400" : "text-slate-900 dark:text-slate-100"}`}
           >
             {display}
@@ -705,7 +720,7 @@ function QuickInventoryDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Optional note…"
-            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500 placeholder-slate-500"
+            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500 placeholder-slate-500"
           />
         </div>
       </div>
@@ -758,7 +773,7 @@ function ProductPickerDialog({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
+              className="flex-1 bg-transparent text-xs outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -773,7 +788,7 @@ function ProductPickerDialog({
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
                       {p.title}
                     </p>
                     <p className="text-xs text-slate-500">
@@ -781,7 +796,7 @@ function ProductPickerDialog({
                     </p>
                   </div>
                   <span
-                    className={`text-sm font-mono font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-slate-500" : "text-emerald-400"}`}
+                    className={`text-xs font-mono font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-slate-500" : "text-emerald-400"}`}
                   >
                     {stock}
                   </span>
@@ -862,19 +877,39 @@ export default function StockView() {
   const stockLevelsQuery = useStockLevels();
   const stockHistoryQuery = useStockLogs();
 
-const updateStockEntries = useUpdateStockEntry();
-  // Price label selector — determines which price list's cost/salePrice to show
-  const [selectedLabel, setSelectedLabel] = useState<PriceLabel>("Retail");
-  const { data: labeledPrices = [] } = useProductPricesByLabel(selectedLabel);
+  const updateStockEntries = useUpdateStockEntry();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [quickInventoryProduct, setQuickInventoryProduct] =
-    useState<EnrichedProduct | null>(null);
-  const [showProductPicker, setShowProductPicker] = useState(false);
-  const [savingPdf, setSavingPdf] = useState(false);
-  const [savingExcel, setSavingExcel] = useState(false);
+  // ── REDUX GLOBAL STATE ──
+  const dispatch = useDispatch();
+  const {
+    selectedLabel,
+    searchQuery,
+    selectedNodeId,
+    showHistory,
+    quickInventoryProduct,
+    showProductPicker,
+    savingPdf,
+    savingExcel,
+  } = useSelector((state: RootState) => state.stock);
+
+  // Price label selector — determines which price list's cost/salePrice to show
+  const { data: labeledPrices = [] } = useProductPricesByLabel(
+    selectedLabel as PriceLabel,
+  );
+
+  // Dispatch-wrapped setters (same signature as useState setters — no downstream changes needed)
+  const setSelectedLabel = (v: PriceLabel) =>
+    dispatch(setSelectedLabelAction(v));
+  const setSearchQuery = (v: string) => dispatch(setSearchQueryAction(v));
+  const setSelectedNodeId = (v: string | null) =>
+    dispatch(setSelectedNodeIdAction(v));
+  const setShowHistory = (v: boolean) => dispatch(setShowHistoryAction(v));
+  const setQuickInventoryProduct = (v: any | null) =>
+    dispatch(setQuickInventoryProductAction(v));
+  const setShowProductPicker = (v: boolean) =>
+    dispatch(setShowProductPickerAction(v));
+  const setSavingPdf = (v: boolean) => dispatch(setSavingPdfAction(v));
+  const setSavingExcel = (v: boolean) => dispatch(setSavingExcelAction(v));
 
   const rawProducts = productsQuery.data ?? [];
   const rootNodes = (nodesQuery.data ?? []) as TreeNode[];
@@ -1153,7 +1188,9 @@ const updateStockEntries = useUpdateStockEntry();
       {quickInventoryProduct && (
         <QuickInventoryDialog
           product={quickInventoryProduct}
-          currentStock={(stockLevels[quickInventoryProduct.id] as any)?.quantity ?? 0}
+          currentStock={
+            (stockLevels[quickInventoryProduct.id] as any)?.quantity ?? 0
+          }
           onConfirm={handleQuickInventoryConfirm}
           onClose={() => setQuickInventoryProduct(null)}
         />

@@ -1,6 +1,9 @@
-"use client";
-
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setReportingSelectedReport,
+  setReportingSearchQuery,
+} from "@/store/dashboardSlice";
 import { ChevronLeft, X, Search, Printer, Download, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +15,14 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const Reporting = () => {
-  const [selectedReport, setSelectedReport] = useState<ReportType | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const dispatch = useDispatch();
+  const { selectedReport, searchQuery } = useSelector(
+    (state: RootState) => state.dashboard.reporting,
+  );
+  const setSelectedReport = (val: string | null) =>
+    dispatch(setReportingSelectedReport(val));
+  const setSearchQuery = (val: string) =>
+    dispatch(setReportingSearchQuery(val));
 
   const reportQuery = useReportData(selectedReport as ReportType);
 
@@ -145,7 +154,9 @@ const Reporting = () => {
             <div className="flex-1 overflow-auto p-6">
               {reportQuery.isLoading ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-slate-500 dark:text-slate-400">Loading report...</p>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Loading report...
+                  </p>
                 </div>
               ) : reportQuery.data && reportQuery.data.length > 0 ? (
                 <div className="bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">

@@ -1,4 +1,9 @@
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setPaymentTypesActiveRow,
+  setPaymentTypesDrawerOpen,
+} from "@/store/dashboardSlice";
 
 import {
   Plus,
@@ -18,10 +23,19 @@ import {
 } from "@/hooks/controllers/paymentTypes";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import PaymentTypeDrawer from "@/components/payment-types-drawer";
+import { getNextPosition } from "@/lib/incrementalId";
 
 export default function PaymentTypesClient() {
-  const [activeRow, setActiveRow] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const dispatch = useDispatch();
+  const { activeRow, drawerOpen } = useSelector(
+    (state: RootState) => state.dashboard.paymentTypes,
+  );
+
+  const setActiveRow = (val: string | null) =>
+    dispatch(setPaymentTypesActiveRow(val));
+  const setDrawerOpen = (val: boolean) =>
+    dispatch(setPaymentTypesDrawerOpen(val));
+
   const { data: paymentTypes = [], refetch, isFetching } = usePaymentTypes();
   const createType = useCreatePaymentType();
   const updateType = useUpdatePaymentType();
@@ -33,7 +47,9 @@ export default function PaymentTypesClient() {
     if (selected) {
       await updateType.mutateAsync({ id: selected.id, data });
     } else {
-      await createType.mutateAsync(data);
+      // Add position for new payment type
+      const nextPosition = getNextPosition(paymentTypes);
+      await createType.mutateAsync({ ...data, position: nextPosition });
     }
     refetch();
   };

@@ -101,7 +101,9 @@ export default function CreditPaymentsModal() {
             <div className="w-full md:w-1/3 flex flex-col gap-3">
               {/* Customer */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-500 dark:text-slate-400">Customer</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">
+                  Customer
+                </label>
                 <select
                   value={customerId}
                   onChange={(e) => {
@@ -121,7 +123,9 @@ export default function CreditPaymentsModal() {
 
               {/* Payment type */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-500 dark:text-slate-400">Payment type</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">
+                  Payment type
+                </label>
                 <select
                   value={paymentTypeId}
                   onChange={(e) => setPaymentTypeId(e.target.value)}
@@ -138,11 +142,13 @@ export default function CreditPaymentsModal() {
 
               {/* Amount */}
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-500 dark:text-slate-400">Amount</label>
+                <label className="text-xs text-slate-500 dark:text-slate-400">
+                  Amount
+                </label>
                 <input
                   type="number"
                   min={0}
-                  step="0.01"
+                  onFocus={(e) => e.target.select()}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="w-full bg-white dark:bg-slate-800 border border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-sm px-3 py-2 focus:outline-none focus:border-sky-500 text-right font-mono"
@@ -176,7 +182,9 @@ export default function CreditPaymentsModal() {
 
             {/* Right: summary */}
             <div className="w-full md:w-2/3 flex flex-col">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Summary</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                Summary
+              </div>
 
               {!customerId ? (
                 <div className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-sm flex flex-col items-center justify-center text-slate-500 gap-3">

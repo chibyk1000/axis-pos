@@ -1,4 +1,12 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setUsersTabSelectedId,
+  setUsersTabPanelMode,
+  setUsersTabShowInactive,
+  setUsersSecurityActiveTab,
+} from "@/store/dashboardSlice";
 import {
   RotateCcw,
   Plus,
@@ -18,6 +26,7 @@ import {
   useDeleteUser,
 } from "@/hooks/controllers/users";
 import type { User, NewUser } from "@/hooks/controllers/users";
+import { getNextNumber } from "@/lib/incrementalId";
 
 /* -------------------------------------------------------------------------- */
 /*                              CONSTANTS                                     */
@@ -54,7 +63,9 @@ function FieldInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">
+        {label}
+      </label>
       <input
         {...props}
         className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500 disabled:opacity-40"
@@ -158,7 +169,10 @@ function UserFormPanel({
         <h3 className="text-sm font-medium">
           {initial ? "Edit user" : "Add user"}
         </h3>
-        <button onClick={onCancel} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">
+        <button
+          onClick={onCancel}
+          className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+        >
           <X size={15} />
         </button>
       </div>
@@ -190,7 +204,9 @@ function UserFormPanel({
 
         {/* Access level stepper */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Access level</label>
+          <label className="text-xs text-slate-500 dark:text-slate-400">
+            Access level
+          </label>
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-slate-100 dark:bg-slate-700 border border-slate-600 rounded overflow-hidden">
               <button
@@ -248,6 +264,7 @@ function UserFormPanel({
         <FieldInput
           label="Age"
           type="number"
+          onFocus={(e) => e.target.select()}
           min={0}
           max={120}
           value={form.age}
@@ -297,15 +314,20 @@ function DeleteConfirm({
     <div className="w-72 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-col shrink-0">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <h3 className="text-sm font-medium text-red-400">Delete user</h3>
-        <button onClick={onCancel} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">
+        <button
+          onClick={onCancel}
+          className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+        >
           <X size={15} />
         </button>
       </div>
       <div className="p-4 flex flex-col gap-4">
         <p className="text-sm text-slate-700 dark:text-slate-300">
           Deactivate{" "}
-          <span className="text-slate-900 dark:text-white font-medium">"{user.name}"</span>? The
-          account will be hidden but not permanently removed.
+          <span className="text-slate-900 dark:text-white font-medium">
+            "{user.name}"
+          </span>
+          ? The account will be hidden but not permanently removed.
         </p>
         <div className="flex gap-2 justify-end">
           <button
@@ -339,9 +361,15 @@ function UsersTab() {
   const updateMutation = useUpdateUser();
   const deleteMutation = useDeleteUser();
 
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [panelMode, setPanelMode] = useState<PanelMode>("idle");
-  const [showInactive, setShowInactive] = useState(false);
+  const dispatch = useDispatch();
+  const { selectedId, panelMode, showInactive } = useSelector(
+    (state: RootState) => state.dashboard.usersTab,
+  );
+  const setSelectedId = (val: number | null) =>
+    dispatch(setUsersTabSelectedId(val));
+  const setPanelMode = (val: PanelMode) => dispatch(setUsersTabPanelMode(val));
+  const setShowInactive = (val: boolean) =>
+    dispatch(setUsersTabShowInactive(val));
 
   const selected = allUsers.find((u) => u.id === selectedId) ?? null;
   const displayed = showInactive ? allUsers : allUsers.filter(isActive);
@@ -366,10 +394,13 @@ function UsersTab() {
   async function handleAdd(payload: Partial<NewUser> & { password?: string }) {
     const { password, ...data } = payload;
     const passwordHash = password ? await hashPassword(password) : undefined;
+    // Add position for new user
+    const nextNumber = getNextNumber(allUsers);
     createMutation.mutate(
       {
         ...data,
         passwordHash,
+        position: nextNumber,
         created_at: "CURRENT_TIMESTAMP",
         updated_at: "CURRENT_TIMESTAMP",
         deleted_at: "NULL",
@@ -444,7 +475,7 @@ function UsersTab() {
     {
       icon: Eye,
       label: "Show inactive",
-      onClick: () => setShowInactive((v) => !v),
+      onClick: () => setShowInactive(!showInactive),
       always: true,
       toggled: showInactive,
     },
@@ -649,7 +680,12 @@ function UsersTab() {
 /* -------------------------------------------------------------------------- */
 
 export default function UsersSecurityScreen() {
-  const [activeTab, setActiveTab] = useState<"users" | "security">("users");
+  const dispatch = useDispatch();
+  const { activeTab } = useSelector(
+    (state: RootState) => state.dashboard.usersSecurity,
+  );
+  const setActiveTab = (val: "users" | "security") =>
+    dispatch(setUsersSecurityActiveTab(val));
 
   return (
     <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 overflow-hidden">

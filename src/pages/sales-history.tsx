@@ -1,4 +1,15 @@
 import { useState, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setSalesDateRange,
+  setSalesNumberPrefix,
+  setSalesCustomerId,
+  setSalesDateModalOpen,
+  setSalesSelectedDocId,
+  setSalesDeleteModal,
+  setSalesRefundModal,
+} from "@/store/salesHistorySlice";
 import {
   Calendar,
   RefreshCw,
@@ -522,13 +533,27 @@ export default function SalesHistory() {
   const navigate = useNavigate();
 
   // ── Filters ────────────────────────────────────────────────────────────────
-  const [dateRange, setDateRange] = useState({
-    from: startOfDay(new Date()),
-    to: endOfDay(new Date()),
-  });
-  const [numberPrefix, setNumberPrefix] = useState("POS");
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const dispatch = useDispatch();
+  const {
+    dateRangeFrom,
+    dateRangeTo,
+    numberPrefix,
+    customerId,
+    dateModalOpen,
+    selectedDocId,
+    deleteModal,
+    refundModal,
+  } = useSelector((state: RootState) => state.salesHistory);
+
+  const dateRange = { from: new Date(dateRangeFrom), to: new Date(dateRangeTo) };
+  const setDateRange = (val: { from: Date; to: Date }) =>
+    dispatch(setSalesDateRange({ from: val.from.toISOString(), to: val.to.toISOString() }));
+  const setNumberPrefix = (val: string) => dispatch(setSalesNumberPrefix(val));
+  const setCustomerId = (val: string | null) => dispatch(setSalesCustomerId(val));
+  const setDateModalOpen = (val: boolean) => dispatch(setSalesDateModalOpen(val));
+  const setSelectedDocId = (val: string | null) => dispatch(setSalesSelectedDocId(val));
+  const setDeleteModal = (val: boolean) => dispatch(setSalesDeleteModal(val));
+  const setRefundModal = (val: boolean) => dispatch(setSalesRefundModal(val));
 
   const filters: SalesFilters = {
     from: dateRange.from,
@@ -548,14 +573,13 @@ export default function SalesHistory() {
   const refundMutation = useCreateRefundDocument();
 
   // ── Selection ──────────────────────────────────────────────────────────────
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+
   const { data: items = [], isLoading: loadingItems } =
     useDocumentItems(selectedDocId);
   const selectedDoc = docs.find((d) => d.id === selectedDocId) ?? null;
 
   // ── Modal flags ────────────────────────────────────────────────────────────
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [refundModal, setRefundModal] = useState(false);
+
 
   // ── Toasts ─────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([]);

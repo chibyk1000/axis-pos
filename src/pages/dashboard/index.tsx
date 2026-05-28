@@ -1,4 +1,11 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setDashboardShowAll,
+  setDashboardModalOpen,
+  setDashboardRange,
+} from "@/store/dashboardSlice";
 import { Switch } from "@/components/ui/switch";
 import { Calendar as CalendarIcon, RefreshCw } from "lucide-react";
 import { Calendar as ShadCalendar } from "@/components/ui/calendar";
@@ -111,7 +118,7 @@ function DateRangeModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-3xl p-6 shadow-xl">
-        <h3 className="text-base font-semibold mb-4">Select date range</h3>
+        <h3 className="text-sm font-semibold mb-4">Select date range</h3>
 
         <div className="grid grid-cols-12 gap-6">
           {/* Presets */}
@@ -179,7 +186,7 @@ function CardShell({
     <div
       className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 ${className}`}
     >
-      <h3 className="text-sm font-semibold mb-3">{title}</h3>
+      <h3 className="text-xs font-semibold mb-3">{title}</h3>
       {children}
     </div>
   );
@@ -187,7 +194,7 @@ function CardShell({
 
 function Empty() {
   return (
-    <div className="flex-1 flex items-center justify-center text-sm text-slate-500 py-6">
+    <div className="flex-1 flex items-center justify-center text-xs text-slate-500 py-6">
       No data to display
     </div>
   );
@@ -347,7 +354,7 @@ function TotalSalesCard({ from, to }: { from: Date; to: Date }) {
         <div className="h-12 w-32 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse mx-auto" />
       ) : (
         <>
-          <p className="text-5xl font-bold tabular-nums">
+          <p className="text-4xl font-bold tabular-nums">
             {total.toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -416,12 +423,18 @@ function TopCustomersCard({ from, to }: { from: Date; to: Date }) {
 
 export default function Dashboard() {
   const currentYear = new Date().getFullYear();
-  const [showAll, setShowAll] = useState(false); // Switch: show all vs posted
-  const [modalOpen, setModalOpen] = useState(false);
-  const [range, setRange] = useState<{ from: Date; to: Date }>({
-    from: startOfMonth(new Date()),
-    to: new Date(),
-  });
+  const dispatch = useDispatch();
+  const { showAll, modalOpen, rangeFrom, rangeTo } = useSelector(
+    (state: RootState) => state.dashboard.dashboardMain,
+  );
+  const range = {
+    from: new Date(rangeFrom),
+    to: new Date(rangeTo),
+  };
+  const setShowAll = (val: boolean) => dispatch(setDashboardShowAll(val));
+  const setModalOpen = (val: boolean) => dispatch(setDashboardModalOpen(val));
+  const setRange = (val: { from: Date; to: Date }) =>
+    dispatch(setDashboardRange({ from: val.from.toISOString(), to: val.to.toISOString() }));
 
   const {
     data: monthlySales = [],
@@ -448,10 +461,10 @@ export default function Dashboard() {
         <section className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-lg font-semibold">
                 Monthly sales — {currentYear}
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Sales grouped by month (posted documents only)
               </p>
             </div>
@@ -514,8 +527,8 @@ export default function Dashboard() {
         <section className="space-y-4">
           {/* Range header */}
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Periodic reports</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-400">{rangeLabel}</span>
+            <h2 className="text-base font-semibold">Periodic reports</h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{rangeLabel}</span>
             <button
               onClick={() => setModalOpen(true)}
               className="p-1.5 rounded-lg hover:bg-white dark:bg-slate-800 transition text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"

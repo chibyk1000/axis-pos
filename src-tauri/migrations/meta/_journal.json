@@ -15,6 +15,13 @@
       "when": 1778199501442,
       "tag": "0001_gigantic_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779973663350,
+      "tag": "0002_bright_master_chief",
+      "breakpoints": true
     }
   ]
 }

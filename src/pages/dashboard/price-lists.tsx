@@ -1,4 +1,12 @@
 import { useState, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setPriceListsLabel,
+  setPriceListsNodeId,
+  setPriceListsSearchTerm,
+  setPriceListsBulkModalOpen,
+} from "@/store/dashboardSlice";
 import {
   RefreshCw,
   Percent,
@@ -6,7 +14,6 @@ import {
   Search,
   Check,
   X,
-
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
@@ -64,7 +71,9 @@ function FieldInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">
+        {label}
+      </label>
       <input
         {...props}
         className={`bg-slate-100 dark:bg-slate-700 border text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none
@@ -195,7 +204,9 @@ function BulkAdjustModal({
                 onChange={() => setMode(m)}
                 className="mt-0.5 accent-sky-500"
               />
-              <span className="text-xs text-slate-700 dark:text-slate-300">{modeLabels[m]}</span>
+              <span className="text-xs text-slate-700 dark:text-slate-300">
+                {modeLabels[m]}
+              </span>
             </label>
           ))}
         </div>
@@ -341,17 +352,23 @@ export function PriceListsView() {
   const bulkAdjust = useBulkAdjustPricesByLabel();
 
   // ── ui state ──────────────────────────────────────────────────────────────
-  const [selectedLabel, setSelectedLabel] = useState<PriceLabel>("Retail");
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [bulkModalOpen, setBulkModalOpen] = useState(false);
-const setDefaultPrice = useSetDefaultProductPrice();
+  const dispatch = useDispatch();
+  const { selectedLabel, selectedNodeId, searchTerm, bulkModalOpen } =
+    useSelector((state: RootState) => state.dashboard.priceLists);
+  const setSelectedLabel = (val: PriceLabel) =>
+    dispatch(setPriceListsLabel(val));
+  const setSelectedNodeId = (val: string | null) =>
+    dispatch(setPriceListsNodeId(val));
+  const setSearchTerm = (val: string) => dispatch(setPriceListsSearchTerm(val));
+  const setBulkModalOpen = (val: boolean) =>
+    dispatch(setPriceListsBulkModalOpen(val));
+  const setDefaultPrice = useSetDefaultProductPrice();
   // ── derived ───────────────────────────────────────────────────────────────
 
   /** productId → price row for the active label */
   const priceMap = useMemo(() => {
     const map: Record<string, ProductPrice> = {};
-    for (const row of allLabelPrices[selectedLabel] ?? []) {
+    for (const row of allLabelPrices[selectedLabel as PriceLabel] ?? []) {
       map[row.productId] = row;
     }
     return map;
@@ -386,10 +403,10 @@ const setDefaultPrice = useSetDefaultProductPrice();
   }, [allProducts, priceMap, selectedNodeId, searchTerm]);
 
   const pricedCount = enrichedProducts.filter((p) => p.hasPriceRow).length;
-function handleSetDefault(productId: string, priceRowId?: string) {
-  if (!priceRowId) return;
-  setDefaultPrice.mutate({ productId, priceId: priceRowId });
-}
+  function handleSetDefault(productId: string, priceRowId?: string) {
+    if (!priceRowId) return;
+    setDefaultPrice.mutate({ productId, priceId: priceRowId });
+  }
   // ── handlers ──────────────────────────────────────────────────────────────
 
   function handleFieldSave(
@@ -416,7 +433,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
     upsertPrice.mutate({
       id: current?.id ?? nanoid(),
       productId,
-      label: selectedLabel, // hook converts this → wholeSale boolean
+      label: selectedLabel as PriceLabel, // hook converts this → wholeSale boolean
       cost: parseFloat(cost.toFixed(4)),
       markup: parseFloat(markup.toFixed(2)),
       salePrice: parseFloat(salePrice.toFixed(4)),
@@ -434,7 +451,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
     upsertPrice.mutate({
       id: current?.id ?? nanoid(),
       productId,
-      label: selectedLabel,
+      label: selectedLabel as PriceLabel,
       cost: current?.cost ?? 0,
       markup: current?.markup ?? 0,
       salePrice: current?.salePrice ?? 0,
@@ -452,7 +469,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
 
   function handleBulkAdjust(mode: "percent" | "fixed" | "set", delta: number) {
     bulkAdjust.mutate(
-      { label: selectedLabel, mode, delta },
+      { label: selectedLabel as PriceLabel, mode, delta },
       { onSuccess: () => setBulkModalOpen(false) },
     );
   }
@@ -463,7 +480,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
     <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       {bulkModalOpen && (
         <BulkAdjustModal
-          label={selectedLabel}
+          label={selectedLabel as PriceLabel}
           productCount={pricedCount}
           onSave={handleBulkAdjust}
           onClose={() => setBulkModalOpen(false)}
@@ -549,7 +566,7 @@ function handleSetDefault(productId: string, priceRowId?: string) {
               {enrichedProducts.length !== 1 ? "s" : ""}
             </span>
             <span
-              className={`text-xs px-2 py-0.5 rounded-full ${labelStyle[selectedLabel]}`}
+              className={`text-xs px-2 py-0.5 rounded-full ${labelStyle[selectedLabel as PriceLabel]}`}
             >
               {selectedLabel}
             </span>

@@ -1,6 +1,10 @@
-"use client";
-
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setTaxRatesSelected,
+  setTaxRatesOpen,
+  setTaxRatesSwitchOpen,
+} from "@/store/dashboardSlice";
 import {
   Table,
   TableBody,
@@ -30,12 +34,19 @@ import {
 } from "@/hooks/controllers/taxes";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import SwitchTaxesDrawer from "@/components/products/switch-tax-drawer";
+import { getNextNumber } from "@/lib/incrementalId";
 
 export default function TaxRatesTable() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const dispatch = useDispatch();
+  const { selected, open, switchOpen } = useSelector(
+    (state: RootState) => state.dashboard.taxRates,
+  );
 
-  const [switchOpen, setSwitchOpen] = useState(false);
+  const setSelected = (val: string | null) =>
+    dispatch(setTaxRatesSelected(val));
+  const setOpen = (val: boolean) => dispatch(setTaxRatesOpen(val));
+  const setSwitchOpen = (val: boolean) => dispatch(setTaxRatesSwitchOpen(val));
+
   const switchTax = useSwitchTax();
   const { data: taxes = [], refetch } = useTaxes();
   const createTax = useCreateTax();
@@ -66,6 +77,8 @@ export default function TaxRatesTable() {
                 data: taxData,
               });
             } else {
+              // Add position for new tax
+              const nextNumber = getNextNumber(taxes);
               await createTax.mutateAsync({
                 code: taxData.code,
                 name: taxData.name,
@@ -73,6 +86,7 @@ export default function TaxRatesTable() {
                 id: crypto.randomUUID(),
                 enabled: taxData.enabled,
                 fixed: taxData.fixed,
+                position: nextNumber,
               });
             }
             setOpen(false);
@@ -142,11 +156,21 @@ export default function TaxRatesTable() {
           <Table>
             <TableHeader className="  bg-slate-100 dark:bg-slate-700 border-b border-slate-100">
               <TableRow>
-                <TableHead className="text-slate-800 dark:text-slate-200 w-[40%]">Name</TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">Rate</TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">Code</TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">Fixed</TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">Enabled</TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200 w-[40%]">
+                  Name
+                </TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">
+                  Rate
+                </TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">
+                  Code
+                </TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">
+                  Fixed
+                </TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">
+                  Enabled
+                </TableHead>
               </TableRow>
             </TableHeader>
 

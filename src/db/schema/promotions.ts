@@ -44,6 +44,8 @@ export const promotions = sqliteTable("promotions", {
 
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
 
+  position: integer("position").notNull().default(0),
+
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .defaultNow(),

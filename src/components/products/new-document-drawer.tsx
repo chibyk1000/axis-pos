@@ -153,10 +153,13 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
         <div className="space-y-5 p-4">
           {/* Quantity */}
           <div className="space-y-1">
-            <Label className="text-slate-500 dark:text-slate-400">Quantity</Label>
+            <Label className="text-slate-500 dark:text-slate-400">
+              Quantity
+            </Label>
             <Input
               className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               type="number"
+              onFocus={(e) => e.target.select()}
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
             />
@@ -164,10 +167,13 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Price */}
           <div className="space-y-1">
-            <Label className="text-slate-500 dark:text-slate-400">Price before tax</Label>
+            <Label className="text-slate-500 dark:text-slate-400">
+              Price before tax
+            </Label>
             <Input
               className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
               type="number"
+              onFocus={(e) => e.target.select()}
               value={priceBeforeTax}
               onChange={(e) =>
                 handlePriceBeforeTaxChange(Number(e.target.value))
@@ -209,11 +215,14 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
               </Button>
             )}
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">Price</Label>
+              <Label className="text-slate-500 dark:text-slate-400">
+                Price
+              </Label>
               <Input
                 className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                 type="number"
                 value={price}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => handlePriceChange(Number(e.target.value))}
               />
             </div>
@@ -275,7 +284,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Discount */}
           <div className="space-y-2">
-            <Label className="text-slate-500 dark:text-slate-400">Discount</Label>
+            <Label className="text-slate-500 dark:text-slate-400">
+              Discount
+            </Label>
 
             <div className="flex gap-2">
               <Select
@@ -295,12 +306,15 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
               <Input
                 type="number"
                 value={discount}
+                onFocus={(e) => e.target.select()}
                 className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                 onChange={(e) => setDiscount(Number(e.target.value))}
               />
 
               {discountType === "percent" && (
-                <div className="flex items-center text-slate-500 dark:text-slate-400">%</div>
+                <div className="flex items-center text-slate-500 dark:text-slate-400">
+                  %
+                </div>
               )}
             </div>
           </div>
@@ -308,7 +322,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
           {/* Totals */}
           <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">Total before tax</Label>
+              <Label className="text-slate-500 dark:text-slate-400">
+                Total before tax
+              </Label>
               <Input
                 disabled
                 value={totalBeforeTax.toFixed(2)}
@@ -317,7 +333,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
             </div>
 
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">Total</Label>
+              <Label className="text-slate-500 dark:text-slate-400">
+                Total
+              </Label>
               <Input
                 disabled
                 value={total.toFixed(2)}

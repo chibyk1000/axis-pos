@@ -147,7 +147,38 @@ export default function NewDocument({
       })
       .filter(Boolean) as TreeViewElement[];
   };
+  
+  const getAllProducts = (groups: any[]): any[] => {
+    const allProducts: any[] = [];
+    
+    const extractProducts = (groupList: any[]) => {
+      groupList.forEach((group) => {
+        // Add products from current group
+        const groupProducts = (group.products ?? [])
+          .filter((p: any) => {
+            const q = searchQuery.toLowerCase();
+            return (
+              p.title.toLowerCase().includes(q) ||
+              p.code?.toLowerCase().includes(q)
+            );
+          });
+        
+        allProducts.push(...groupProducts);
+        
+        // Recursively extract products from child groups
+        if (group.children) {
+          extractProducts(group.children);
+        }
+      });
+    };
+    
+    extractProducts(groups);
+    return allProducts;
+  };
+  
   const treeElements = mapGroupsToTree(rootGroups);
+  const allProducts = getAllProducts(rootGroups);
+  
   function RenderTree({ elements }: { elements: TreeViewElement[] }) {
     return (
       <>
@@ -193,7 +224,7 @@ export default function NewDocument({
       </>
     );
   }
-
+  
   const [note, setNote] = useState(document?.note ?? "");
 
   const totals = useMemo(() => {
@@ -415,7 +446,7 @@ export default function NewDocument({
 
             {/* Stock Date */}
             <div className="space-y-2 pt-2">
-              <Label className="text-slate-500 dark:text-slate-400 text-sm">
+              <Label className="text-slate-500 dark:text-slate-400 text-xs">
                 Stock date
               </Label>
 
@@ -506,124 +537,161 @@ export default function NewDocument({
           </TabsList>
 
           {/* ================= ITEMS TAB ================= */}
-          <TabsContent value="items" className="space-y-4 mt-4">
-            <div className="grid grid-cols-12 gap-2">
-              {/* LEFT SIDEBAR */}
-              <div className="col-span-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-3">
-                <Input 
-                  type="text" 
-                  placeholder="Search product" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+          <TabsContent
+            value="items"
+            className="space-y-5 mt-4 focus-visible:outline-none"
+          >
+            {/* Changed grid layout from 2/10 to 3/9 for drastically improved breathing room */}
+            <div className="grid grid-cols-12 gap-5 items-start">
+              {/* LEFT SIDEBAR: Expanded width, optimized text truncation */}
+              <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col min-h-[480px] shadow-sm">
+                <div className="space-y-1 mb-3">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Product Selection
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-sm focus-visible:ring-sky-500"
+                  />
+                </div>
 
-                <div className="w-56 border-r border-slate-300 dark:border-slate-800 overflow-y-auto overflow-x-hidden">
-                  <div className="w-56  border-r border-slate-300 dark:border-slate-800 pt-3">
-                    <Tree
-                      elements={treeElements}
-                      initialExpandedItems={rootGroups.map((g: any) => g.id)}
-                      className="h-full"
-                    >
-                      <RenderTree elements={treeElements} />
-                    </Tree>
-                  </div>
+                {/* Height-bounded container preventing layout jumps */}
+                <div className="w-full flex-1 overflow-y-auto max-h-[400px] pr-1 scrollbar-thin">
+                  {searchQuery ? (
+                    <div className="space-y-1">
+                      {allProducts.map((product) => (
+                        <div
+                          key={product.id}
+                          className={cn(
+                            "px-3 py-2.5 rounded-lg transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent",
+                            selectedId === product.id
+                              ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium shadow-sm"
+                              : "text-slate-600 dark:text-slate-300",
+                          )}
+                          onClick={() => setSelectedId(product.id)}
+                          onDoubleClick={() => {
+                            setSelectedDocumentProduct(product.id);
+                            setOpenNewDocument(true);
+                          }}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <FaRegFileAlt className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs leading-normal font-medium truncate">
+                                {product.title}
+                              </p>
+                              {product.code && (
+                                <p className="text-[10px] font-mono tracking-tight text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                                  {product.code}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {allProducts.length === 0 && (
+                        <div className="px-3 py-10 text-center text-slate-400 dark:text-slate-500 text-xs">
+                          No matching products
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Tree container: Dropped structural border-r that clashes with the card layout */
+                    <div className="w-full h-full text-xs">
+                      <Tree
+                        elements={treeElements}
+                        initialExpandedItems={rootGroups.map((g: any) => g.id)}
+                        className="h-full bg-transparent"
+                      >
+                        <RenderTree elements={treeElements} />
+                      </Tree>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* RIGHT CONTENT */}
-              <div className="col-span-10 space-y-4">
+              {/* RIGHT CONTENT: Dynamic width matching the grid scaling */}
+              <div className="col-span-12 md:col-span-8 lg:col-span-9 space-y-4">
                 {/* Top Toolbar */}
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      size="sm"
+                      className="h-8 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
                       disabled={selectedItemIndex === null}
                       onClick={() => {
                         if (selectedItemIndex === null) return;
-
                         const item = items[selectedItemIndex];
-
                         setEditingItemIndex(selectedItemIndex);
                         setSelectedDocumentProduct(item.productId);
                         setOpenNewDocument(true);
                       }}
                     >
-                      <Pencil className="h-4 w-4 mr-2" />
+                      <Pencil className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
                       Edit
                     </Button>
                     <Button
                       variant="outline"
-                      className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-red-400"
+                      size="sm"
+                      className="h-8 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 dark:text-red-400 text-xs"
                       disabled={selectedItemIndex === null}
                       onClick={async () => {
                         if (selectedItemIndex === null) return;
-
                         const ok = await confirm("Delete this item?");
                         if (!ok) return;
-
                         setItems((prev) =>
                           prev.filter((_, i) => i !== selectedItemIndex),
                         );
                         setSelectedItemIndex(null);
                       }}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                       Delete
                     </Button>
                   </div>
                 </div>
 
-                {/* TABLE */}
-                <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-white dark:bg-slate-800 border-b border-sky-600">
-                      <TableRow>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          ID
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Code
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Name
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Unit
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Qty
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Price before tax
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Tax
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Price
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Discount
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Total before tax
-                        </TableHead>
-                        <TableHead className="text-slate-700 dark:text-slate-300">
-                          Total
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
+                {/* TABLE: Added native responsive overflow wrap */}
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                  <div className="overflow-x-auto w-full scrollbar-thin">
+                    <Table>
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                        <TableRow>
+                          {[
+                            "ID",
+                            "Code",
+                            "Name",
+                            "Unit",
+                            "Qty",
+                            "Price before tax",
+                            "Tax",
+                            "Price",
+                            "Discount",
+                            "Total before tax",
+                            "Total",
+                          ].map((header) => (
+                            <TableHead
+                              key={header}
+                              className="text-slate-600 dark:text-slate-400 font-semibold text-xs py-3 whitespace-nowrap"
+                            >
+                              {header}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
 
-                    <>
                       <TableBody>
                         {items.length === 0 ? (
                           <TableRow>
                             <TableCell
                               colSpan={11}
-                              className="text-center text-slate-500 h-40"
+                              className="text-center text-slate-400 dark:text-slate-500 h-40 text-xs"
                             >
-                              No items added
+                              No items added to this document
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -632,127 +700,150 @@ export default function NewDocument({
                               key={i}
                               onClick={() => setSelectedItemIndex(i)}
                               className={cn(
-                                "cursor-pointer hover:bg-white dark:bg-slate-800",
-                                selectedItemIndex === i &&
-                                  "bg-slate-100 dark:bg-slate-700",
+                                "cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800/40 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/30",
+                                selectedItemIndex === i
+                                  ? "bg-slate-100/80 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  : "",
                               )}
                             >
-                              <TableCell>{i + 1}</TableCell>
-                              <TableCell>{item.productId}</TableCell>
-                              <TableCell>{item.name}</TableCell>
-                              <TableCell>{item.unit}</TableCell>
-                              <TableCell>{item.quantity}</TableCell>
-                              <TableCell>{item.priceBeforeTax}</TableCell>
-                              <TableCell>
+                              <TableCell className="py-3 text-xs font-medium text-slate-400">
+                                {i + 1}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs whitespace-nowrap font-mono text-[11px]">
+                                {item.productId}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs font-medium max-w-[180px] truncate">
+                                {item.name}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs text-slate-500 whitespace-nowrap">
+                                {item.unit}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs tabular-nums font-medium">
+                                {item.quantity}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs tabular-nums">
+                                {item.priceBeforeTax}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs text-slate-500 whitespace-nowrap">
                                 {item.taxes?.length
                                   ? item.taxes
                                       .map((t: any) => `${t.rate}%`)
                                       .join(" + ")
                                   : "0%"}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="py-3 text-xs tabular-nums">
                                 {(item.quantity * item.priceBeforeTax).toFixed(
                                   2,
                                 )}
                               </TableCell>
-                              <TableCell>{item.discount}</TableCell>
-                              <TableCell>
+                              <TableCell className="py-3 text-xs text-slate-500 tabular-nums">
+                                {item.discount}
+                              </TableCell>
+                              <TableCell className="py-3 text-xs tabular-nums">
                                 {item.quantity * item.priceBeforeTax}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="py-3 text-xs font-semibold text-right tabular-nums text-slate-900 dark:text-slate-100">
                                 {Number(item.total).toFixed(2)}
                               </TableCell>
                             </TableRow>
                           ))
                         )}
                       </TableBody>
-                    </>
-                  </Table>
+                    </Table>
+                  </div>
                 </div>
 
                 {/* DISCOUNT + TOTALS */}
-                <div className="flex justify-end gap-10 pt-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col lg:flex-row justify-end items-end lg:items-center gap-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select defaultValue="after">
-                      <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-48">
+                      <SelectTrigger className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 w-44 text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                        <SelectItem value="after">
+                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                        <SelectItem value="after" className="text-xs">
                           Apply discount after tax
                         </SelectItem>
-                        <SelectItem value="before">
+                        <SelectItem value="before" className="text-xs">
                           Apply discount before tax
                         </SelectItem>
                       </SelectContent>
                     </Select>
 
                     <Select defaultValue="percent">
-                      <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-40">
+                      <SelectTrigger className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 w-36 text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-                        <SelectItem value="percent">
-                          Discount percent
+                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                        <SelectItem value="percent" className="text-xs">
+                          Discount %
                         </SelectItem>
-                        <SelectItem value="amount">Discount amount</SelectItem>
+                        <SelectItem value="amount" className="text-xs">
+                          Discount Amt
+                        </SelectItem>
                       </SelectContent>
                     </Select>
 
-                    <Input
-                      defaultValue="0"
-                      className="w-20 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-right"
-                    />
-                    <span className="text-slate-500 dark:text-slate-400">
-                      %
-                    </span>
+                    <div className="relative flex items-center">
+                      <Input
+                        defaultValue="0"
+                        className="h-9 w-20 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-right pr-6 text-xs tabular-nums focus-visible:ring-sky-500"
+                      />
+                      <span className="absolute right-2.5 text-slate-400 text-xs pointer-events-none">
+                        %
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="text-right space-y-1 text-sm">
-                    <div className="flex justify-between gap-20">
+                  <div className="w-full sm:w-72 text-right space-y-1.5 text-xs p-3.5 rounded-xl bg-slate-100/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/40">
+                    <div className="flex justify-between gap-10">
                       <span className="text-slate-500 dark:text-slate-400">
                         Total before tax:
                       </span>
-                      <span>{totals.totalBeforeTax.toFixed(2)}</span>
+                      <span className="font-medium tabular-nums">
+                        {totals.totalBeforeTax.toFixed(2)}
+                      </span>
                     </div>
-                    <div className="flex justify-between gap-20">
+                    <div className="flex justify-between gap-10">
                       <span className="text-slate-500 dark:text-slate-400">
                         Tax:
                       </span>
-                      <span>{totals.taxTotal.toFixed(2)}</span>
+                      <span className="font-medium tabular-nums">
+                        {totals.taxTotal.toFixed(2)}
+                      </span>
                     </div>
-                    <div className="flex justify-between gap-20 font-semibold text-lg">
+                    <div className="flex justify-between gap-10 font-bold text-sm pt-1.5 border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
                       <span>Total:</span>
-                      <span>{totals.total.toFixed(2)}</span>
+                      <span className="tabular-nums text-sky-600 dark:text-sky-400">
+                        {totals.total.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* NOTES */}
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                  <div>
-                    <label className="text-slate-500 dark:text-slate-400 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-500 dark:text-slate-400 text-xs font-medium">
                       Internal note
                     </label>
                     <Textarea
                       value={internalNote}
                       onChange={(e) => setInternalNote(e.target.value)}
-                      className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 mt-1"
+                      className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs min-h-[75px] focus-visible:ring-sky-500 focus-visible:ring-1"
                     />
                   </div>
-                  <div>
-                    <label className="text-slate-500 dark:text-slate-400 text-sm">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-500 dark:text-slate-400 text-xs font-medium">
                       Note
                     </label>
                     <Textarea
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 mt-1"
+                      className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs min-h-[75px] focus-visible:ring-sky-500 focus-visible:ring-1"
                     />
                   </div>
                 </div>
-
-                {/* FOOTER ACTIONS */}
               </div>
             </div>
           </TabsContent>
@@ -887,7 +978,7 @@ export default function NewDocument({
 
               {/* ================= TOTALS ================= */}
               <div className="flex justify-end mt-4">
-                <div className="text-right space-y-1 text-sm">
+                <div className="text-right space-y-1 text-xs">
                   <div className="flex justify-between gap-20">
                     <span className="text-slate-500 dark:text-slate-400">
                       Document total:

@@ -1,4 +1,11 @@
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setMode as setModeAction,
+  setAmount as setAmountAction,
+  setDescription as setDescriptionAction,
+  resetForm
+} from "@/store/cashInOutSlice";
 import {
   ArrowDown,
   ArrowUp,
@@ -56,9 +63,12 @@ function ActionTile({
 
 export default function CashInOut() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"in" | "out">("in");
-  const [amount, setAmount] = useState("0");
-  const [description, setDescription] = useState("");
+  const dispatch = useDispatch();
+  const { mode, amount, description } = useSelector((state: RootState) => state.cashInOut);
+
+  const setMode = (val: "in" | "out") => dispatch(setModeAction(val));
+  const setAmount = (val: string) => dispatch(setAmountAction(val));
+  const setDescription = (val: string) => dispatch(setDescriptionAction(val));
 
   const {
     data: entries = [],
@@ -93,8 +103,7 @@ export default function CashInOut() {
       },
       {
         onSuccess: () => {
-          setAmount("0");
-          setDescription("");
+          dispatch(resetForm());
         },
       },
     );
@@ -173,7 +182,7 @@ export default function CashInOut() {
           <input
             type="number"
             min={0}
-            step="0.01"
+            onFocus={(e) => e.target.select()}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:border-sky-500 outline-none px-3 py-1.5 text-right text-lg font-mono text-slate-900 dark:text-slate-100 rounded-sm"

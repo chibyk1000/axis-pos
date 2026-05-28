@@ -1,4 +1,12 @@
 import { useState, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setPromotionsSelectedId,
+  setPromotionsPanelMode,
+  setPromotionsSearch,
+  setPromotionsFilterType,
+} from "@/store/dashboardSlice";
 import { nanoid } from "nanoid";
 import {
   usePromotions,
@@ -9,6 +17,7 @@ import {
   type CreatePromotionPayload,
 } from "@/hooks/controllers/promotions";
 import type { PromotionWithRelations, Promotion } from "@/db/schema";
+import { getNextNumber } from "@/lib/incrementalId";
 
 /* -------------------------------------------------------------------------- */
 /*                                   UTILS                                    */
@@ -99,7 +108,9 @@ function Input({
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">
+        {label}
+      </label>
       <input
         {...props}
         className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
@@ -115,7 +126,9 @@ function Select({
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="text-xs text-slate-500 dark:text-slate-400">
+        {label}
+      </label>
       <select
         {...props}
         className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-sky-500"
@@ -271,6 +284,7 @@ function PromotionForm({
               label="Min order value"
               type="number"
               min={0}
+              onFocus={(e) => e.target.select()}
               value={form.minOrderValue}
               onChange={(e) => set("minOrderValue", e.target.value)}
               placeholder="e.g. 5000"
@@ -279,6 +293,7 @@ function PromotionForm({
               label="Min quantity"
               type="number"
               min={0}
+              onFocus={(e) => e.target.select()}
               value={form.minQuantity}
               onChange={(e) => set("minQuantity", e.target.value)}
               placeholder="e.g. 2"
@@ -288,6 +303,7 @@ function PromotionForm({
             label="Max uses (blank = unlimited)"
             type="number"
             min={1}
+            onFocus={(e) => e.target.select()}
             value={form.maxUses}
             onChange={(e) => set("maxUses", e.target.value)}
             placeholder="e.g. 100"
@@ -331,7 +347,9 @@ function PromotionForm({
               className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.enabled ? "translate-x-4" : ""}`}
             />
           </div>
-          <span className="text-sm text-slate-700 dark:text-slate-300">Enabled</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300">
+            Enabled
+          </span>
         </label>
       </div>
     </div>
@@ -354,8 +372,11 @@ function DeleteConfirm({
   return (
     <div className="p-4 flex flex-col gap-4">
       <p className="text-sm text-slate-700 dark:text-slate-300">
-        Delete <span className="text-slate-900 dark:text-white font-medium">"{name}"</span>? This
-        cannot be undone.
+        Delete{" "}
+        <span className="text-slate-900 dark:text-white font-medium">
+          "{name}"
+        </span>
+        ? This cannot be undone.
       </p>
       <div className="flex gap-2 justify-end">
         <button
@@ -388,12 +409,17 @@ export default function PromotionsScreen() {
   const deleteMutation = useDeletePromotion();
   const toggleMutation = useTogglePromotion();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [panelMode, setPanelMode] = useState<PanelMode>("idle");
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<Promotion["type"] | "all">(
-    "all",
+  const dispatch = useDispatch();
+  const { selectedId, panelMode, search, filterType } = useSelector(
+    (state: RootState) => state.dashboard.promotions,
   );
+  const setSelectedId = (val: string | null) =>
+    dispatch(setPromotionsSelectedId(val));
+  const setPanelMode = (val: PanelMode) =>
+    dispatch(setPromotionsPanelMode(val));
+  const setSearch = (val: string) => dispatch(setPromotionsSearch(val));
+  const setFilterType = (val: Promotion["type"] | "all") =>
+    dispatch(setPromotionsFilterType(val));
 
   const selected = useMemo(
     () => promotionList.find((p) => p.id === selectedId) ?? null,
@@ -410,7 +436,14 @@ export default function PromotionsScreen() {
   }, [promotionList, filterType, search]);
 
   function handleCreate(payload: CreatePromotionPayload) {
-    createMutation.mutate(payload, {
+    // Add position for new promotion
+    const nextNumber = getNextNumber(promotionList);
+    const payloadWithPosition = {
+      ...payload,
+      position: nextNumber,
+    } as CreatePromotionPayload & { position: number };
+
+    createMutation.mutate(payloadWithPosition, {
       onSuccess: (created) => {
         setSelectedId(created.id);
         setPanelMode("idle");
@@ -503,7 +536,16 @@ export default function PromotionsScreen() {
         {/* Type filter */}
         <select
           value={filterType}
-          onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+          onChange={(e) =>
+            setFilterType(
+              e.target.value as
+                | "fixed"
+                | "percent"
+                | "bogo"
+                | "spend_discount"
+                | "all",
+            )
+          }
           className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-sky-500"
         >
           <option value="all">All types</option>

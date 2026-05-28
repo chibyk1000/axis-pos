@@ -8,6 +8,7 @@ export const taxes = sqliteTable("taxes", {
   rate: real("rate").notNull(), // e.g. 7.5, 10, 20 (percent)
   fixed: integer("fixed", { mode: "boolean" }).notNull().default(false),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  position: integer("position").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .defaultNow(),

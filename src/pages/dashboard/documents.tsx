@@ -10,7 +10,18 @@ import {
   FileDown,
   AlertTriangle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setDocOpen,
+  setDocTabs,
+  setSelectedDocTab,
+  setEditingDocument as setEditingDocumentAction,
+  setFilters as setFiltersAction,
+  setSelectedSavedDocument as setSelectedSavedDocumentAction,
+  setConfirmDeleteOpen as setConfirmDeleteOpenAction,
+} from "@/store/dashboardSlice";
 
 import SelectDocumentTypeModal, {
   DocumentType,
@@ -156,12 +167,51 @@ function ConfirmDeleteModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function DocumentsView() {
-  const [open, setOpen] = useState(false);
-  const [documents, setDocuments] = useState<DocumentType[]>([]);
-  const [selectedDocument, setSelectedDocument] = useState<DocumentType | null>(
-    null,
-  );
-  const [editingDocument, setEditingDocument] = useState<any>(null);
+  const dispatch = useDispatch();
+  const {
+    open,
+    documents,
+    selectedDocument,
+    editingDocument,
+    filters,
+    selectedSavedDocument,
+    confirmDeleteOpen,
+  } = useSelector((state: RootState) => state.dashboard.documentsView);
+
+  const setOpen = (val: boolean) => dispatch(setDocOpen(val));
+
+  const setDocuments = (
+    val: DocumentType[] | ((prev: DocumentType[]) => DocumentType[]),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setDocTabs(val(documents)));
+    } else {
+      dispatch(setDocTabs(val));
+    }
+  };
+
+  const setSelectedDocument = (
+    val:
+      | DocumentType
+      | null
+      | ((prev: DocumentType | null) => DocumentType | null),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setSelectedDocTab(val(selectedDocument)));
+    } else {
+      dispatch(setSelectedDocTab(val));
+    }
+  };
+
+  const setEditingDocument = (
+    val: any | null | ((prev: any | null) => any | null),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setEditingDocumentAction(val(editingDocument)));
+    } else {
+      dispatch(setEditingDocumentAction(val));
+    }
+  };
 
   const products = useProducts();
   const { data: customers = [] } = useCustomers();
@@ -181,15 +231,32 @@ export function DocumentsView() {
     period: undefined as DateRange | undefined,
   };
 
-  const [filters, setFilters] = useState(defaultFilters);
+  const setFilters = (
+    val: typeof filters | ((prev: typeof filters) => typeof filters),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setFiltersAction(val(filters)));
+    } else {
+      dispatch(setFiltersAction(val));
+    }
+  };
 
   // Fix #5: store refetch from hook so button triggers it properly
   const { data: savedDocuments = [], refetch } = useDocuments();
 
-  const [selectedSavedDocument, setSelectedSavedDocument] = useState<any>(null);
+  const setSelectedSavedDocument = (
+    val: any | null | ((prev: any | null) => any | null),
+  ) => {
+    if (typeof val === "function") {
+      dispatch(setSelectedSavedDocumentAction(val(selectedSavedDocument)));
+    } else {
+      dispatch(setSelectedSavedDocumentAction(val));
+    }
+  };
 
   // Fix #4: proper confirmation modal state
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const setConfirmDeleteOpen = (val: boolean) =>
+    dispatch(setConfirmDeleteOpenAction(val));
 
   const deleteDocument = useDeleteDocument();
 
@@ -608,7 +675,7 @@ export function DocumentsView() {
               </div>
               <FilterDateRange
                 label="Period"
-                value={filters.period}
+                value={filters.period as any}
                 onChange={(v) => handleFilterChange("period", v)}
               />
             </div>

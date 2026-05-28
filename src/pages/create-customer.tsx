@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setFormField,
+  setForm as setFormAction,
+  setErrors as setErrorsAction,
+  setLoading as setLoadingAction,
+  setCreatedCount as setCreatedCountAction,
+
+} from "@/store/createCustomerSlice";
 
 import {
   User,
@@ -248,19 +258,40 @@ export default function CreateCustomerPage({
   onSkip,
 }: CreateCustomerPageProps) {
   const { data: nextCode } = useNextCustomerCode();
-  const [form, setForm] = useState<CustomerFormData>(EMPTY_FORM);
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof CustomerFormData, string>>
-  >({});
-  const [loading, setLoading] = useState(false);
-  const [createdCount, setCreatedCount] = useState(0);
+  const dispatch = useDispatch();
+  const { form, errors, loading, createdCount } = useSelector((state: RootState) => state.createCustomer);
+
+  const setForm = (val: CustomerFormData | ((prev: CustomerFormData) => CustomerFormData)) => {
+    if (typeof val === "function") {
+      dispatch(setFormAction(val(form)));
+    } else {
+      dispatch(setFormAction(val));
+    }
+  };
+
+  const setErrors = (val: typeof errors | ((prev: typeof errors) => typeof errors)) => {
+    if (typeof val === "function") {
+      dispatch(setErrorsAction(val(errors)));
+    } else {
+      dispatch(setErrorsAction(val));
+    }
+  };
+
+  const setLoading = (val: boolean) => dispatch(setLoadingAction(val));
+  
+  const setCreatedCount = (val: number | ((prev: number) => number)) => {
+    if (typeof val === "function") {
+      dispatch(setCreatedCountAction(val(createdCount)));
+    } else {
+      dispatch(setCreatedCountAction(val));
+    }
+  };
 
   const set = <K extends keyof CustomerFormData>(
     k: K,
     v: CustomerFormData[K],
   ) => {
-    setForm((f) => ({ ...f, [k]: v }));
-    if (errors[k]) setErrors((e) => ({ ...e, [k]: undefined }));
+    dispatch(setFormField({ key: k, value: v }));
   };
 
   const tryAutoCode = () => {

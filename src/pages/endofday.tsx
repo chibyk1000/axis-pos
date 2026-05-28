@@ -1,4 +1,10 @@
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setActiveTab as setActiveTabAction,
+  setSelectedOption as setSelectedOptionAction,
+  setConfirmed as setConfirmedAction
+} from "@/store/endofDaySlice";
 import {
   X,
   User,
@@ -55,11 +61,12 @@ const EOD_OPTIONS = [
 
 export default function EndOfDayModal() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"end-of-day" | "history">(
-    "end-of-day",
-  );
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const dispatch = useDispatch();
+  const { activeTab, selectedOption, confirmed } = useSelector((state: RootState) => state.endOfDay);
+
+  const setActiveTab = (val: "end-of-day" | "history") => dispatch(setActiveTabAction(val));
+  const setSelectedOption = (val: string | null) => dispatch(setSelectedOptionAction(val));
+  const setConfirmed = (val: boolean) => dispatch(setConfirmedAction(val));
 
   const { data: summary, isLoading, refetch } = useEodSummary();
 

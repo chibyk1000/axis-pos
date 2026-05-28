@@ -12,6 +12,7 @@ export const users = sqliteTable("users", {
   accessLevel: integer("access_level").notNull().default(1), // 0-9, matches security tab
   age: integer("age").default(18),
   city: text("city").default("NULL"),
+  position: integer("position").notNull().default(0),
   created_at: text("created_at").default("CURRENT_TIMESTAMP"),
   updated_at: text("updated_at").default("CURRENT_TIMESTAMP"),
   deleted_at: text("deleted_at").default("NULL"), // soft-delete

@@ -1,37 +1,36 @@
-import {
-  sqliteTable,
-  text,
-  integer,
-  real,
-} from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { relations, InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { products } from "./products";
+import { documents } from "./documents";
 
-export const stockLogs = sqliteTable(
-  "stock_logs",
-  {
-    id: text("id").primaryKey(),
-    productId: text("product_id")
-      .notNull()
-      .references(() => products.id, { onDelete: "cascade" }),
+export const stockLogs = sqliteTable("stock_logs", {
+  id: text("id").primaryKey(),
+  productId: text("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
 
-    type: text("type")
-      .$type<"in" | "out" | "adjustment">()
-      .notNull(),
+  documentId: text("document_id").references(() => documents.id, {
+    onDelete: "set null",
+  }),
 
-    quantity: real("quantity").notNull(),
-    note: text("note"),
-    
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .defaultNow(),
-  }
-);
+  type: text("type").$type<"in" | "out" | "adjustment">().notNull(),
+
+  quantity: real("quantity").notNull(),
+  note: text("note"),
+
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .defaultNow(),
+});
 
 export const stockLogsRelations = relations(stockLogs, ({ one }) => ({
   product: one(products, {
     fields: [stockLogs.productId],
     references: [products.id],
+  }),
+  document: one(documents, {
+    fields: [stockLogs.documentId],
+    references: [documents.id],
   }),
 }));
 

@@ -35,6 +35,8 @@ export const customers = sqliteTable("customers", {
     .notNull()
     .default(false),
 
+  position: integer("position").notNull().default(0),
+
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .defaultNow(),

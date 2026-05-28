@@ -1,6 +1,9 @@
-"use client";
-
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import {
+  setCountriesSelected,
+  setCountriesDrawerOpen,
+} from "@/store/dashboardSlice";
 import {
   Table,
   TableBody,
@@ -20,10 +23,17 @@ import {
 } from "@/hooks/controllers/countries";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import CountryDrawer from "@/components/country-drawer";
+import { getNextNumber } from "@/lib/incrementalId";
 
 export default function CountriesTable() {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const dispatch = useDispatch();
+  const { selected, drawerOpen } = useSelector(
+    (state: RootState) => state.dashboard.countries,
+  );
+
+  const setSelected = (val: string | null) =>
+    dispatch(setCountriesSelected(val));
+  const setDrawerOpen = (val: boolean) => dispatch(setCountriesDrawerOpen(val));
 
   const { data: countries = [], refetch } = useCountries();
   const createCountry = useCreateCountry();
@@ -46,7 +56,9 @@ export default function CountriesTable() {
               data,
             });
           } else {
-            await createCountry.mutateAsync(data);
+            // Add position for new country
+            const nextNumber = getNextNumber(countries);
+            await createCountry.mutateAsync({ ...data, position: nextNumber });
           }
           refetch();
         }}
@@ -54,7 +66,7 @@ export default function CountriesTable() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3">
-        <Button variant="ghost" size="sm" onClick={()=>refetch()}>
+        <Button variant="ghost" size="sm" onClick={() => refetch()}>
           <RefreshCcw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -108,8 +120,12 @@ export default function CountriesTable() {
           <Table>
             <TableHeader className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <TableRow>
-                <TableHead className="w-[70%] text-slate-800 dark:text-slate-200">Name</TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">Code</TableHead>
+                <TableHead className="w-[70%] text-slate-800 dark:text-slate-200">
+                  Name
+                </TableHead>
+                <TableHead className="text-slate-800 dark:text-slate-200">
+                  Code
+                </TableHead>
               </TableRow>
             </TableHeader>
 

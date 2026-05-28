@@ -290,3 +290,85 @@ export function useDeleteStockEntry() {
     },
   });
 }
+
+/**
+ * Create a detailed stock log entry when a purchase is made
+ * Tracks what changed during the transaction
+ */
+export function useAddStockLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      documentId?: string;
+      type: "in" | "out" | "adjustment";
+      quantity: number;
+      note?: string;
+      transactionDetails?: {
+        productTitle?: string;
+        customerName?: string;
+        customerId?: string;
+        documentNumber?: string;
+        unitPrice?: number;
+        totalValue?: number;
+        discount?: number;
+        priceLabel?: string;
+        reason?: string;
+        productId?: string;
+        stockLevelBefore?: number;
+        stockLevelAfter?: number;
+        stockChange?: number;
+        paymentMethods?: Array<{ paymentId: string; paymentType: string; amount: number }>;
+        totalPaymentAmount?: number;
+        paymentDate?: string;
+        taxRate?: number;
+        taxAmount?: number;
+        transactionType?: string;
+        quantitySold?: number;
+        isContinuedPayment?: boolean;
+      };
+    }) => {
+      // Build comprehensive note with transaction details
+      let fullNote = data.note || "";
+      if (data.transactionDetails) {
+        const details = data.transactionDetails;
+        const noteParts = [];
+
+        if (details.reason) noteParts.push(`Reason: ${details.reason}`);
+        if (details.documentNumber)
+          noteParts.push(`Doc: ${details.documentNumber}`);
+        if (details.customerName)
+          noteParts.push(`Customer: ${details.customerName}`);
+        if (details.productTitle)
+          noteParts.push(`Product: ${details.productTitle}`);
+        if (details.priceLabel)
+          noteParts.push(`Price Label: ${details.priceLabel}`);
+        if (details.unitPrice !== undefined)
+          noteParts.push(`Unit Price: ${details.unitPrice.toFixed(2)}`);
+        if (details.totalValue !== undefined)
+          noteParts.push(`Total: ${details.totalValue.toFixed(2)}`);
+        if (details.discount !== undefined && details.discount > 0)
+          noteParts.push(`Discount: ${details.discount.toFixed(2)}`);
+
+        if (noteParts.length > 0) {
+          fullNote = noteParts.join(" | ");
+        }
+      }
+
+      const logEntry = await db.insert(stockLogs).values({
+        id: nanoid(),
+        productId: data.productId,
+        documentId: data.documentId || null,
+        type: data.type,
+        quantity: data.quantity,
+        note: fullNote,
+      });
+
+      return logEntry;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: stockKeys.logs() });
+      qc.invalidateQueries({ queryKey: stockKeys.history() });
+    },
+  });
+}

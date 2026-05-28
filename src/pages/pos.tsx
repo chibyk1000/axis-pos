@@ -1,6 +1,56 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, useEffect, useRef, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../store";
+import {
+  setItems as setReduxItems,
+  setSelectedItemId as setSelectedItemIdAction,
+  setCartDiscount as setCartDiscountAction,
+  setSelectedCustomer as setSelectedCustomerAction,
+  setDineIn as setDineInAction,
+  setOrderNote as setOrderNoteAction,
+  setDrawerOpen as setDrawerOpenAction,
+  setModal as setModalAction,
+  setShowCashDrawer as setShowCashDrawerAction,
+  setShowSaveToast as setShowSaveToastAction,
+  setWarning as setWarningAction,
+  setCalcProduct as setCalcProductAction,
+  setCalcInitialQty as setCalcInitialQtyAction,
+  setContinuePaymentDoc as setContinuePaymentDocAction,
+  clearCart as clearCartAction,
+  setPaidInput as setPaidInputAction,
+  setShowTaxManagement as setShowTaxManagementAction,
+  setShowDiscountManagement as setShowDiscountManagementAction,
+  setShowCustomerManagement as setShowCustomerManagementAction,
+  setSelectedPaymentType as setSelectedPaymentTypeAction,
+  setSelectedTax as setSelectedTaxAction,
+  setAppliedDiscount as setAppliedDiscountAction,
+  setTaxSearchTerm as setTaxSearchTermAction,
+  setSelectedTaxId as setSelectedTaxIdAction,
+  setDiscountType as setDiscountTypeAction,
+  setDiscountInput as setDiscountInputAction,
+  setSelectedPreset as setSelectedPresetAction,
+  setCustomerSearchTerm as setCustomerSearchTermAction,
+  setSelectedCustomerId as setSelectedCustomerIdAction,
+  setShowAddCustomerForm as setShowAddCustomerFormAction,
+  setNewCustomerData as setNewCustomerDataAction,
+  setRefundReceipt as setRefundReceiptAction,
+  setRefundPaymentType as setRefundPaymentTypeAction,
+  setRefundError as setRefundErrorAction,
+  setTransferSource as setTransferSourceAction,
+  setTransferStaged as setTransferStagedAction,
+  setTransferSrcSel as setTransferSrcSelAction,
+  setTransferStageSel as setTransferStageSelAction,
+  setTransferTargetDocId as setTransferTargetDocIdAction,
+  setShowOrderPicker as setShowOrderPickerAction,
+  setCalcDisplay as setCalcDisplayAction,
+  setCalcExpr,
+  setCalcHasResult,
+  setDiscountModalTab,
+  setDiscountModalValue,
+  setCustomerModalSearch,
+} from "../store/posSlice";
 import {
   X,
   Search,
@@ -41,6 +91,7 @@ import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
 import {
   useUpdateStockEntry,
   useStockLevels,
+  useAddStockLog,
 } from "@/hooks/controllers/stocks";
 import { toast } from "react-toastify";
 import React from "react";
@@ -118,19 +169,25 @@ function Modal({
 
 function CalcModal({
   product,
-  initialQty,
   onConfirm,
   onClose,
+  display,
+  expr,
+  hasResult,
+  setDisplay,
+  setExpr,
+  setHasResult,
 }: {
   product: CartItem | null;
-  initialQty: number;
   onConfirm: (qty: number) => void;
   onClose: () => void;
+  display: string;
+  expr: string;
+  hasResult: boolean;
+  setDisplay: (val: string) => void;
+  setExpr: (val: string) => void;
+  setHasResult: (val: boolean) => void;
 }) {
-  const [display, setDisplay] = useState(String(initialQty));
-  const [expr, setExpr] = useState("");
-  const [hasResult, setHasResult] = useState(false);
-
   const handle = React.useCallback(
     (val: string) => {
       if (val === "C") {
@@ -146,7 +203,7 @@ function CalcModal({
           setHasResult(false);
           return;
         }
-        setDisplay((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        setDisplay(display.length > 1 ? display.slice(0, -1) : "0");
         return;
       }
       if (val === "=") {
@@ -169,17 +226,17 @@ function CalcModal({
           setHasResult(false);
           return;
         }
-        setDisplay((p) =>
-          ["+", "-", "×", "÷"].includes(p.slice(-1))
-            ? p.slice(0, -1) + val
-            : p + val,
+        setDisplay(
+          ["+", "-", "×", "÷"].includes(display.slice(-1))
+            ? display.slice(0, -1) + val
+            : display + val,
         );
         return;
       }
       if (val === ".") {
         const parts = display.split(/[+\-×÷]/);
         if (parts[parts.length - 1].includes(".")) return;
-        setDisplay((p) => p + ".");
+        setDisplay(display + ".");
         return;
       }
       if (hasResult) {
@@ -188,9 +245,9 @@ function CalcModal({
         setHasResult(false);
         return;
       }
-      setDisplay((p) => (p === "0" ? val : p + val));
+      setDisplay(display === "0" ? val : display + val);
     },
-    [display, hasResult],
+    [display, hasResult, setDisplay, setExpr, setHasResult],
   );
 
   const confirm = React.useCallback(() => {
@@ -222,10 +279,10 @@ function CalcModal({
     if (v === "C")
       return "bg-red-700/80 hover:bg-red-600 text-slate-900 dark:text-white font-semibold";
     if (v === "⌫")
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 font-semibold text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 font-semibold text-base";
     if (["+", "-", "×", "÷"].includes(v))
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-xl";
-    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-medium text-lg";
+      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-lg";
+    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-medium text-base";
   };
 
   return (
@@ -235,7 +292,7 @@ function CalcModal({
           <p className="text-xs text-slate-600 dark:text-slate-400 uppercase tracking-widest font-semibold">
             Quantity
           </p>
-          <p className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
             {product?.title}
           </p>
         </div>
@@ -247,7 +304,7 @@ function CalcModal({
           )}
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate
-            ${display.length > 10 ? "text-2xl" : display.length > 7 ? "text-3xl" : "text-4xl"}
+            ${display.length > 10 ? "text-xl" : display.length > 7 ? "text-2xl" : "text-3xl"}
             ${display === "Error" ? "text-red-400" : "text-slate-900 dark:text-slate-100"}`}
           >
             {display}
@@ -305,7 +362,7 @@ function CalcModal({
             ))}
             <button
               onClick={confirm}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold text-2xl transition-colors"
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold text-xl transition-colors"
               style={{ gridRow: "span 2", minHeight: "116px" }}
             >
               ✓
@@ -324,7 +381,7 @@ function CalcModal({
         <div className="px-3 pb-4">
           <button
             onClick={onClose}
-            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 rounded-xl h-10 text-sm transition-colors"
+            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 rounded-xl h-10 text-xs transition-colors"
           >
             Cancel
           </button>
@@ -339,20 +396,24 @@ function CalcModal({
 function DiscountModal({
   item,
   cartDiscount,
+  tab,
+  value,
+  setTab,
+  setValue,
   onItemDiscount,
   onCartDiscount,
   onClose,
 }: {
   item: CartItem | null;
   cartDiscount: number;
+  tab: "item" | "cart";
+  value: string;
+  setTab: (t: "item" | "cart") => void;
+  setValue: (v: string) => void;
   onItemDiscount: (id: string, pct: number) => void;
   onCartDiscount: (pct: number) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"item" | "cart">(item ? "item" : "cart");
-  const [value, setValue] = useState(
-    item ? String(item.discount) : String(cartDiscount),
-  );
   const presets = [5, 10, 15, 20, 25, 50];
 
   const apply = () => {
@@ -372,7 +433,7 @@ function DiscountModal({
                 setTab("item");
                 setValue(String(item.discount));
               }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === "item" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
+              className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "item" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
             >
               Item Discount
             </button>
@@ -382,7 +443,7 @@ function DiscountModal({
               setTab("cart");
               setValue(String(cartDiscount));
             }}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === "cart" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
+            className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "cart" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
           >
             Cart Discount
           </button>
@@ -401,13 +462,14 @@ function DiscountModal({
               autoFocus
               type="number"
               min={0}
+              onFocus={(e) => e.target.select()}
               max={100}
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && apply()}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-3xl font-mono text-right text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-2xl font-mono text-right text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 text-2xl pointer-events-none">
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 text-xl pointer-events-none">
               %
             </span>
           </div>
@@ -416,7 +478,7 @@ function DiscountModal({
               <button
                 key={p}
                 onClick={() => setValue(String(p))}
-                className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-lg py-2 text-sm font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-lg py-2 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
               >
                 {p}%
               </button>
@@ -425,13 +487,13 @@ function DiscountModal({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-3 text-sm text-slate-600 dark:text-slate-400"
+              className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-3 text-xs text-slate-600 dark:text-slate-400"
             >
               Cancel
             </button>
             <button
               onClick={apply}
-              className="flex-1 bg-cyan-600 hover:bg-cyan-500 rounded-xl py-3 text-sm font-semibold text-slate-900 dark:text-white"
+              className="flex-1 bg-cyan-600 hover:bg-cyan-500 rounded-xl py-3 text-xs font-semibold text-slate-900 dark:text-white"
             >
               Apply
             </button>
@@ -447,15 +509,18 @@ function DiscountModal({
 function CustomerModal({
   customers,
   selected,
+  search,
+  setSearch,
   onSelect,
   onClose,
 }: {
   customers: any[];
   selected: any | null;
+  search: string;
+  setSearch: (s: string) => void;
   onSelect: (c: any | null) => void;
   onClose: () => void;
 }) {
-  const [search, setSearch] = useState("");
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -466,7 +531,7 @@ function CustomerModal({
     <Modal onClose={onClose}>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-105 max-h-[80vh] flex flex-col shadow-2xl">
         <div className="p-4 border-b border-slate-300 dark:border-slate-800">
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3">
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-3">
             Select Customer
           </p>
           <div className="relative">
@@ -476,7 +541,7 @@ function CustomerModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name or code…"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
             />
           </div>
         </div>
@@ -486,7 +551,7 @@ function CustomerModal({
               onSelect(null);
               onClose();
             }}
-            className="w-full px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 flex items-center gap-2"
+            className="w-full px-4 py-3 text-left text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 flex items-center gap-2"
           >
             <X className="w-4 h-4" /> No Customer (Walk-in)
           </button>
@@ -501,7 +566,7 @@ function CustomerModal({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
                     {c.name}
                   </p>
                   {c.code && (
@@ -517,7 +582,7 @@ function CustomerModal({
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="text-center text-slate-500 py-8 text-sm">
+            <p className="text-center text-slate-500 py-8 text-xs">
               No customers found
             </p>
           )}
@@ -525,7 +590,7 @@ function CustomerModal({
         <div className="p-3 border-t border-slate-300 dark:border-slate-800">
           <button
             onClick={onClose}
-            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-2 text-sm text-slate-600 dark:text-slate-400"
+            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-2 text-xs text-slate-600 dark:text-slate-400"
           >
             Close
           </button>
@@ -544,6 +609,10 @@ function SplitPaymentScreen({
   items,
   paymentTypes,
   customer,
+  paidInput,
+  selectedTypeId,
+  setPaidInput,
+  setSelectedTypeId,
   onConfirm,
   onClose,
 }: {
@@ -553,6 +622,10 @@ function SplitPaymentScreen({
   items: CartItem[];
   paymentTypes: any[];
   customer: any | null;
+  paidInput: string;
+  selectedTypeId: string;
+  setPaidInput: (v: string) => void;
+  setSelectedTypeId: (v: string) => void;
   onConfirm: (
     payments: { paymentId: string; paymentType: string; amount: number }[],
   ) => void;
@@ -569,11 +642,6 @@ function SplitPaymentScreen({
           { id: "check", name: "Check", changeAllowed: false },
         ];
 
-  const [paidInput, setPaidInput] = useState("0.00");
-  const [selectedTypeId, setSelectedTypeId] = useState<string>(
-    displayTypes[0]?.id ?? "",
-  );
-
   const selectedType = displayTypes.find((p) => p.id === selectedTypeId);
   const paidAmount = parseFloat(paidInput) || 0;
   const remaining = Math.max(0, total - paidAmount);
@@ -581,15 +649,15 @@ function SplitPaymentScreen({
   const handleKey = React.useCallback(
     (val: string) => {
       if (val === "⌫") {
-        setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        setPaidInput(paidInput.length > 1 ? paidInput.slice(0, -1) : "0");
       } else if (val === "C") {
         setPaidInput("0");
       } else if (val === ".") {
-        if (!paidInput.includes(".")) setPaidInput((p) => p + ".");
+        if (!paidInput.includes(".")) setPaidInput(paidInput + ".");
       } else if (val === "-") {
         setPaidInput(total.toFixed(2));
       } else {
-        setPaidInput((p) => (p === "0" ? val : p + val));
+        setPaidInput(paidInput === "0" ? val : paidInput + val);
       }
     },
     [total],
@@ -821,16 +889,21 @@ function SplitPaymentScreen({
 
 function TaxManagementScreen({
   taxes,
+  searchTerm,
+  selectedTaxId,
+  setSearchTerm,
+  setSelectedTaxId,
   onClose,
   onTaxSelect,
 }: {
   taxes: any[];
+  searchTerm: string;
+  selectedTaxId: string;
+  setSearchTerm: (s: string) => void;
+  setSelectedTaxId: (id: string) => void;
   onClose: () => void;
   onTaxSelect: (tax: any) => void;
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTaxId, setSelectedTaxId] = useState<string>("");
-
   const filteredTaxes = taxes.filter(
     (tax) =>
       tax.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -916,21 +989,27 @@ function TaxManagementScreen({
 // ─── Discount Management Screen Component ───────────────────────────────────────
 
 function DiscountManagementScreen({
+  discountType,
+  discountInput,
+  selectedPreset,
+  setDiscountType,
+  setDiscountInput,
+  setSelectedPreset,
   onClose,
   onDiscountApply,
 }: {
+  discountType: "percent" | "amount";
+  discountInput: string;
+  selectedPreset: string;
+  setDiscountType: (t: "percent" | "amount") => void;
+  setDiscountInput: (v: string) => void;
+  setSelectedPreset: (p: string) => void;
   onClose: () => void;
   onDiscountApply: (discount: {
     type: "percent" | "amount";
     value: number;
   }) => void;
 }) {
-  const [discountType, setDiscountType] = useState<"percent" | "amount">(
-    "percent",
-  );
-  const [discountInput, setDiscountInput] = useState("0");
-  const [selectedPreset, setSelectedPreset] = useState<string>("");
-
   const presetDiscounts = [
     { id: "5", label: "5%", value: 5, type: "percent" as const },
     { id: "10", label: "10%", value: 10, type: "percent" as const },
@@ -946,13 +1025,15 @@ function DiscountManagementScreen({
   const handleKey = useCallback(
     (val: string) => {
       if (val === "⌫") {
-        setDiscountInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        setDiscountInput(
+          discountInput.length > 1 ? discountInput.slice(0, -1) : "0",
+        );
       } else if (val === "C") {
         setDiscountInput("0");
       } else if (val === ".") {
-        if (!discountInput.includes(".")) setDiscountInput((p) => p + ".");
+        if (!discountInput.includes(".")) setDiscountInput(discountInput + ".");
       } else {
-        setDiscountInput((p) => (p === "0" ? val : p + val));
+        setDiscountInput(discountInput === "0" ? val : discountInput + val);
       }
     },
     [discountInput],
@@ -1138,12 +1219,32 @@ function DiscountManagementScreen({
 
 function CustomerManagementScreen({
   customers,
+  customerSearchTerm,
+  selectedCustomerId,
+  showAddForm,
+  newCustomer,
+  setCustomerSearchTerm,
+  setSelectedCustomerId,
+  setShowAddForm,
+  setNewCustomerData,
   onClose,
   onCustomerSelect,
   onCustomerAdd,
   onCustomerRemove,
 }: {
   customers: any[];
+  customerSearchTerm: string;
+  selectedCustomerId: string;
+  showAddForm: boolean;
+  newCustomer: { name: string; email: string; phone: string };
+  setCustomerSearchTerm: (s: string) => void;
+  setSelectedCustomerId: (id: string) => void;
+  setShowAddForm: (b: boolean) => void;
+  setNewCustomerData: (c: {
+    name: string;
+    email: string;
+    phone: string;
+  }) => void;
   onClose: () => void;
   onCustomerSelect: (customer: any) => void;
   onCustomerAdd: (customer: {
@@ -1153,21 +1254,14 @@ function CustomerManagementScreen({
   }) => void;
   onCustomerRemove: (customerId: string) => void;
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    email: "",
-    phone: "",
-  });
-
   const filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
       (customer.email &&
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.phone && customer.phone.includes(searchTerm)),
+        customer.email
+          .toLowerCase()
+          .includes(customerSearchTerm.toLowerCase())) ||
+      (customer.phone && customer.phone.includes(customerSearchTerm)),
   );
 
   const handleCustomerClick = (customer: any) => {
@@ -1182,7 +1276,7 @@ function CustomerManagementScreen({
         email: newCustomer.email.trim() || undefined,
         phone: newCustomer.phone.trim() || undefined,
       });
-      setNewCustomer({ name: "", email: "", phone: "" });
+      setNewCustomerData({ name: "", email: "", phone: "" });
       setShowAddForm(false);
     }
   };
@@ -1219,8 +1313,8 @@ function CustomerManagementScreen({
                 <input
                   type="text"
                   placeholder="Search customers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -1245,7 +1339,10 @@ function CustomerManagementScreen({
                     placeholder="Customer Name *"
                     value={newCustomer.name}
                     onChange={(e) =>
-                      setNewCustomer({ ...newCustomer, name: e.target.value })
+                      setNewCustomerData({
+                        ...newCustomer,
+                        name: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
@@ -1254,7 +1351,10 @@ function CustomerManagementScreen({
                     placeholder="Email (optional)"
                     value={newCustomer.email}
                     onChange={(e) =>
-                      setNewCustomer({ ...newCustomer, email: e.target.value })
+                      setNewCustomerData({
+                        ...newCustomer,
+                        email: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
@@ -1263,7 +1363,10 @@ function CustomerManagementScreen({
                     placeholder="Phone (optional)"
                     value={newCustomer.phone}
                     onChange={(e) =>
-                      setNewCustomer({ ...newCustomer, phone: e.target.value })
+                      setNewCustomerData({
+                        ...newCustomer,
+                        phone: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
@@ -1278,7 +1381,7 @@ function CustomerManagementScreen({
                     <button
                       onClick={() => {
                         setShowAddForm(false);
-                        setNewCustomer({ name: "", email: "", phone: "" });
+                        setNewCustomerData({ name: "", email: "", phone: "" });
                       }}
                       className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
                     >
@@ -1348,6 +1451,20 @@ function PaymentScreen({
   items,
   paymentTypes,
   customer,
+  paidInput,
+  selectedPaymentType,
+  selectedTax,
+  appliedDiscount,
+  setPaidInput,
+  setSelectedPaymentType,
+  setSelectedTax,
+  setAppliedDiscount,
+  showTaxManagement,
+  showDiscountManagement,
+  showCustomerManagement,
+  setShowTaxManagement,
+  setShowDiscountManagement,
+  setShowCustomerManagement,
   onConfirm,
   onClose,
   isContinuingPayment = false,
@@ -1358,12 +1475,61 @@ function PaymentScreen({
   items: CartItem[];
   paymentTypes: any[];
   customer: any | null;
+  paidInput: string;
+  selectedPaymentType: string;
+  selectedTax: any | null;
+  appliedDiscount: { type: "percent" | "amount"; value: number } | null;
+  setPaidInput: (v: string) => void;
+  setSelectedPaymentType: (v: string) => void;
+  setSelectedTax: (t: any) => void;
+  setAppliedDiscount: (
+    d: { type: "percent" | "amount"; value: number } | null,
+  ) => void;
+  showTaxManagement: boolean;
+  showDiscountManagement: boolean;
+  showCustomerManagement: boolean;
+  setShowTaxManagement: (b: boolean) => void;
+  setShowDiscountManagement: (b: boolean) => void;
+  setShowCustomerManagement: (b: boolean) => void;
   onConfirm: (
     payments: { paymentId: string; paymentType: string; amount: number }[],
   ) => void;
   onClose: () => void;
   isContinuingPayment?: boolean;
 }) {
+  const posDispatch = useDispatch();
+  const {
+    taxSearchTerm,
+    selectedTaxId,
+    discountType,
+    discountInput,
+    selectedPreset,
+    customerSearchTerm,
+    selectedCustomerId,
+    showAddCustomerForm,
+    newCustomerData,
+  } = useSelector((state: RootState) => state.pos);
+  const setTaxSearchTerm = (val: string) =>
+    posDispatch(setTaxSearchTermAction(val));
+  const setSelectedTaxId = (val: string) =>
+    posDispatch(setSelectedTaxIdAction(val));
+  const setDiscountType = (val: "percent" | "amount") =>
+    posDispatch(setDiscountTypeAction(val));
+  const setDiscountInput = (val: string) =>
+    posDispatch(setDiscountInputAction(val));
+  const setSelectedPreset = (val: string) =>
+    posDispatch(setSelectedPresetAction(val));
+  const setCustomerSearchTerm = (val: string) =>
+    posDispatch(setCustomerSearchTermAction(val));
+  const setSelectedCustomerId = (val: string) =>
+    posDispatch(setSelectedCustomerIdAction(val));
+  const setShowAddCustomerForm = (val: boolean) =>
+    posDispatch(setShowAddCustomerFormAction(val));
+  const setNewCustomerData = (val: {
+    name: string;
+    email: string;
+    phone: string;
+  }) => posDispatch(setNewCustomerDataAction(val));
   const enabled = paymentTypes.filter((p) => p.enabled);
   const displayTypes =
     enabled.length > 0
@@ -1375,27 +1541,17 @@ function PaymentScreen({
           { id: "split", name: "Split Payments", changeAllowed: false },
         ];
 
-  const [selectedId, setSelectedId] = useState<string>(() => {
-    // If continuing payment, automatically select split payment
-    if (isContinuingPayment) {
-      return "split";
+  // Initialize selectedPaymentType on component mount if needed
+  React.useEffect(() => {
+    if (!selectedPaymentType && isContinuingPayment) {
+      setSelectedPaymentType("split");
+    } else if (!selectedPaymentType) {
+      setSelectedPaymentType(displayTypes[0]?.id ?? "");
     }
-    return displayTypes[0]?.id ?? "";
-  });
-  const [paidInput, setPaidInput] = useState(total.toFixed(2));
+  }, [isContinuingPayment, displayTypes]);
+
+  // paidInput and other state are now managed by Redux
   const paidInputRef = useRef<HTMLInputElement>(null);
-
-  // Management screen states
-  const [showTaxManagement, setShowTaxManagement] = useState(false);
-  const [showDiscountManagement, setShowDiscountManagement] = useState(false);
-  const [showCustomerManagement, setShowCustomerManagement] = useState(false);
-
-  // State for selected items to display on payment screen
-  const [selectedTax, setSelectedTax] = useState<any>(null);
-  const [appliedDiscount, setAppliedDiscount] = useState<{
-    type: "percent" | "amount";
-    value: number;
-  } | null>(null);
 
   // Real taxes from database
   const taxesQuery = useTaxes();
@@ -1405,7 +1561,7 @@ function PaymentScreen({
   const customersQuery = useCustomers();
   const customers = customersQuery.data ?? [];
 
-  const selectedType = displayTypes.find((p) => p.id === selectedId);
+  const selectedType = displayTypes.find((p) => p.id === selectedPaymentType);
   const paidAmount = parseFloat(paidInput) || 0;
 
   // Calculate discount amount
@@ -1479,15 +1635,15 @@ function PaymentScreen({
   const handleKey = React.useCallback(
     (val: string) => {
       if (val === "⌫") {
-        setPaidInput((p) => (p.length > 1 ? p.slice(0, -1) : "0"));
+        setPaidInput(paidInput.length > 1 ? paidInput.slice(0, -1) : "0");
       } else if (val === "C") {
         setPaidInput("0");
       } else if (val === ".") {
-        setPaidInput((p) => (p.includes(".") ? p : p + "."));
+        setPaidInput(paidInput.includes(".") ? paidInput : paidInput + ".");
       } else if (val === "-") {
         setPaidInput(total.toFixed(2));
       } else {
-        setPaidInput((p) => (p === "0" ? val : p + val));
+        setPaidInput(paidInput === "0" ? val : paidInput + val);
       }
     },
     [total],
@@ -1513,10 +1669,10 @@ function PaymentScreen({
   ];
 
   const handleConfirm = React.useCallback(() => {
-    if (!selectedId || !selectedType) return;
+    if (!selectedPaymentType || !selectedType) return;
     const paymentData = [
       {
-        paymentId: selectedId,
+        paymentId: selectedPaymentType,
         paymentType: selectedType.name,
         amount: paidAmount,
       },
@@ -1527,7 +1683,7 @@ function PaymentScreen({
       total,
     });
     onConfirm(paymentData);
-  }, [selectedId, selectedType, paidAmount, onConfirm, total]);
+  }, [selectedPaymentType, selectedType, paidAmount, onConfirm, total]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1553,7 +1709,7 @@ function PaymentScreen({
   }, [handleKey, handleConfirm, onClose]);
 
   // If split payment is selected, show the split payment screen
-  if (selectedType?.id === "split") {
+  if (selectedPaymentType === "split") {
     return (
       <SplitPaymentScreen
         total={total}
@@ -1562,6 +1718,10 @@ function PaymentScreen({
         items={items}
         paymentTypes={paymentTypes}
         customer={customer}
+        paidInput={paidInput}
+        selectedTypeId={selectedPaymentType}
+        setPaidInput={setPaidInput}
+        setSelectedTypeId={setSelectedPaymentType}
         onConfirm={onConfirm}
         onClose={onClose}
       />
@@ -1569,7 +1729,7 @@ function PaymentScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex min-h-screen  bg-white dark:bg-slate-900 text-slate-900  dark:text-slate-200">
       <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
         <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
           <div>
@@ -1633,7 +1793,7 @@ function PaymentScreen({
         </div>
       </div>
 
-      <div className="w-2/3 flex flex-col p-6 gap-5">
+      <div className="w-2/3 flex overflow-y-auto  flex-col p-6 gap-5">
         <div className="flex items-center justify-between">
           <button
             onClick={onClose}
@@ -1737,9 +1897,9 @@ function PaymentScreen({
             {displayTypes.map((pt) => (
               <button
                 key={pt.id}
-                onClick={() => setSelectedId(pt.id)}
+                onClick={() => setSelectedPaymentType(pt.id)}
                 className={`w-full py-3 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
-                  selectedId === pt.id
+                  selectedPaymentType === pt.id
                     ? "bg-cyan-900 border-cyan-500 text-cyan-200"
                     : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
                 }`}
@@ -1858,8 +2018,8 @@ function PaymentScreen({
 
             <button
               onClick={handleConfirm}
-              disabled={!selectedId || paidAmount <= 0}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              disabled={!selectedPaymentType || paidAmount <= 0}
+              className="w-full py-4 mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
             >
               Confirm Payment · ₦
               {finalTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
@@ -1872,6 +2032,10 @@ function PaymentScreen({
       {showTaxManagement && (
         <TaxManagementScreen
           taxes={taxes}
+          searchTerm={taxSearchTerm}
+          selectedTaxId={selectedTaxId}
+          setSearchTerm={setTaxSearchTerm}
+          setSelectedTaxId={setSelectedTaxId}
           onClose={() => setShowTaxManagement(false)}
           onTaxSelect={handleTaxSelect}
         />
@@ -1879,6 +2043,12 @@ function PaymentScreen({
 
       {showDiscountManagement && (
         <DiscountManagementScreen
+          discountType={discountType}
+          discountInput={discountInput}
+          selectedPreset={selectedPreset}
+          setDiscountType={setDiscountType}
+          setDiscountInput={setDiscountInput}
+          setSelectedPreset={setSelectedPreset}
           onClose={() => setShowDiscountManagement(false)}
           onDiscountApply={handleDiscountApply}
         />
@@ -1887,6 +2057,14 @@ function PaymentScreen({
       {showCustomerManagement && (
         <CustomerManagementScreen
           customers={customers}
+          customerSearchTerm={customerSearchTerm}
+          selectedCustomerId={selectedCustomerId}
+          showAddForm={showAddCustomerForm}
+          newCustomer={newCustomerData}
+          setCustomerSearchTerm={setCustomerSearchTerm}
+          setSelectedCustomerId={setSelectedCustomerId}
+          setShowAddForm={setShowAddCustomerForm}
+          setNewCustomerData={setNewCustomerData}
           onClose={() => setShowCustomerManagement(false)}
           onCustomerSelect={handleCustomerSelect}
           onCustomerAdd={handleCustomerAdd}
@@ -1902,18 +2080,26 @@ function PaymentScreen({
 function RefundScreen({
   documents,
   paymentTypes,
+  receipt,
+  paymentType,
+  error,
+  setReceipt,
+  setPaymentType,
+  setError,
   onRefund,
   onClose,
 }: {
   documents: any[];
   paymentTypes: any[];
+  receipt: string;
+  paymentType: string;
+  error: string;
+  setReceipt: (r: string) => void;
+  setPaymentType: (t: string) => void;
+  setError: (e: string) => void;
   onRefund: (docId: string) => void;
   onClose: () => void;
 }) {
-  const [receipt, setReceipt] = useState("");
-  const [paymentType, setPaymentType] = useState<string>("");
-  const [error, setError] = useState("");
-
   const matchedDoc =
     (documents ?? []).find(
       (d) =>
@@ -2132,35 +2318,51 @@ function ChevronDownIcon() {
 }
 
 function TransferScreen({
-  items: cartItems,
   documents,
+  source,
+  staged,
+  srcSel,
+  stageSel,
+  targetDocId,
+  showOrderPicker,
+  setSource,
+  setStaged,
+  setSrcSel,
+  setStageSel,
+  setTargetDocId,
+  setShowOrderPicker,
   onTransfer,
   onClose,
 }: {
   items: CartItem[];
   documents: any[];
+  source: CartItem[];
+  staged: CartItem[];
+  srcSel: string | null;
+  stageSel: string | null;
+  targetDocId: string | null;
+  showOrderPicker: boolean;
+  setSource: (s: CartItem[]) => void;
+  setStaged: (s: CartItem[]) => void;
+  setSrcSel: (s: string | null) => void;
+  setStageSel: (s: string | null) => void;
+  setTargetDocId: (id: string | null) => void;
+  setShowOrderPicker: (b: boolean) => void;
   onTransfer: (keptItems: CartItem[], targetDocId: string | null) => void;
   onClose: () => void;
 }) {
-  const [source, setSource] = useState<CartItem[]>(cartItems);
-  const [staged, setStaged] = useState<CartItem[]>([]);
-  const [srcSel, setSrcSel] = useState<string | null>(null);
-  const [stageSel, setStageSel] = useState<string | null>(null);
-  const [targetDocId, setTargetDocId] = useState<string | null>(null);
-  const [showOrderPicker, setShowOrderPicker] = useState(false);
-
   const openOrders = (documents ?? []).filter((d) => d.status === "draft");
   const targetDoc = openOrders.find((d) => d.id === targetDocId) ?? null;
 
   const moveOne = () => {
     const item = srcSel ? source.find((i) => i.id === srcSel) : source[0];
     if (!item) return;
-    setSource((p) => p.filter((i) => i.id !== item.id));
-    setStaged((p) => [...p, item]);
+    setSource(source.filter((i) => i.id !== item.id));
+    setStaged([...staged, item]);
     setSrcSel(null);
   };
   const moveAll = () => {
-    setStaged((p) => [...p, ...source]);
+    setStaged([...staged, ...source]);
     setSource([]);
     setSrcSel(null);
   };
@@ -2169,12 +2371,12 @@ function TransferScreen({
       ? staged.find((i) => i.id === stageSel)
       : staged[staged.length - 1];
     if (!item) return;
-    setStaged((p) => p.filter((i) => i.id !== item.id));
-    setSource((p) => [...p, item]);
+    setStaged(staged.filter((i) => i.id !== item.id));
+    setSource([...source, item]);
     setStageSel(null);
   };
   const removeAll = () => {
-    setSource((p) => [...p, ...staged]);
+    setSource([...source, ...staged]);
     setStaged([]);
     setStageSel(null);
   };
@@ -2368,7 +2570,7 @@ function TransferScreen({
         <div className="relative">
           <p className="text-xs text-slate-500 mb-1">Target order</p>
           <button
-            onClick={() => setShowOrderPicker((v) => !v)}
+            onClick={() => setShowOrderPicker(!showOrderPicker)}
             className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center ${targetDoc ? "bg-cyan-900/30 border-cyan-600 text-cyan-200" : "bg-white dark:bg-slate-800 border-slate-600 text-slate-500 dark:text-slate-400 hover:border-slate-500"}`}
           >
             <span className="font-mono">
@@ -2381,7 +2583,7 @@ function TransferScreen({
         <div className="flex flex-col gap-2 flex-1">
           <ActionBtn
             label="Select order"
-            onClick={() => setShowOrderPicker((v) => !v)}
+            onClick={() => setShowOrderPicker(!showOrderPicker)}
           />
           <ActionBtn
             label="Transfer all"
@@ -2396,7 +2598,7 @@ function TransferScreen({
           <ActionBtn label="Transfer rounds" onClick={() => {}} />
           <ActionBtn
             label="Open orders"
-            onClick={() => setShowOrderPicker((v) => !v)}
+            onClick={() => setShowOrderPicker(!showOrderPicker)}
           />
           <ActionBtn label="Transfer all orders" onClick={() => {}} disabled />
         </div>
@@ -2478,7 +2680,7 @@ function CommentModal({
   onSave: (note: string) => void;
   onClose: () => void;
 }) {
-  const [note, setNote] = useState(currentNote);
+  const [note, setNote] = React.useState(currentNote);
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -2646,38 +2848,127 @@ export default function AroniumLite() {
   const documentsQuery = useDocuments();
   const createDocument = useCreateDocument();
   const updateStockEntries = useUpdateStockEntry();
+  const addStockLog = useAddStockLog();
   const stockLevelsQuery = useStockLevels();
   const stockLevels = stockLevelsQuery.data || {};
 
   // Cart state persistence
   const POS_STATE_KEY = "pos_cart_state";
 
-  const savedState = useMemo(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(POS_STATE_KEY);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  }, []);
+  // REDUX GLOBAL STATE
+  const dispatch = useDispatch();
+  const {
+    items,
+    selectedItemId,
+    cartDiscount,
+    selectedCustomer,
+    dineIn,
+    orderNote,
+    drawerOpen,
+    modal,
+    showCashDrawer,
+    showSaveToast,
+    warning,
+    calcProduct,
+    continuePaymentDoc,
+    paidInput,
+    showTaxManagement,
+    showDiscountManagement,
+    showCustomerManagement,
+    selectedPaymentType,
+    selectedTax,
+    appliedDiscount,
+    refundReceipt,
+    refundPaymentType,
+    refundError,
+    transferSource,
+    transferStaged,
+    transferSrcSel,
+    transferStageSel,
+    transferTargetDocId,
+    showOrderPicker,
+    calcDisplay,
+    calcExpr,
+    calcHasResult,
+    discountModalTab,
+    discountModalValue,
+    customerModalSearch,
+  } = useSelector((state: RootState) => state.pos);
 
-  const [items, setItems] = useState<CartItem[]>(savedState?.items || []);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(
-    savedState?.selectedItemId || null,
-  );
-  const [cartDiscount, setCartDiscount] = useState(
-    savedState?.cartDiscount || 0,
-  );
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(
-    savedState?.selectedCustomer || null,
-  );
-  const [dineIn, setDineIn] = useState(savedState?.dineIn || false);
-  const [orderNote, setOrderNote] = useState(savedState?.orderNote || "");
+  // REDUX STATE SETTERS (matching identical signatures of local React useState setters so no downstream code breaks!)
+  const setItems = (
+    updater: CartItem[] | ((prev: CartItem[]) => CartItem[]),
+  ) => {
+    if (typeof updater === "function") {
+      dispatch(setReduxItems(updater(items)));
+    } else {
+      dispatch(setReduxItems(updater));
+    }
+  };
+
+  const setSelectedItemId = (val: string | null) =>
+    dispatch(setSelectedItemIdAction(val));
+  const setCartDiscount = (val: number) => dispatch(setCartDiscountAction(val));
+  const setSelectedCustomer = (val: any | null) =>
+    dispatch(setSelectedCustomerAction(val));
+  const setDineIn = (val: boolean) => dispatch(setDineInAction(val));
+  const setOrderNote = (val: string) => dispatch(setOrderNoteAction(val));
+  const setDrawerOpen = (val: boolean) => dispatch(setDrawerOpenAction(val));
+  const setModal = (val: ModalKind) => dispatch(setModalAction(val));
+  const setShowCashDrawer = (val: boolean) =>
+    dispatch(setShowCashDrawerAction(val));
+  const setShowSaveToast = (val: boolean) =>
+    dispatch(setShowSaveToastAction(val));
+  const setWarning = (val: string) => dispatch(setWarningAction(val));
+  const setCalcProduct = (val: CartItem | null) =>
+    dispatch(setCalcProductAction(val));
+  const setCalcInitialQty = (val: number) =>
+    dispatch(setCalcInitialQtyAction(val));
+  const setContinuePaymentDoc = (val: any | null) =>
+    dispatch(setContinuePaymentDocAction(val));
+
+  // New Redux State Setters for Modals
+  const setPaidInput = (val: string) => dispatch(setPaidInputAction(val));
+  const setShowTaxManagement = (val: boolean) =>
+    dispatch(setShowTaxManagementAction(val));
+  const setShowDiscountManagement = (val: boolean) =>
+    dispatch(setShowDiscountManagementAction(val));
+  const setShowCustomerManagement = (val: boolean) =>
+    dispatch(setShowCustomerManagementAction(val));
+  const setSelectedPaymentType = (val: string) =>
+    dispatch(setSelectedPaymentTypeAction(val));
+  const setSelectedTax = (val: any | null) =>
+    dispatch(setSelectedTaxAction(val));
+  const setAppliedDiscount = (
+    val: { type: "percent" | "amount"; value: number } | null,
+  ) => dispatch(setAppliedDiscountAction(val));
+  const setRefundReceipt = (val: string) =>
+    dispatch(setRefundReceiptAction(val));
+  const setRefundPaymentType = (val: string) =>
+    dispatch(setRefundPaymentTypeAction(val));
+  const setRefundError = (val: string) => dispatch(setRefundErrorAction(val));
+  const setTransferSource = (val: CartItem[]) =>
+    dispatch(setTransferSourceAction(val));
+  const setTransferStaged = (val: CartItem[]) =>
+    dispatch(setTransferStagedAction(val));
+  const setTransferSrcSel = (val: string | null) =>
+    dispatch(setTransferSrcSelAction(val));
+  const setTransferStageSel = (val: string | null) =>
+    dispatch(setTransferStageSelAction(val));
+  const setTransferTargetDocId = (val: string | null) =>
+    dispatch(setTransferTargetDocIdAction(val));
+  const setShowOrderPicker = (val: boolean) =>
+    dispatch(setShowOrderPickerAction(val));
+  const setCalcDisplay = (val: string) => dispatch(setCalcDisplayAction(val));
+  const setCalcExprFromState = (val: string) => dispatch(setCalcExpr(val));
+  const setCalcHasResultFromState = (val: boolean) =>
+    dispatch(setCalcHasResult(val));
+  const setDiscountModalTabFromState = (val: "item" | "cart") =>
+    dispatch(setDiscountModalTab(val));
+  const setDiscountModalValueFromState = (val: string) =>
+    dispatch(setDiscountModalValue(val));
+  const setCustomerModalSearchFromState = (val: string) =>
+    dispatch(setCustomerModalSearch(val));
 
   // Persistence effect
   useEffect(() => {
@@ -2699,22 +2990,7 @@ export default function AroniumLite() {
     orderNote,
   ]);
 
-  // UI
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [modal, setModal] = useState<ModalKind>("none");
-  const [showCashDrawer, setShowCashDrawer] = useState(false);
-  const [showSaveToast, setShowSaveToast] = useState(false);
-  const [warning, setWarning] = useState("");
-
-  // Qty calc state
-  const [calcProduct, setCalcProduct] = useState<CartItem | null>(null);
-  const [calcInitialQty, setCalcInitialQty] = useState(1);
   const priceList = useAllPrices();
-
-  // Handle continuing split payments
-  const [continuePaymentDoc, setContinuePaymentDoc] = useState<any | null>(
-    null,
-  );
 
   useEffect(() => {
     // Use sessionStorage for split payment document continuation
@@ -2908,12 +3184,7 @@ export default function AroniumLite() {
   };
 
   const clearCart = () => {
-    setItems([]);
-    setSelectedItemId(null);
-    setCartDiscount(0);
-    setSelectedCustomer(null);
-    setDineIn(false);
-    setOrderNote("");
+    dispatch(clearCartAction());
   };
 
   // ── Document payload ──
@@ -3075,14 +3346,70 @@ export default function AroniumLite() {
     }
 
     // Update stock for each item (sale decreases stock, refund increases stock)
+    // Also create detailed stock logs with purchase information
     for (const item of items) {
       const isRefund = item.qty < 0;
+      const documentId =
+        continuePaymentDoc?.id ||
+        buildDocumentPayload("posted", payments).document.id;
+
+      // Get current stock level before the change
+      const currentStock = stockLevels[item.id]?.quantity ?? 0;
+      const stockChange = isRefund ? Math.abs(item.qty) : -Math.abs(item.qty);
+      const newStockLevel = currentStock + stockChange;
+
       await updateStockEntries.mutateAsync({
         productId: item.id,
         type: isRefund ? "in" : "out",
         quantity: Math.abs(item.qty),
         note: isRefund ? "Refund" : "Sale",
         createdAt: new Date(),
+      });
+
+      // Calculate item-specific payment allocation
+      const itemTotalValue = itemTotal(item);
+      const paymentMethods = payments.map(p => ({
+        paymentId: p.paymentId,
+        paymentType: p.paymentType,
+        amount: p.amount,
+      }));
+
+      // Create detailed stock log entry with enhanced tracking
+      await addStockLog.mutateAsync({
+        productId: item.id,
+        documentId,
+        type: isRefund ? "in" : "out",
+        quantity: Math.abs(item.qty),
+        note: isRefund ? "Refund" : "Sale",
+        transactionDetails: {
+          reason: isRefund ? "Refund" : "Sale",
+          documentNumber:
+            continuePaymentDoc?.number ||
+            buildDocumentPayload("posted", payments).document.number,
+          customerName: selectedCustomer?.name,
+          customerId: selectedCustomer?.id,
+          productTitle: item.title,
+          productId: item.id,
+          unitPrice: item.cost,
+          totalValue: itemTotalValue,
+          discount: item.discount,
+          priceLabel: item.priceLabel,
+          // Stock level tracking
+          stockLevelBefore: currentStock,
+          stockLevelAfter: newStockLevel,
+          stockChange: stockChange,
+          // Payment information
+          paymentMethods: paymentMethods,
+          totalPaymentAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+          paymentDate: new Date().toISOString(),
+          // Tax information
+          taxRate: item.taxRate || 0,
+          taxAmount: itemTotalValue * (item.taxRate || 0),
+          // Additional transaction details
+          transactionType: isRefund ? "refund" : "sale",
+          quantitySold: Math.abs(item.qty),
+          isContinuedPayment: !!continuePaymentDoc,
+        },
       });
     }
 
@@ -3192,7 +3519,12 @@ export default function AroniumLite() {
       {modal === "qty" && calcProduct && (
         <CalcModal
           product={calcProduct}
-          initialQty={calcInitialQty}
+          display={calcDisplay}
+          expr={calcExpr}
+          hasResult={calcHasResult}
+          setDisplay={setCalcDisplay}
+          setExpr={setCalcExprFromState}
+          setHasResult={setCalcHasResultFromState}
           onConfirm={(qty) => {
             addOrUpdateItem(calcProduct, qty);
             setModal("none");
@@ -3204,6 +3536,10 @@ export default function AroniumLite() {
         <DiscountModal
           item={selectedItem}
           cartDiscount={cartDiscount}
+          tab={discountModalTab}
+          value={discountModalValue}
+          setTab={setDiscountModalTabFromState}
+          setValue={setDiscountModalValueFromState}
           onItemDiscount={applyItemDiscount}
           onCartDiscount={setCartDiscount}
           onClose={() => setModal("none")}
@@ -3213,6 +3549,8 @@ export default function AroniumLite() {
         <CustomerModal
           customers={customersQuery.data ?? []}
           selected={selectedCustomer}
+          search={customerModalSearch}
+          setSearch={setCustomerModalSearchFromState}
           onSelect={setSelectedCustomer}
           onClose={() => setModal("none")}
         />
@@ -3225,6 +3563,20 @@ export default function AroniumLite() {
           items={items}
           paymentTypes={paymentTypesQuery.data ?? []}
           customer={selectedCustomer}
+          paidInput={paidInput}
+          selectedPaymentType={selectedPaymentType}
+          selectedTax={selectedTax}
+          appliedDiscount={appliedDiscount}
+          setPaidInput={setPaidInput}
+          setSelectedPaymentType={setSelectedPaymentType}
+          setSelectedTax={setSelectedTax}
+          setAppliedDiscount={setAppliedDiscount}
+          showTaxManagement={showTaxManagement}
+          showDiscountManagement={showDiscountManagement}
+          showCustomerManagement={showCustomerManagement}
+          setShowTaxManagement={setShowTaxManagement}
+          setShowDiscountManagement={setShowDiscountManagement}
+          setShowCustomerManagement={setShowCustomerManagement}
           onConfirm={handlePaymentConfirm}
           onClose={() => setModal("none")}
           isContinuingPayment={!!continuePaymentDoc}
@@ -3234,6 +3586,12 @@ export default function AroniumLite() {
         <RefundScreen
           documents={documentsQuery.data ?? []}
           paymentTypes={paymentTypesQuery.data ?? []}
+          receipt={refundReceipt}
+          paymentType={refundPaymentType}
+          error={refundError}
+          setReceipt={setRefundReceipt}
+          setPaymentType={setRefundPaymentType}
+          setError={setRefundError}
           onRefund={handleRefund}
           onClose={() => setModal("none")}
         />
@@ -3242,6 +3600,18 @@ export default function AroniumLite() {
         <TransferScreen
           items={items}
           documents={documentsQuery.data ?? []}
+          source={transferSource}
+          staged={transferStaged}
+          srcSel={transferSrcSel}
+          stageSel={transferStageSel}
+          targetDocId={transferTargetDocId}
+          showOrderPicker={showOrderPicker}
+          setSource={setTransferSource}
+          setStaged={setTransferStaged}
+          setSrcSel={setTransferSrcSel}
+          setStageSel={setTransferStageSel}
+          setTargetDocId={setTransferTargetDocId}
+          setShowOrderPicker={setShowOrderPicker}
           onTransfer={handleTransfer}
           onClose={() => setModal("none")}
         />

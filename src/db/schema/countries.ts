@@ -6,6 +6,7 @@ export const countries = sqliteTable("countries", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
+  position: integer("position").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .defaultNow(),

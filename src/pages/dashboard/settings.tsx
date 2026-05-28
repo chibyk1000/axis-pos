@@ -1,4 +1,11 @@
-import  { useState, ReactNode } from "react";
+import { ReactNode } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../../store";
+import {
+  setActiveTab as setActiveTabAction,
+  setEmailTab as setEmailTabAction,
+  setPrintTab as setPrintTabAction,
+} from "../../store/settingsSlice";
 import {
   Settings,
   ShoppingCart,
@@ -26,9 +33,11 @@ import { useTaxes } from "@/hooks/controllers/taxes";
 export default function SettingsPage() {
   const { isDarkMode: dark, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("General");
-  const [emailTab, setEmailTab] = useState("General");
-  const [printTab, setPrintTab] = useState("Printer selection");
+  const dispatch = useDispatch();
+  const { activeTab, emailTab, printTab } = useSelector((state: RootState) => state.settings);
+  const setActiveTab = (v: string) => dispatch(setActiveTabAction(v));
+  const setEmailTab = (v: string) => dispatch(setEmailTabAction(v));
+  const setPrintTab = (v: string) => dispatch(setPrintTabAction(v));
   const { settings, updateSetting, saveSettings } = useSettings();
   const { data: taxes } = useTaxes();
 
@@ -178,6 +187,7 @@ export default function SettingsPage() {
               <Field label="Zoom">
                 <input
                   type="number"
+                  onFocus={(e) => e.target.select()}
                   value={settings.zoom}
                   onChange={(e) =>
                     updateSetting("zoom", parseInt(e.target.value) || 100)
@@ -207,6 +217,7 @@ export default function SettingsPage() {
               <Field label="Message duration (sec)">
                 <input
                   type="number"
+                  onFocus={(e) => e.target.select()}
                   value={settings.messageDuration}
                   onChange={(e) =>
                     updateSetting(
@@ -318,6 +329,7 @@ export default function SettingsPage() {
                       </button>
                       <input
                         type="number"
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-slate-200 appearance-none"
                         value={settings.smtpPort}
                         onChange={(e) =>
@@ -677,6 +689,7 @@ export default function SettingsPage() {
                       </button>
                       <input
                         type="number"
+                        onFocus={(e) => e.target.select()}
                         className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-slate-200 appearance-none"
                         value={settings.decimalPlaces}
                         onChange={(e) =>
@@ -1114,6 +1127,7 @@ export default function SettingsPage() {
                     </button>
                     <input
                       type="number"
+                      onFocus={(e) => e.target.select()}
                       value={settings.keepOldBackupsDays}
                       onChange={(e) =>
                         updateSetting(

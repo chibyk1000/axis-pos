@@ -18,6 +18,19 @@ pub fn run() {
             sql: include_str!("../migrations/0001_gigantic_violations.sql"),
             kind: MigrationKind::Up,
         },
+
+               Migration {
+            version: 2,
+            description: "add_paid_and_total_paid_to_documents",
+            sql: include_str!("../migrations/0001_gigantic_violations.sql"),
+            kind: MigrationKind::Up,
+        },
+         Migration {
+            version: 3,
+            description: "add_position_to_customers",
+            sql: include_str!("../migrations/0002_bright_master_chief.sql"),
+            kind: MigrationKind::Up,
+        },  
     
     ];
     tauri::Builder::default()

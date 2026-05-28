@@ -1,7 +1,18 @@
-import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import { setAmount as setAmountAction } from "@/store/paymentSlice";
 
 export default function PaymentScreen() {
-  const [amount, setAmount] = useState("500000");
+  const dispatch = useDispatch();
+  const amount = useSelector((state: RootState) => state.payment.amount);
+
+  const setAmount = (val: string | ((prev: string) => string)) => {
+    if (typeof val === "function") {
+      dispatch(setAmountAction(val(amount)));
+    } else {
+      dispatch(setAmountAction(val));
+    }
+  };
 
   const handleKeyPress = (val: string) => {
     if (val === "⌫") {
