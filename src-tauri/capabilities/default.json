@@ -7,12 +7,14 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "fs:default",
+    "fs:default", "fs:allow-copy-file",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
     "sql:default",
     "sql:allow-execute",
     "shell:default",
     "os:default",
-
+ "dialog:allow-confirm",
     "fs:allow-exists",
     "fs:allow-temp-write",
     "fs:allow-temp-read",
@@ -23,6 +25,13 @@
     {
       "identifier": "shell:allow-open",
       "allow": [{ "open": "^(.*)$" }]
+    }, {
+      "identifier": "fs:allow-copy-file",
+      "allow": [
+        {
+          "path": "$APPDATA/com.axis-pos/**"
+        }
+      ]
     }
   ]
 }

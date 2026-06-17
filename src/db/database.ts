@@ -14,6 +14,10 @@ export type SelectQueryResult = {
  */
 export const sqlite = await Database.load("sqlite:file:data.db");
 
+// Enable WAL mode for concurrent read/write access and prevent lock errors
+await sqlite.execute("PRAGMA journal_mode = WAL");
+await sqlite.execute("PRAGMA busy_timeout = 30000");
+
 /**
  * The drizzle database instance.
  */

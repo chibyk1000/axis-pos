@@ -18,7 +18,11 @@ export function useCountries() {
 export function useCreateCountry() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; code: string; position?: number }) => {
+    mutationFn: async (data: {
+      name: string;
+      code: string;
+      position?: number;
+    }) => {
       await db.insert(countries).values({
         id: crypto.randomUUID(),
         name: data.name,

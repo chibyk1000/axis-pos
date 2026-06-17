@@ -91,6 +91,14 @@ export interface Settings {
   autoUpdateCostPrice: boolean;
   updateSalePriceBasedOnMarkup: boolean;
   enableMovingAveragePrice: boolean;
+
+  // LAN Sync Settings
+  isStoreServer: boolean;
+  syncServerUrl: string;
+  syncEnabled: boolean;
+  deviceName: string;
+  storeName: string;
+  storeId: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -184,6 +192,14 @@ export const DEFAULT_SETTINGS: Settings = {
   autoUpdateCostPrice: false,
   updateSalePriceBasedOnMarkup: false,
   enableMovingAveragePrice: true,
+
+  // LAN Sync Default Settings
+  isStoreServer: false,
+  syncServerUrl: "",
+  syncEnabled: false,
+  deviceName: "POS Terminal",
+  storeName: "Axis POS Store",
+  storeId: "store-001",
 };
 
 export function useSettings() {

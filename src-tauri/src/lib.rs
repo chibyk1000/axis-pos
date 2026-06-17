@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod commands;
+mod sync_server;
 use crate::commands::greet;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -18,22 +19,21 @@ pub fn run() {
             sql: include_str!("../migrations/0001_gigantic_violations.sql"),
             kind: MigrationKind::Up,
         },
-
-               Migration {
-            version: 2,
-            description: "add_paid_and_total_paid_to_documents",
-            sql: include_str!("../migrations/0001_gigantic_violations.sql"),
-            kind: MigrationKind::Up,
-        },
-         Migration {
+        Migration {
             version: 3,
             description: "add_position_to_customers",
             sql: include_str!("../migrations/0002_bright_master_chief.sql"),
             kind: MigrationKind::Up,
         },  
-    
+        Migration {
+            version: 4,
+            description: "create_sync_tables",
+            sql: include_str!("../migrations/0003_sync_system.sql"),
+            kind: MigrationKind::Up,
+        },  
     ];
     tauri::Builder::default()
+        .manage(std::sync::Arc::new(sync_server::SyncServerManager::new()))
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
@@ -45,7 +45,14 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            sync_server::start_sync_server,
+            sync_server::stop_sync_server,
+            sync_server::discover_sync_servers,
+            sync_server::get_sync_server_status,
+            sync_server::apply_sync_changes
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

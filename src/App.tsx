@@ -23,6 +23,7 @@ import CreateCustomerPage, { CustomerFormData } from "./pages/create-customer";
 import { useCustomers } from "@/hooks/controllers/customers";
 import { useCreateCustomer } from "@/hooks/controllers/customers";
 import { ThemeProvider } from "./providers/theme-provider";
+import { useSync } from "@/hooks/useSync";
 
 import {
   getRequiredAccessLevel,
@@ -248,6 +249,7 @@ const Loader = () => (
 
 function App() {
   const initialized = useRef(false);
+  useSync(); // Start background sync / server based on settings
 
   useEffect(() => {
     if (initialized.current) return;

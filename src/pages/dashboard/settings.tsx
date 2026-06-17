@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
 import {
@@ -20,15 +20,20 @@ import {
   HardDrive,
   Info,
   AlertCircle,
+  Upload,
+  Radio,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import { useNavigate } from "react-router";
 import { useSettings } from "@/hooks/useSettings";
+import { useSync } from "@/hooks/useSync";
 import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { copyFile } from "@tauri-apps/plugin-fs";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { useTaxes } from "@/hooks/controllers/taxes";
+import { importAroniumDatabase } from "../../helpers/aroniumImporter";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SettingsPage() {
   const { isDarkMode: dark, toggleTheme } = useTheme();
@@ -39,7 +44,60 @@ export default function SettingsPage() {
   const setEmailTab = (v: string) => dispatch(setEmailTabAction(v));
   const setPrintTab = (v: string) => dispatch(setPrintTabAction(v));
   const { settings, updateSetting, saveSettings } = useSettings();
+  const {
+    serverRunning,
+    serverStats,
+    discoveredServers,
+    isSearching,
+    discoverServers,
+    startServer,
+    stopServer,
+    connectToServer,
+  } = useSync();
   const { data: taxes } = useTaxes();
+  const [isImportingAronium, setIsImportingAronium] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
+
+  const handleImportAroniumDb = async () => {
+    try {
+      const filePath = await dialogOpen({
+        multiple: false,
+        filters: [{ name: "Aronium Database", extensions: ["db", "sqlite"] }],
+      });
+
+      if (filePath && typeof filePath === "string") {
+        setPendingFilePath(filePath);
+        setConfirmOpen(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to select database file: " + err);
+    }
+  };
+
+  const executeImport = async () => {
+    if (!pendingFilePath) return;
+    try {
+      setIsImportingAronium(true);
+      const result = await importAroniumDatabase(pendingFilePath);
+      setIsImportingAronium(false);
+      setPendingFilePath(null);
+
+      if (result.success) {
+        alert(
+          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers`
+        );
+      } else {
+        alert("Import failed: " + result.message);
+      }
+    } catch (err) {
+      setIsImportingAronium(false);
+      setPendingFilePath(null);
+      console.error(err);
+      alert("Failed to import database: " + err);
+    }
+  };
 
   const theme = dark
     ? "bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100"
@@ -63,6 +121,7 @@ export default function SettingsPage() {
     { label: "Email", icon: Mail },
     { label: "Print", icon: Printer },
     { label: "Database", icon: Database },
+    { label: "LAN Sync", icon: Radio },
   ];
 
   const handleExportDb = async () => {
@@ -1014,13 +1073,24 @@ export default function SettingsPage() {
                 </a>
               </div>
 
-              <button
-                className="flex items-center gap-3 px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-100 font-medium transition-colors"
-                onClick={handleExportDb}
-              >
-                <HardDrive className="w-5 h-5" />
-                Backup database
-              </button>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  className="flex items-center gap-3 px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-100 font-medium transition-colors"
+                  onClick={handleExportDb}
+                >
+                  <HardDrive className="w-5 h-5" />
+                  Backup database
+                </button>
+
+                <button
+                  className="flex items-center gap-3 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500 rounded text-white font-medium transition-colors"
+                  onClick={handleImportAroniumDb}
+                  disabled={isImportingAronium}
+                >
+                  <Upload className="w-5 h-5" />
+                  {isImportingAronium ? "Importing Aronium..." : "Import Aronium Database"}
+                </button>
+              </div>
 
               <button
                 className="text-sm text-cyan-500 hover:text-cyan-400 mt-4 block"
@@ -1154,6 +1224,185 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {activeTab === "LAN Sync" && (
+          <div className="space-y-8 max-w-3xl">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-2xl font-light">LAN Synchronization</h2>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mb-6">
+                Connect multiple POS terminals together on your local network (LAN) without external backend services.
+                Designate one machine as the central "Store Server" (Admin Host) and others as "Cashier Terminals".
+              </p>
+
+              <div className="space-y-6 bg-slate-800/10 p-6 rounded-2xl border border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">Enable LAN Sync</span>
+                    <span className="text-xs text-slate-500">Allows synchronization of sales, inventory, and product changes.</span>
+                  </div>
+                  <Toggle
+                    label=""
+                    enabled={settings.syncEnabled}
+                    onChange={(val) => updateSetting("syncEnabled", val)}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-700/30 pt-4">
+                  <div>
+                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">Run as Store Server (Host)</span>
+                    <span className="text-xs text-slate-500">Host the central database and allow cashier terminals to connect.</span>
+                  </div>
+                  <Toggle
+                    label=""
+                    enabled={settings.isStoreServer}
+                    onChange={(val) => {
+                      updateSetting("isStoreServer", val);
+                      if (val) {
+                        updateSetting("syncEnabled", true); // Server must have sync enabled
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {settings.isStoreServer ? (
+              /* ADMIN SERVER SETTINGS */
+              <div className="space-y-6">
+                <h3 className="text-xl font-light">Store Server Configuration</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Store Name">
+                    <input
+                      type="text"
+                      value={settings.storeName}
+                      onChange={(e) => updateSetting("storeName", e.target.value)}
+                      className={`w-full p-2 rounded ${input}`}
+                    />
+                  </Field>
+                  <Field label="Store ID">
+                    <input
+                      type="text"
+                      value={settings.storeId}
+                      onChange={(e) => updateSetting("storeId", e.target.value)}
+                      className={`w-full p-2 rounded ${input}`}
+                    />
+                  </Field>
+                  <Field label="Device / Server Name">
+                    <input
+                      type="text"
+                      value={settings.deviceName}
+                      onChange={(e) => updateSetting("deviceName", e.target.value)}
+                      className={`w-full p-2 rounded ${input}`}
+                    />
+                  </Field>
+                </div>
+
+                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">Server Status:</span>
+                    <span className={`text-sm font-bold ${serverRunning ? "text-emerald-500 animate-pulse" : "text-rose-500"}`}>
+                      {serverRunning ? "Active & Advertising" : "Stopped"}
+                    </span>
+                  </div>
+                  {serverRunning && (
+                    <div className="flex items-center justify-between text-xs text-slate-300">
+                      <span>Server URL:</span>
+                      <span className="font-mono text-cyan-400">http://{serverStats.ip}:{serverStats.port}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-3 pt-2">
+                    {!serverRunning ? (
+                      <button
+                        onClick={startServer}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Start Server
+                      </button>
+                    ) : (
+                      <button
+                        onClick={stopServer}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                      >
+                        Stop Server
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* CASHIER TERMINAL SETTINGS */
+              <div className="space-y-6">
+                <h3 className="text-xl font-light">Cashier Terminal Configuration</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Device Name">
+                    <input
+                      type="text"
+                      value={settings.deviceName}
+                      onChange={(e) => updateSetting("deviceName", e.target.value)}
+                      className={`w-full p-2 rounded ${input}`}
+                    />
+                  </Field>
+                  <Field label="Manual Server URL">
+                    <input
+                      type="text"
+                      placeholder="http://192.168.x.x:8080"
+                      value={settings.syncServerUrl}
+                      onChange={(e) => updateSetting("syncServerUrl", e.target.value)}
+                      className={`w-full p-2 rounded ${input}`}
+                    />
+                  </Field>
+                </div>
+
+                {settings.syncEnabled && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-400">Discovered Store Servers</span>
+                      <button
+                        onClick={discoverServers}
+                        disabled={isSearching}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300 cursor-pointer disabled:opacity-50 transition-colors"
+                      >
+                        {isSearching ? "Searching..." : "Scan network"}
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {discoveredServers.length === 0 ? (
+                        <div className="p-4 border border-dashed border-slate-700/60 rounded-xl text-center text-xs text-slate-500">
+                          {isSearching ? "Scanning local network for servers..." : "No servers discovered. Try scanning or enter URL manually."}
+                        </div>
+                      ) : (
+                        discoveredServers.map((srv, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 bg-slate-800/20 border border-slate-700/50 rounded-xl"
+                          >
+                            <div>
+                              <span className="font-semibold text-sm text-slate-200 block">{srv.storeName}</span>
+                              <span className="text-xs text-slate-500">Host: {srv.name} | {srv.ip}:{srv.port}</span>
+                            </div>
+                            <button
+                              onClick={() => connectToServer(`http://${srv.ip}:${srv.port}`)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-xs text-white rounded font-medium cursor-pointer transition-colors"
+                            >
+                              Connect
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+
 
         {activeTab === "Products" && (
           <div className="space-y-8 max-w-2xl">
@@ -1371,6 +1620,17 @@ export default function SettingsPage() {
           </button>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Import Aronium Database"
+        description="Are you sure you want to import data from this Aronium database? This will merge products, taxes, groups, and customers into your current database. This process cannot be undone."
+        confirmText="Import"
+        cancelText="Cancel"
+        onConfirm={executeImport}
+        variant="default"
+      />
     </div>
   );
 }

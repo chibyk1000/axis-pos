@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/sidebar";
 
 import { Outlet, useLocation } from "react-router";
+import { SyncStatusWidget } from "@/components/SyncStatusWidget";
+
 const Applayout = () => {
   const location = useLocation();
 
@@ -23,7 +25,7 @@ const Applayout = () => {
     <SidebarProvider className="bg-slate-950 w-screen">
       <AppSidebar />
       <SidebarInset className="bg-white dark:bg-slate-900 flex-1 overflow-hidden">
-        <header className="flex h-16 shrink-0 pr-4  items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        <header className="flex h-16 shrink-0 pr-4 items-center justify-between transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1 text-slate-900 dark:text-white" />
             <Separator
@@ -44,6 +46,9 @@ const Applayout = () => {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+          </div>
+          <div className="flex items-center gap-4">
+            <SyncStatusWidget />
           </div>
         </header>
         <div className="flex flex-1 overflow-hidden flex-col">
