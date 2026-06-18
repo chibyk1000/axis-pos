@@ -551,7 +551,12 @@ async fn handle_ws(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AxumState>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_websocket_socket(socket, state))
+    ws.on_upgrade(move |socket| {
+        let state = Arc::clone(&state);
+        async move {
+            handle_websocket_socket(socket, state).await
+        }
+    })
 }
 
 async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) {
@@ -834,4 +839,150 @@ pub async fn apply_sync_changes(
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTTP PROXY COMMANDS
+// All network calls to the LAN sync server go through Rust (reqwest) so they
+// bypass Tauri's WebView CSP restrictions that block JS fetch() to LAN IPs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Register this terminal with the admin sync server.
+#[tauri::command]
+pub async fn sync_register(
+    server_url: String,
+    device_id: String,
+    device_name: String,
+) -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "id": device_id,
+        "name": device_name,
+        "ip": "0.0.0.0",
+        "role": "cashier",
+    });
+    let res = client
+        .post(format!("{}/register", server_url))
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(res.status().is_success())
+}
+
+/// Pull changes from the admin server since a given sequence number.
+/// Returns a JSON array of change objects.
+#[tauri::command]
+pub async fn sync_pull(
+    server_url: String,
+    device_id: String,
+    last_sequence: i64,
+) -> Result<Vec<ChangeItem>, String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "{}/sync/pull?lastSequence={}&deviceId={}",
+        server_url, last_sequence, device_id
+    );
+    let res = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| format!("Pull request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Pull returned HTTP {}", res.status()));
+    }
+
+    // The server returns an array of objects each with entity/action/payload/sequence
+    let raw: Vec<Value> = res
+        .json()
+        .await
+        .map_err(|e| format!("Pull JSON parse error: {}", e))?;
+
+    let changes: Vec<ChangeItem> = raw
+        .into_iter()
+        .filter_map(|v| {
+            let entity = v.get("entity")?.as_str()?.to_string();
+            let action = v.get("action")?.as_str()?.to_string();
+            let payload = v.get("payload").cloned().unwrap_or(Value::Null);
+            Some(ChangeItem { entity, action, payload })
+        })
+        .collect();
+
+    Ok(changes)
+}
+
+/// Push local pending changes to the admin server.
+/// Reads from the sync_queue table and marks them synced on success.
+#[tauri::command]
+pub async fn sync_push(
+    app: AppHandle,
+    server_url: String,
+    device_id: String,
+) -> Result<usize, String> {
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_data.join("data.db");
+
+    // Read pending changes from local DB
+    let changes: Vec<(i64, ChangeItem)> = {
+        let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, entity, action, payload FROM sync_queue \
+                 WHERE synced = 0 ORDER BY id ASC LIMIT 50",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let x = stmt.query_map([], |row| {
+            let id: i64 = row.get(0)?;
+            let entity: String = row.get(1)?;
+            let action: String = row.get(2)?;
+            let payload_str: String = row.get(3)?;
+            let payload: Value =
+                serde_json::from_str(&payload_str).unwrap_or(Value::Null);
+            Ok((id, ChangeItem { entity, action, payload }))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+        x
+    };
+
+    if changes.is_empty() {
+        return Ok(0);
+    }
+
+    let max_id = changes.last().map(|(id, _)| *id).unwrap_or(0);
+    let items: Vec<&ChangeItem> = changes.iter().map(|(_, c)| c).collect();
+
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "deviceId": device_id,
+        "changes": items,
+    });
+
+    let res = client
+        .post(format!("{}/sync/push", server_url))
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| format!("Push request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Push returned HTTP {}", res.status()));
+    }
+
+    // Mark synced
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE sync_queue SET synced = 1 WHERE id <= ?",
+        rusqlite::params![max_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(changes.len())
+}
+
 
