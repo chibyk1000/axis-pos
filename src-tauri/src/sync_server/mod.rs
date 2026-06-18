@@ -370,11 +370,15 @@ async fn handle_register(
     State(state): State<Arc<AxumState>>,
     Json(payload): Json<RegisterRequest>,
 ) -> impl IntoResponse {
+    println!("[REGISTER] Device registered: {} ({})", payload.name, payload.id);
     let _counter = RequestCounter::new(state.live_requests.clone());
 
     let conn = match Connection::open(&state.db_path) {
         Ok(c) => c,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => {
+            println!("[REGISTER] Failed to open connection: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
     };
 
     let sql = "INSERT INTO `devices` (`id`, `name`, `ip`, `role`, `last_seen`) \
@@ -382,8 +386,11 @@ async fn handle_register(
                ON CONFLICT(id) DO UPDATE SET name=excluded.name, ip=excluded.ip, role=excluded.role, last_seen=excluded.last_seen";
 
     if let Err(e) = conn.execute(sql, rusqlite::params![payload.id, payload.name, payload.ip, payload.role]) {
+        println!("[REGISTER] Failed to execute register SQL: {}", e);
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     }
+
+    println!("[REGISTER] Device registered successfully in DB");
 
     // Broadcast to websockets
     let _ = state.ws_tx.send(serde_json::json!({
@@ -548,45 +555,54 @@ async fn handle_ws(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AxumState>>,
 ) -> impl IntoResponse {
+    println!("[WS] New WebSocket upgrade request received");
     ws.on_upgrade(move |socket| {
         let state = Arc::clone(&state);
         async move {
-            handle_websocket_socket(socket, state).await
+            println!("[WS] WebSocket upgrade completed, starting handler");
+            let _ = handle_websocket_socket(socket, state).await;
+            println!("[WS] WebSocket handler closed");
         }
     })
 }
 
-async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) {
+async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) -> Result<(), String> {
+    println!("[WS] Socket handler started");
     let mut rx = state.ws_tx.subscribe();
     let live_req_clone = state.live_requests.clone();
     live_req_clone.fetch_add(1, Ordering::SeqCst);
+    println!("[WS] Live requests incremented");
 
     let (mut ws_sink, mut ws_stream) = socket.split();
+    println!("[WS] Socket split successfully");
 
     loop {
         tokio::select! {
             msg_res = ws_stream.next() => {
                 match msg_res {
                     Some(Ok(Message::Ping(p))) => {
-                        if ws_sink.send(Message::Pong(p)).await.is_err() {
-                            break;
-                        }
+                        println!("[WS] Ping received");
+                        let _ = ws_sink.send(Message::Pong(p)).await;
                     }
-                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(Message::Close(_))) | None => {
+                        println!("[WS] Close message received");
+                        break;
+                    }
                     _ => {}
                 }
             }
             broadcast_res = rx.recv() => {
                 if let Ok(msg) = broadcast_res {
-                    if ws_sink.send(Message::Text(msg.into())).await.is_err() {
-                        break;
-                    }
+                    println!("[WS] Broadcasting message to client");
+                    let _ = ws_sink.send(Message::Text(msg.into())).await;
                 }
             }
         }
     }
 
     live_req_clone.fetch_sub(1, Ordering::SeqCst);
+    println!("[WS] Socket handler ending");
+    Ok(())
 }
 
 // --- Tauri Commands ---
@@ -679,12 +695,14 @@ pub async fn start_sync_server(
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .map_err(|e| format!("Failed to bind port: {}", e))?;
+    println!("[SERVER] Bound to {}:{}", addr.ip(), addr.port());
 
     let (tx, rx) = oneshot::channel::<()>();
     *state.server_tx.lock().await = Some(tx);
 
     // Spawn server task
     tokio::spawn(async move {
+        println!("[SERVER] HTTP server task starting on {}:{}", local_ip_addr, port);
         axum::serve(listener, app_router)
             .with_graceful_shutdown(async move {
                 let _ = rx.await;
@@ -692,6 +710,7 @@ pub async fn start_sync_server(
             .await
             .unwrap();
     });
+    println!("[SERVER] Server spawned successfully");
 
     // Start mDNS advertisement
     let mdns = ServiceDaemon::new().map_err(|e| e.to_string())?;
