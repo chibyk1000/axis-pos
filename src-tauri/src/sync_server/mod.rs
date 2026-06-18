@@ -620,8 +620,30 @@ pub async fn start_sync_server(
     let db_path = app_data.join("data.db");
 
     // Initialize triggers in database on startup
+    // Ensure sync-related tables exist in case migrations were applied to a different DB path
     {
         let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+        // Create minimal sync tables if they're missing (migrations may not have been applied
+        // to this DB file depending on plugin configuration).
+        conn.execute_batch(r#"
+            CREATE TABLE IF NOT EXISTS `devices` (
+                `id` text PRIMARY KEY NOT NULL,
+                `name` text NOT NULL,
+                `ip` text NOT NULL,
+                `role` text NOT NULL,
+                `last_seen` integer NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS `sync_queue` (
+                `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `entity` text NOT NULL,
+                `action` text NOT NULL,
+                `payload` text NOT NULL,
+                `created_at` integer NOT NULL,
+                `synced` integer DEFAULT 0 NOT NULL,
+                `device_id` text
+            );
+        "#).map_err(|e| e.to_string())?;
+
         setup_database_triggers(&conn).map_err(|e| e.to_string())?;
     }
 
