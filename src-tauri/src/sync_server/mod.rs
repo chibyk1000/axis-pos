@@ -19,8 +19,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use tower_http::cors::{Any, CorsLayer};
 
 // Global status struct
@@ -268,10 +269,6 @@ pub fn setup_database_triggers(conn: &Connection) -> Result<(), rusqlite::Error>
         .collect();
 
     for table in tables {
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_insert`Direct", table), []);
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_update`Direct", table), []);
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_delete`Direct", table), []);
-
         let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_insert`", table), []);
         let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_update`", table), []);
         let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_delete`", table), []);
@@ -599,8 +596,6 @@ pub async fn get_sync_server_status(
     state: tauri::State<'_, Arc<SyncServerManager>>,
 ) -> Result<ServerStatus, String> {
     let status = state.status.lock().await.clone();
-    // Update live requests from manager's atomic count if needed
-    // Wait, the status tracks live requests
     Ok(status)
 }
 
@@ -806,7 +801,7 @@ pub async fn apply_sync_changes(
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_data.join("data.db");
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
-    
+
     // Set a transaction so everything is written together and rollback works
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
@@ -871,13 +866,19 @@ pub async fn sync_register(
 }
 
 /// Pull changes from the admin server since a given sequence number.
-/// Returns a JSON array of change objects.
+#[derive(Debug, Serialize)]
+pub struct PullResult {
+    pub changes: Vec<ChangeItem>,
+    #[serde(rename = "maxSequence")]
+    pub max_sequence: i64,
+}
+
 #[tauri::command]
 pub async fn sync_pull(
     server_url: String,
     device_id: String,
     last_sequence: i64,
-) -> Result<Vec<ChangeItem>, String> {
+) -> Result<PullResult, String> {
     let client = reqwest::Client::new();
     let url = format!(
         "{}/sync/pull?lastSequence={}&deviceId={}",
@@ -900,9 +901,15 @@ pub async fn sync_pull(
         .await
         .map_err(|e| format!("Pull JSON parse error: {}", e))?;
 
+    let mut max_sequence = last_sequence;
     let changes: Vec<ChangeItem> = raw
         .into_iter()
         .filter_map(|v| {
+            if let Some(seq) = v.get("sequence").and_then(|s| s.as_i64()) {
+                if seq > max_sequence {
+                    max_sequence = seq;
+                }
+            }
             let entity = v.get("entity")?.as_str()?.to_string();
             let action = v.get("action")?.as_str()?.to_string();
             let payload = v.get("payload").cloned().unwrap_or(Value::Null);
@@ -910,7 +917,26 @@ pub async fn sync_pull(
         })
         .collect();
 
-    Ok(changes)
+    Ok(PullResult { changes, max_sequence })
+}
+
+/// Connect to the admin server's WebSocket and forward messages to the
+/// frontend as a Tauri event, since the WebView itself can't reach LAN
+/// WebSocket endpoints directly.
+
+#[tauri::command]
+pub async fn connect_sync_ws(app: AppHandle, server_url: String) -> Result<(), String> {
+    let ws_url = server_url.replacen("http", "ws", 1) + "/ws";
+    let (ws_stream, _) = connect_async(&ws_url).await.map_err(|e| e.to_string())?;
+    let (_, mut read) = ws_stream.split();
+
+    tokio::spawn(async move {
+        while let Some(Ok(WsMessage::Text(text))) = read.next().await {
+            let _ = app.emit("sync-ws-event", text);
+        }
+    });
+
+    Ok(())
 }
 
 /// Push local pending changes to the admin server.
@@ -984,5 +1010,3 @@ pub async fn sync_push(
 
     Ok(changes.len())
 }
-
-

@@ -24,18 +24,18 @@ pub fn run() {
             description: "add_position_to_customers",
             sql: include_str!("../migrations/0002_bright_master_chief.sql"),
             kind: MigrationKind::Up,
-        },  
+        },
         Migration {
             version: 4,
             description: "create_sync_tables",
             sql: include_str!("../migrations/0003_sync_system.sql"),
             kind: MigrationKind::Up,
-        },  
+        },
     ];
+
     tauri::Builder::default()
         .manage(std::sync::Arc::new(sync_server::SyncServerManager::new()))
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -51,7 +51,11 @@ pub fn run() {
             sync_server::stop_sync_server,
             sync_server::discover_sync_servers,
             sync_server::get_sync_server_status,
-            sync_server::apply_sync_changes
+            sync_server::apply_sync_changes,
+            sync_server::sync_register,
+            sync_server::sync_pull,
+            sync_server::sync_push,
+            sync_server::connect_sync_ws,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
