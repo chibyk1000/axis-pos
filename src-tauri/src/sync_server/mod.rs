@@ -871,10 +871,11 @@ pub async fn sync_register(
     device_name: String,
 ) -> Result<bool, String> {
     let client = reqwest::Client::new();
+    let local_ip_addr = local_ip().unwrap_or(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
     let body = serde_json::json!({
         "id": device_id,
         "name": device_name,
-        "ip": "0.0.0.0",
+        "ip": local_ip_addr.to_string(),
         "role": "cashier",
     });
     let res = client
