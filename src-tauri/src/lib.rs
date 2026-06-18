@@ -3,6 +3,8 @@ mod commands;
 mod sync_server;
 use crate::commands::greet;
 use tauri_plugin_sql::{Migration, MigrationKind};
+use rusqlite::Connection;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -34,6 +36,16 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .setup(|app: &mut tauri::App| {
+            // Ensure DB triggers exist on every instance (admin and cashier)
+            if let Ok(app_data) = app.path().app_data_dir() {
+                let db_path: std::path::PathBuf = app_data.join("data.db");
+                if let Ok(conn) = Connection::open(&db_path) {
+                    let _ = sync_server::setup_database_triggers(&conn);
+                }
+            }
+            Ok(())
+        })
         .manage(std::sync::Arc::new(sync_server::SyncServerManager::new()))
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
