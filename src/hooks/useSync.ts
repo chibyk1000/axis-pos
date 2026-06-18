@@ -39,12 +39,18 @@ export function useSync() {
     storeId: "",
   });
   const [connectedDevices, setConnectedDevices] = useState<SyncDevice[]>([]);
-  const [discoveredServers, setDiscoveredServers] = useState<DiscoveredServer[]>([]);
+  const [discoveredServers, setDiscoveredServers] = useState<
+    DiscoveredServer[]
+  >([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connecting" | "connected" | "error">("disconnected");
+  const [connectionStatus, setConnectionStatus] = useState<
+    "disconnected" | "connecting" | "connected" | "error"
+  >("disconnected");
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => localStorage.getItem("axis_sync_last_time"));
-  
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() =>
+    localStorage.getItem("axis_sync_last_time"),
+  );
+
   const wsRef = useRef<WebSocket | null>(null);
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -52,7 +58,9 @@ export function useSync() {
   // 1. Get local pending change count
   const updatePendingCount = useCallback(async () => {
     try {
-      const rows: any = await sqlite.select("SELECT COUNT(*) as cnt FROM sync_queue WHERE synced = 0");
+      const rows: any = await sqlite.select(
+        "SELECT COUNT(*) as cnt FROM sync_queue WHERE synced = 0",
+      );
       if (rows && rows.length > 0) {
         setPendingSyncCount(rows[0].cnt || 0);
       }
@@ -126,102 +134,107 @@ export function useSync() {
   }, []);
 
   // 6. Push local changes
-  const pushLocalChanges = useCallback(async (url: string) => {
-    try {
-      const pending: any = await sqlite.select(
-        "SELECT id, entity, action, payload FROM sync_queue WHERE synced = 0 ORDER BY id ASC LIMIT 50"
-      );
-      if (!pending || pending.length === 0) return;
+  // const pushLocalChanges = useCallback(async (url: string) => {
+  //   try {
+  //     const pending: any = await sqlite.select(
+  //       "SELECT id, entity, action, payload FROM sync_queue WHERE synced = 0 ORDER BY id ASC LIMIT 50"
+  //     );
+  //     if (!pending || pending.length === 0) return;
 
-      const changes = pending.map((row: any) => ({
-        entity: row.entity,
-        action: row.action,
-        payload: JSON.parse(row.payload),
-      }));
+  //     const changes = pending.map((row: any) => ({
+  //       entity: row.entity,
+  //       action: row.action,
+  //       payload: JSON.parse(row.payload),
+  //     }));
 
-      const response = await fetch(`${url}/sync/push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId,
-          changes,
-        }),
-      });
+  //     const response = await fetch(`${url}/sync/push`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         deviceId,
+  //         changes,
+  //       }),
+  //     });
 
-      if (response.ok) {
-        const maxId = pending[pending.length - 1].id;
-        await sqlite.execute("UPDATE sync_queue SET synced = 1 WHERE id <= ?", [maxId]);
-        updatePendingCount();
-        console.log(`Pushed ${changes.length} changes successfully`);
-      } else {
-        console.error("Failed to push changes, response code:", response.status);
-      }
-    } catch (err) {
-      console.error("Push network error", err);
-    }
-  }, [deviceId, updatePendingCount]);
+  //     if (response.ok) {
+  //       const maxId = pending[pending.length - 1].id;
+  //       await sqlite.execute("UPDATE sync_queue SET synced = 1 WHERE id <= ?", [maxId]);
+  //       updatePendingCount();
+  //       console.log(`Pushed ${changes.length} changes successfully`);
+  //     } else {
+  //       console.error("Failed to push changes, response code:", response.status);
+  //     }
+  //   } catch (err) {
+  //     console.error("Push network error", err);
+  //   }
+  // }, [deviceId, updatePendingCount]);
 
   // 7. Pull changes
-  const pullChanges = useCallback(async (url: string) => {
-    try {
-      const lastSeqStr = localStorage.getItem("axis_sync_last_seq") || "0";
-      const lastSeq = parseInt(lastSeqStr, 10);
+  const pullChanges = useCallback(
+    async (url: string) => {
+      try {
+        const lastSeq = parseInt(
+          localStorage.getItem("axis_sync_last_seq") || "0",
+          10,
+        );
+        const result = await invoke<{ changes: any[]; maxSequence: number }>(
+          "sync_pull",
+          {
+            serverUrl: url,
+            deviceId,
+            lastSequence: lastSeq,
+          },
+        );
 
-      const response = await fetch(
-        `${url}/sync/pull?lastSequence=${lastSeq}&deviceId=${deviceId}`
-      );
-      if (!response.ok) {
-        throw new Error("Pull request failed: " + response.statusText);
+        if (result.changes.length > 0) {
+          await applyPulledChanges(result.changes);
+          localStorage.setItem(
+            "axis_sync_last_seq",
+            result.maxSequence.toString(),
+          );
+        }
+
+        const now = new Date().toLocaleTimeString();
+        setLastSyncTime(now);
+        localStorage.setItem("axis_sync_last_time", now);
+      } catch (err) {
+        console.error("Pull error", err);
       }
-
-      const pulledChanges = await response.json();
-      if (pulledChanges && pulledChanges.length > 0) {
-        const changesToApply = pulledChanges.map((c: any) => ({
-          entity: c.entity,
-          action: c.action,
-          payload: c.payload,
-        }));
-
-        await applyPulledChanges(changesToApply);
-
-        // Update sequence
-        const maxSeq = Math.max(...pulledChanges.map((c: any) => c.sequence));
-        localStorage.setItem("axis_sync_last_seq", maxSeq.toString());
-      }
-
-      const now = new Date().toLocaleTimeString();
-      setLastSyncTime(now);
-      localStorage.setItem("axis_sync_last_time", now);
-    } catch (err) {
-      console.error("Pull network/apply error", err);
-    }
-  }, [deviceId, applyPulledChanges]);
+    },
+    [deviceId, applyPulledChanges],
+  );
 
   // 8. Register device
-  const registerDevice = useCallback(async (url: string) => {
-    try {
-      const response = await fetch(`${url}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: deviceId,
-          name: settings.deviceName || "POS Cashier",
-          ip: "127.0.0.1", // Server determines actual IP, but we supply it
-          role: "cashier",
-        }),
-      });
-
-      if (response.ok) {
-        console.log("Device registered successfully with server");
-        return true;
+  const registerDevice = useCallback(
+    async (url: string) => {
+      try {
+        return await invoke<boolean>("sync_register", {
+          serverUrl: url,
+          deviceId,
+          deviceName: settings.deviceName || "POS Cashier",
+        });
+      } catch (err) {
+        console.error("Registration failed", err);
+        return false;
       }
-      return false;
-    } catch (err) {
-      console.error("Registration failed", err);
-      return false;
-    }
-  }, [deviceId, settings.deviceName]);
+    },
+    [deviceId, settings.deviceName],
+  );
 
+  const pushLocalChanges = useCallback(
+    async (url: string) => {
+      try {
+        const count = await invoke<number>("sync_push", {
+          serverUrl: url,
+          deviceId,
+        });
+        if (count > 0) updatePendingCount();
+      } catch (err) {
+        console.error("Push error", err);
+      }
+    },
+    [deviceId, updatePendingCount],
+  );
   // 9. Force Sync manual trigger
   const forceSync = useCallback(async () => {
     if (settings.isStoreServer) {
@@ -242,56 +255,68 @@ export function useSync() {
     setConnectionStatus("connected");
     await pushLocalChanges(url);
     await pullChanges(url);
-  }, [settings.isStoreServer, settings.syncServerUrl, registerDevice, pushLocalChanges, pullChanges]);
+  }, [
+    settings.isStoreServer,
+    settings.syncServerUrl,
+    registerDevice,
+    pushLocalChanges,
+    pullChanges,
+  ]);
 
   // WebSocket connection handler
-  const connectWebSocket = useCallback((url: string) => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
+  const connectWebSocket = useCallback(
+    (url: string) => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
 
-    const wsUrl = url.replace(/^http/, "ws") + "/ws";
-    const ws = new WebSocket(wsUrl);
+      setConnectionStatus("connecting");
+      const wsUrl = url.replace(/^http/, "ws") + "/ws";
+      const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-      console.log("WebSocket connected to server");
-      setConnectionStatus("connected");
-    };
+      ws.onopen = () => {
+        console.log("WebSocket connected to server");
+        setConnectionStatus("connected");
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("WebSocket event received", data);
-        if (data.event === "changes_pushed" && data.deviceId !== deviceId) {
-          // Immediately trigger pull when notification arrives
-          pullChanges(url);
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("WebSocket event received", data);
+          if (data.event === "changes_pushed" && data.deviceId !== deviceId) {
+            // Immediately trigger pull when notification arrives
+            pullChanges(url);
+          }
+        } catch (err) {
+          console.error("Failed to parse WS message", err);
         }
-      } catch (err) {
-        console.error("Failed to parse WS message", err);
-      }
-    };
+      };
 
-    ws.onerror = (err) => {
-      console.error("WebSocket error", err);
-      setConnectionStatus("error");
-    };
+      ws.onerror = (err) => {
+        console.error("WebSocket error", err);
+        setConnectionStatus("error");
+      };
 
-    ws.onclose = () => {
-      console.log("WebSocket closed");
-      // Retry connection after 5 seconds if sync is still enabled
-      if (settings.syncEnabled && !settings.isStoreServer) {
-        setTimeout(() => connectWebSocket(url), 5000);
-      }
-    };
+      ws.onclose = () => {
+        console.log("WebSocket closed");
+        // Retry connection after 5 seconds if sync is still enabled
+        if (settings.syncEnabled && !settings.isStoreServer) {
+          setTimeout(() => connectWebSocket(url), 5000);
+        }
+      };
 
-    wsRef.current = ws;
-  }, [deviceId, pullChanges, settings.syncEnabled, settings.isStoreServer]);
+      wsRef.current = ws;
+    },
+    [deviceId, pullChanges, settings.syncEnabled, settings.isStoreServer],
+  );
 
   // 10. Fetch server devices list and stats (admin only)
   const fetchServerInfo = useCallback(async () => {
     if (!serverRunning) return;
     try {
-      const response = await fetch(`http://localhost:${serverStats.port}/devices`);
+      const response = await fetch(
+        `http://localhost:${serverStats.port}/devices`,
+      );
       if (response.ok) {
         const list = await response.json();
         setConnectedDevices(list);
@@ -299,7 +324,7 @@ export function useSync() {
 
       // Fetch live requests status from tauri
       const status: any = await invoke("get_sync_server_status");
-      setServerStats(prev => ({
+      setServerStats((prev) => ({
         ...prev,
         liveRequests: status.live_requests,
       }));
@@ -336,7 +361,7 @@ export function useSync() {
 
     if (settings.syncEnabled && settings.syncServerUrl) {
       const url = settings.syncServerUrl;
-      
+
       // Initial sync
       forceSync();
 

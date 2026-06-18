@@ -14,6 +14,7 @@ export function SyncStatusWidget() {
     lastSyncTime,
     forceSync,
     isSearching,
+    deviceId,
   } = useSync();
 
   const [isOpen, setIsOpen] = useState(false);
