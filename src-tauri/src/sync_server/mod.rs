@@ -126,6 +126,9 @@ pub struct DiscoveredServer {
     pub store_id: String,
 }
 
+// Tables to exclude from snapshot (system/meta tables)
+const EXCLUDED_TABLES: &[&str] = &["sync_queue", "devices", "drizzle_migrations"];
+
 // Dynamic Sqlite Change Applier
 fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -> Result<(), String> {
     let obj = payload.as_object().ok_or_else(|| "Payload is not a JSON object".to_string())?;
@@ -148,7 +151,6 @@ fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -
             let cols_str = cols.join(", ");
             let placeholders_str = placeholders.join(", ");
 
-            // Build INSERT OR REPLACE or ON CONFLICT statement
             let sql = if obj.contains_key("id") {
                 let mut update_sets = Vec::new();
                 for k in obj.keys() {
@@ -168,7 +170,6 @@ fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -
                     )
                 }
             } else {
-                // Junction tables
                 let conflict_target = match table {
                     "product_taxes" => Some("(product_id, tax_id)"),
                     "promotion_customers" => Some("(promotion_id, customer_id)"),
@@ -392,6 +393,11 @@ async fn handle_register(
 
     println!("[REGISTER] Device registered successfully in DB");
 
+    // Get the current max sync_queue sequence so the cashier knows where to start pulling from
+    let max_seq: i64 = conn
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| row.get(0))
+        .unwrap_or(0);
+
     // Broadcast to websockets
     let _ = state.ws_tx.send(serde_json::json!({
         "event": "device_registered",
@@ -403,10 +409,13 @@ async fn handle_register(
         }
     }).to_string());
 
-    Json(RegisterResponse {
-        device_id: payload.id,
-        status: "registered".to_string(),
-    })
+    Json(serde_json::json!({
+        "deviceId": payload.id,
+        "status": "registered",
+        // Tell the cashier what the current max sequence is so they know
+        // whether a snapshot is needed or delta-pull is enough
+        "currentSequence": max_seq,
+    }))
     .into_response()
 }
 
@@ -456,15 +465,12 @@ async fn handle_push(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    // Apply all changes
     for change in &payload.changes {
         if let Err(err) = apply_change(&tx, &change.entity, &change.action, &change.payload) {
             return (StatusCode::BAD_REQUEST, format!("Failed to apply change on entity {}: {}", change.entity, err)).into_response();
         }
     }
 
-    // Now update device_id of all changes that were just logged by the local triggers
-    // to the incoming device_id so that this client won't fetch them back.
     if let Err(e) = tx.execute(
         "UPDATE `sync_queue` SET `device_id` = ? WHERE `device_id` = 'local'",
         rusqlite::params![payload.device_id],
@@ -476,13 +482,11 @@ async fn handle_push(
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     }
 
-    // Update last seen for the device
     let _ = conn.execute(
         "UPDATE `devices` SET `last_seen` = strftime('%s', 'now') * 1000 WHERE `id` = ?",
         rusqlite::params![payload.device_id],
     );
 
-    // Broadcast to all WS clients that changes were pushed
     let _ = state.ws_tx.send(serde_json::json!({
         "event": "changes_pushed",
         "deviceId": payload.device_id,
@@ -503,7 +507,6 @@ async fn handle_pull(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    // If a device_id is provided, exclude their changes
     let rows = if let Some(ref d_id) = query.device_id {
         let sql = "SELECT `id`, `entity`, `action`, `payload`, `created_at` FROM `sync_queue` \
                    WHERE `id` > ? AND (`device_id` != ? OR `device_id` IS NULL) \
@@ -550,6 +553,117 @@ async fn handle_pull(
     Json(rows).into_response()
 }
 
+// ── NEW: Full snapshot of all application tables ─────────────────────────────
+// Returns { maxSequence, tables: { tableName: [row, ...], ... } }
+// The cashier calls this on first-ever connect (lastSequence == 0 and server
+// already has data) so every pre-existing row is replicated immediately.
+async fn handle_snapshot(State(state): State<Arc<AxumState>>) -> impl IntoResponse {
+    let _counter = RequestCounter::new(state.live_requests.clone());
+
+    let conn = match Connection::open(&state.db_path) {
+        Ok(c) => c,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    // Current max sequence — cashier should store this and use it as lastSequence
+    // so it won't re-pull what the snapshot already covered.
+    let max_seq: i64 = conn
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| row.get(0))
+        .unwrap_or(0);
+
+    // Enumerate application tables
+    let mut table_stmt = match conn.prepare(
+        "SELECT name FROM sqlite_master \
+         WHERE type='table' AND name NOT LIKE 'sqlite_%' \
+         AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations')",
+    ) {
+        Ok(s) => s,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let tables: Vec<String> = table_stmt
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let mut snapshot: HashMap<String, Vec<Value>> = HashMap::new();
+
+    for table in &tables {
+        // Get column names for this table
+        let col_sql = format!("PRAGMA table_info(`{}`)", table);
+        let mut col_stmt = match conn.prepare(&col_sql) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let columns: Vec<String> = col_stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if columns.is_empty() {
+            continue;
+        }
+
+        let select_sql = format!("SELECT * FROM `{}`", table);
+        let mut row_stmt = match conn.prepare(&select_sql) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let rows: Vec<Value> = row_stmt
+            .query_map([], |row| {
+                let mut obj = serde_json::Map::new();
+                for (i, col) in columns.iter().enumerate() {
+                    let val: Value = match row.get_ref(i) {
+                        Ok(rusqlite::types::ValueRef::Null) => Value::Null,
+                        Ok(rusqlite::types::ValueRef::Integer(n)) => Value::from(n),
+                        Ok(rusqlite::types::ValueRef::Real(f)) => {
+                            Value::from(f)
+                        }
+                        Ok(rusqlite::types::ValueRef::Text(t)) => {
+                            Value::String(String::from_utf8_lossy(t).to_string())
+                        }
+                        Ok(rusqlite::types::ValueRef::Blob(b)) => {
+                            Value::String(base64_encode(b))
+                        }
+                        Err(_) => Value::Null,
+                    };
+                    obj.insert(col.clone(), val);
+                }
+                Ok(Value::Object(obj))
+            })
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        snapshot.insert(table.clone(), rows);
+    }
+
+    Json(serde_json::json!({
+        "maxSequence": max_seq,
+        "tables": snapshot,
+    }))
+    .into_response()
+}
+
+// Minimal base64 encoder (avoids pulling in the base64 crate just for blob fields)
+fn base64_encode(input: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
+    for chunk in input.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        out.push(CHARS[b0 >> 2] as char);
+        out.push(CHARS[((b0 & 3) << 4) | (b1 >> 4)] as char);
+        out.push(if chunk.len() > 1 { CHARS[((b1 & 0xf) << 2) | (b2 >> 6)] as char } else { '=' });
+        out.push(if chunk.len() > 2 { CHARS[b2 & 0x3f] as char } else { '=' });
+    }
+    out
+}
+
 // WebSocket connection handler
 async fn handle_ws(
     ws: WebSocketUpgrade,
@@ -571,21 +685,17 @@ async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) -> Re
     let mut rx = state.ws_tx.subscribe();
     let live_req_clone = state.live_requests.clone();
     live_req_clone.fetch_add(1, Ordering::SeqCst);
-    println!("[WS] Live requests incremented");
 
     let (mut ws_sink, mut ws_stream) = socket.split();
-    println!("[WS] Socket split successfully");
 
     loop {
         tokio::select! {
             msg_res = ws_stream.next() => {
                 match msg_res {
                     Some(Ok(Message::Ping(p))) => {
-                        println!("[WS] Ping received");
                         let _ = ws_sink.send(Message::Pong(p)).await;
                     }
                     Some(Ok(Message::Close(_))) | None => {
-                        println!("[WS] Close message received");
                         break;
                     }
                     _ => {}
@@ -593,7 +703,6 @@ async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) -> Re
             }
             broadcast_res = rx.recv() => {
                 if let Ok(msg) = broadcast_res {
-                    println!("[WS] Broadcasting message to client");
                     let _ = ws_sink.send(Message::Text(msg.into())).await;
                 }
             }
@@ -601,7 +710,6 @@ async fn handle_websocket_socket(socket: WebSocket, state: Arc<AxumState>) -> Re
     }
 
     live_req_clone.fetch_sub(1, Ordering::SeqCst);
-    println!("[WS] Socket handler ending");
     Ok(())
 }
 
@@ -631,16 +739,11 @@ pub async fn start_sync_server(
     let port = 8080;
     let local_ip_addr = local_ip().unwrap_or(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
 
-    // Load db path
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_data.join("data.db");
 
-    // Initialize triggers in database on startup
-    // Ensure sync-related tables exist in case migrations were applied to a different DB path
     {
         let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
-        // Create minimal sync tables if they're missing (migrations may not have been applied
-        // to this DB file depending on plugin configuration).
         conn.execute_batch(r#"
             CREATE TABLE IF NOT EXISTS `devices` (
                 `id` text PRIMARY KEY NOT NULL,
@@ -682,6 +785,7 @@ pub async fn start_sync_server(
         .route("/devices", get(handle_get_devices))
         .route("/sync/push", post(handle_push))
         .route("/sync/pull", get(handle_pull))
+        .route("/sync/snapshot", get(handle_snapshot))  // ← NEW
         .route("/ws", get(handle_ws))
         .layer(
             CorsLayer::new()
@@ -695,14 +799,11 @@ pub async fn start_sync_server(
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .map_err(|e| format!("Failed to bind port: {}", e))?;
-    println!("[SERVER] Bound to {}:{}", addr.ip(), addr.port());
 
     let (tx, rx) = oneshot::channel::<()>();
     *state.server_tx.lock().await = Some(tx);
 
-    // Spawn server task
     tokio::spawn(async move {
-        println!("[SERVER] HTTP server task starting on {}:{}", local_ip_addr, port);
         axum::serve(listener, app_router)
             .with_graceful_shutdown(async move {
                 let _ = rx.await;
@@ -710,7 +811,6 @@ pub async fn start_sync_server(
             .await
             .unwrap();
     });
-    println!("[SERVER] Server spawned successfully");
 
     // Start mDNS advertisement
     let mdns = ServiceDaemon::new().map_err(|e| e.to_string())?;
@@ -739,7 +839,6 @@ pub async fn start_sync_server(
     *state.mdns_daemon.lock().await = Some(mdns);
     *state.mdns_service.lock().await = Some(service_info);
 
-    // Update status
     status_lock.running = true;
     status_lock.ip = local_ip_addr.to_string();
     status_lock.port = port;
@@ -747,7 +846,6 @@ pub async fn start_sync_server(
     status_lock.store_id = store_id;
     status_lock.device_name = device_name;
 
-    // Background task to keep status live_requests updated
     let state_clone = Arc::clone(&state);
     tokio::spawn(async move {
         loop {
@@ -772,12 +870,10 @@ pub async fn stop_sync_server(
         return Ok(status_lock.clone());
     }
 
-    // Stop Axum Server
     if let Some(tx) = state.server_tx.lock().await.take() {
         let _ = tx.send(());
     }
 
-    // Stop mDNS advertisement
     if let Some(mdns) = state.mdns_daemon.lock().await.take() {
         if let Some(service) = state.mdns_service.lock().await.take() {
             let _ = mdns.unregister(&service.get_fullname());
@@ -798,7 +894,6 @@ pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
     let service_type = "_axis-pos._tcp.local.";
     let receiver = mdns.browse(service_type).map_err(|e| e.to_string())?;
 
-    // Wait 2 seconds to gather resolved services
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     let mut servers = Vec::new();
@@ -815,7 +910,6 @@ pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
                 .unwrap_or_else(|| info.get_fullname())
                 .to_string();
 
-            // Get IP Address from resolved info
             let ip_str = info.get_addresses().iter().next()
                 .map(|a| a.to_string())
                 .unwrap_or_else(|| info.get_hostname().replace(".local.", ""));
@@ -843,7 +937,6 @@ pub async fn apply_sync_changes(
     let db_path = app_data.join("data.db");
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
 
-    // Set a transaction so everything is written together and rollback works
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     for change in &changes {
@@ -876,19 +969,49 @@ pub async fn apply_sync_changes(
     Ok(())
 }
 
+// ── NEW: Apply a full snapshot from the admin server ─────────────────────────
+// Each table's rows are upserted; nothing is deleted (additive merge).
+// Returns the maxSequence the caller should store as their new lastSequence.
+#[tauri::command]
+pub async fn apply_sync_snapshot(
+    app: AppHandle,
+    tables: HashMap<String, Vec<Value>>,
+    max_sequence: i64,
+) -> Result<i64, String> {
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_data.join("data.db");
+    let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    for (table, rows) in &tables {
+        // Skip system tables — just in case the server accidentally sends them
+        if EXCLUDED_TABLES.contains(&table.as_str()) {
+            continue;
+        }
+        for row in rows {
+            // Treat every snapshot row as an INSERT/UPDATE
+            if let Err(e) = apply_change(&tx, table, "INSERT", row) {
+                eprintln!("[SNAPSHOT] Skipping row in {}: {}", table, e);
+                // Non-fatal: continue with remaining rows
+            }
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(max_sequence)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTP PROXY COMMANDS
-// All network calls to the LAN sync server go through Rust (reqwest) so they
-// bypass Tauri's WebView CSP restrictions that block JS fetch() to LAN IPs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Register this terminal with the admin sync server.
 #[tauri::command]
 pub async fn sync_register(
     server_url: String,
     device_id: String,
     device_name: String,
-) -> Result<bool, String> {
+) -> Result<Value, String> {
     let client = reqwest::Client::new();
     let local_ip_addr = local_ip().unwrap_or(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
     let body = serde_json::json!({
@@ -904,10 +1027,16 @@ pub async fn sync_register(
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    Ok(res.status().is_success())
+
+    if res.status().is_success() {
+        // Return the full JSON so the caller can read currentSequence
+        let json: Value = res.json().await.unwrap_or(serde_json::json!({"status":"registered"}));
+        Ok(json)
+    } else {
+        Err(format!("Register returned HTTP {}", res.status()))
+    }
 }
 
-/// Pull changes from the admin server since a given sequence number.
 #[derive(Debug, Serialize)]
 pub struct PullResult {
     pub changes: Vec<ChangeItem>,
@@ -937,7 +1066,6 @@ pub async fn sync_pull(
         return Err(format!("Pull returned HTTP {}", res.status()));
     }
 
-    // The server returns an array of objects each with entity/action/payload/sequence
     let raw: Vec<Value> = res
         .json()
         .await
@@ -962,9 +1090,25 @@ pub async fn sync_pull(
     Ok(PullResult { changes, max_sequence })
 }
 
-/// Connect to the admin server's WebSocket and forward messages to the
-/// frontend as a Tauri event, since the WebView itself can't reach LAN
-/// WebSocket endpoints directly.
+/// Fetch the full current snapshot from the admin server.
+#[tauri::command]
+pub async fn sync_fetch_snapshot(server_url: String) -> Result<Value, String> {
+    let client = reqwest::Client::new();
+    let res = client
+        .get(format!("{}/sync/snapshot", server_url))
+        .timeout(std::time::Duration::from_secs(30)) // snapshot can be large
+        .send()
+        .await
+        .map_err(|e| format!("Snapshot request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Snapshot returned HTTP {}", res.status()));
+    }
+
+    res.json::<Value>()
+        .await
+        .map_err(|e| format!("Snapshot JSON parse error: {}", e))
+}
 
 #[tauri::command]
 pub async fn connect_sync_ws(app: AppHandle, server_url: String) -> Result<(), String> {
@@ -981,8 +1125,6 @@ pub async fn connect_sync_ws(app: AppHandle, server_url: String) -> Result<(), S
     Ok(())
 }
 
-/// Push local pending changes to the admin server.
-/// Reads from the sync_queue table and marks them synced on success.
 #[tauri::command]
 pub async fn sync_push(
     app: AppHandle,
@@ -992,7 +1134,6 @@ pub async fn sync_push(
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_data.join("data.db");
 
-    // Read pending changes from local DB
     let changes: Vec<(i64, ChangeItem)> = {
         let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
         let mut stmt = conn
@@ -1002,19 +1143,21 @@ pub async fn sync_push(
             )
             .map_err(|e| e.to_string())?;
 
-        let x = stmt.query_map([], |row| {
-            let id: i64 = row.get(0)?;
-            let entity: String = row.get(1)?;
-            let action: String = row.get(2)?;
-            let payload_str: String = row.get(3)?;
-            let payload: Value =
-                serde_json::from_str(&payload_str).unwrap_or(Value::Null);
-            Ok((id, ChangeItem { entity, action, payload }))
-        })
-        .map_err(|e| e.to_string())?
-        .filter_map(|r| r.ok())
-        .collect();
-        x
+        // Collect into a named binding so `stmt` and `conn` are dropped
+        // before the block closes, satisfying the borrow checker.
+        let rows: Vec<(i64, ChangeItem)> = stmt
+            .query_map([], |row| {
+                let id: i64 = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let action: String = row.get(2)?;
+                let payload_str: String = row.get(3)?;
+                let payload: Value = serde_json::from_str(&payload_str).unwrap_or(Value::Null);
+                Ok((id, ChangeItem { entity, action, payload }))
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        rows
     };
 
     if changes.is_empty() {
@@ -1042,7 +1185,6 @@ pub async fn sync_push(
         return Err(format!("Push returned HTTP {}", res.status()));
     }
 
-    // Mark synced
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     conn.execute(
         "UPDATE sync_queue SET synced = 1 WHERE id <= ?",

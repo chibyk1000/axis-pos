@@ -64,9 +64,11 @@ pub fn run() {
             sync_server::discover_sync_servers,
             sync_server::get_sync_server_status,
             sync_server::apply_sync_changes,
+            sync_server::apply_sync_snapshot,   // ← NEW
             sync_server::sync_register,
             sync_server::sync_pull,
             sync_server::sync_push,
+            sync_server::sync_fetch_snapshot,   // ← NEW
             sync_server::connect_sync_ws,
         ])
         .run(tauri::generate_context!())
