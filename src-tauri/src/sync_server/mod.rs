@@ -687,6 +687,20 @@ async fn handle_push_snapshot(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
+    // Snapshots are trusted bulk loads from a peer device, not arbitrary user
+    // input, and the insertion order of `payload.tables` (a HashMap) is not
+    // guaranteed — a child row (e.g. product_prices) can easily be applied
+    // before its parent (products) exists yet. Disable FK enforcement for
+    // the duration of this snapshot so insert order doesn't matter.
+    //
+    // IMPORTANT: `PRAGMA foreign_keys` is a no-op if set inside an already-
+    // open transaction — it must run on the raw connection BEFORE
+    // `conn.transaction()` opens its implicit BEGIN, or SQLite silently
+    // ignores it and FK constraints stay enforced.
+    if let Err(e) = conn.execute_batch("PRAGMA foreign_keys = OFF;") {
+        println!("[SNAPSHOT] Warning: failed to disable foreign_keys: {}", e);
+    }
+
     let tx = match conn.transaction() {
         Ok(t) => t,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -697,15 +711,6 @@ async fn handle_push_snapshot(
             row.get(0)
         })
         .unwrap_or(0);
-
-    // Snapshots are trusted bulk loads from a peer device, not arbitrary user
-    // input, and the insertion order of `payload.tables` (a HashMap) is not
-    // guaranteed — a child row (e.g. document_items) can easily be applied
-    // before its parent (documents) exists yet. Disable FK enforcement for
-    // the duration of this transaction so insert order doesn't matter.
-    if let Err(e) = tx.execute_batch("PRAGMA foreign_keys = OFF;") {
-        println!("[SNAPSHOT] Warning: failed to disable foreign_keys: {}", e);
-    }
 
     println!(
         "[SNAPSHOT] Received push from device, {} table(s): {:?}",
@@ -1277,6 +1282,14 @@ pub async fn apply_sync_snapshot(
     let db_path = app_data.join("data.db");
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
 
+    // Must run before conn.transaction() opens its implicit BEGIN — SQLite
+    // ignores `PRAGMA foreign_keys` if set inside an active transaction.
+    // Snapshot rows arrive in HashMap (unordered) iteration order, so a
+    // child row's parent may not exist yet at insert time.
+    if let Err(e) = conn.execute_batch("PRAGMA foreign_keys = OFF;") {
+        println!("[SNAPSHOT PULL] Warning: failed to disable foreign_keys: {}", e);
+    }
+
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let start_queue_id: i64 = tx
         .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
@@ -1284,6 +1297,8 @@ pub async fn apply_sync_snapshot(
         })
         .unwrap_or(0);
 
+    let mut applied = 0usize;
+    let mut failed = 0usize;
     for (table, rows) in &tables {
         // Skip system tables — just in case the server accidentally sends them
         if EXCLUDED_TABLES.contains(&table.as_str()) {
@@ -1292,11 +1307,21 @@ pub async fn apply_sync_snapshot(
         for row in rows {
             // Treat every snapshot row as an INSERT/UPDATE
             if let Err(e) = apply_change(&tx, table, "INSERT", row) {
-                eprintln!("[SNAPSHOT] Skipping row in {}: {}", table, e);
+                eprintln!("[SNAPSHOT PULL] Failed to apply row in {}: {}", table, e);
+                failed += 1;
                 // Non-fatal: continue with remaining rows
+            } else {
+                applied += 1;
             }
         }
     }
+
+    println!(
+        "[SNAPSHOT PULL] Applied {} row(s), {} failed, across {} table(s)",
+        applied,
+        failed,
+        tables.len()
+    );
 
     tx.execute(
         "DELETE FROM `sync_queue` WHERE `id` > ? AND `device_id` = 'local'",
