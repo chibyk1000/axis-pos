@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface Settings {
   language: string;
@@ -202,22 +202,53 @@ export const DEFAULT_SETTINGS: Settings = {
   storeId: "store-001",
 };
 
+const SETTINGS_KEY = "axis_lite_settings";
+const SETTINGS_EVENT = "axis_lite_settings_updated";
+
+const persistSettings = (settings: Settings) => {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: settings }));
+};
+
 export function useSettings() {
   const [settings, setSettingsState] = useState<Settings>(() => {
     try {
-      const stored = localStorage.getItem("axis_lite_settings");
+      const stored = localStorage.getItem(SETTINGS_KEY);
       return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
     } catch {
       return DEFAULT_SETTINGS;
     }
   });
 
+  useEffect(() => {
+    const handleSettingsUpdated = (event: Event) => {
+      const next = (event as CustomEvent<Settings>).detail;
+      if (next) {
+        setSettingsState({ ...DEFAULT_SETTINGS, ...next });
+      }
+    };
+
+    window.addEventListener(SETTINGS_EVENT, handleSettingsUpdated);
+    return () => window.removeEventListener(SETTINGS_EVENT, handleSettingsUpdated);
+  }, []);
+
   const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setSettingsState((prev) => ({ ...prev, [key]: value }));
+    setSettingsState((prev) => {
+      const next = { ...prev, [key]: value };
+      persistSettings(next);
+      return next;
+    });
   };
 
-  const saveSettings = () => {
-    localStorage.setItem("axis_lite_settings", JSON.stringify(settings));
+  const saveSettings = (nextSettings?: Settings) => {
+    if (nextSettings) {
+      persistSettings(nextSettings);
+      return;
+    }
+
+    if (!localStorage.getItem(SETTINGS_KEY)) {
+      persistSettings(settings);
+    }
   };
 
   return { settings, updateSetting, saveSettings };

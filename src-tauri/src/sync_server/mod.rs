@@ -115,6 +115,13 @@ pub struct PushRequest {
     pub changes: Vec<ChangeItem>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SnapshotPushRequest {
+    #[serde(rename = "deviceId")]
+    pub device_id: String,
+    pub tables: HashMap<String, Vec<Value>>,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct DiscoveredServer {
     pub name: String,
@@ -130,8 +137,15 @@ pub struct DiscoveredServer {
 const EXCLUDED_TABLES: &[&str] = &["sync_queue", "devices", "drizzle_migrations"];
 
 // Dynamic Sqlite Change Applier
-fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -> Result<(), String> {
-    let obj = payload.as_object().ok_or_else(|| "Payload is not a JSON object".to_string())?;
+fn apply_change(
+    conn: &Connection,
+    table: &str,
+    action: &str,
+    payload: &Value,
+) -> Result<(), String> {
+    let obj = payload
+        .as_object()
+        .ok_or_else(|| "Payload is not a JSON object".to_string())?;
     if obj.is_empty() {
         return Ok(());
     }
@@ -166,7 +180,10 @@ fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -
                 } else {
                     format!(
                         "INSERT INTO `{}` ({}) VALUES ({}) ON CONFLICT(id) DO UPDATE SET {}",
-                        table, cols_str, placeholders_str, update_sets.join(", ")
+                        table,
+                        cols_str,
+                        placeholders_str,
+                        update_sets.join(", ")
                     )
                 }
             } else {
@@ -184,31 +201,39 @@ fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -
                         table, cols_str, placeholders_str, target
                     )
                 } else {
-                    format!("INSERT OR REPLACE INTO `{}` ({}) VALUES ({})", table, cols_str, placeholders_str)
+                    format!(
+                        "INSERT OR REPLACE INTO `{}` ({}) VALUES ({})",
+                        table, cols_str, placeholders_str
+                    )
                 }
             };
 
-            let mut stmt = conn.prepare(&sql).map_err(|e| format!("Prepare error: {} (SQL: {})", e, sql))?;
+            let mut stmt = conn
+                .prepare(&sql)
+                .map_err(|e| format!("Prepare error: {} (SQL: {})", e, sql))?;
 
-            let params = rusqlite::params_from_iter(vals.iter().map(|v| -> Box<dyn rusqlite::types::ToSql> {
-                match v {
-                    Value::Null => Box::new(rusqlite::types::Null),
-                    Value::Bool(b) => Box::new(*b),
-                    Value::Number(num) => {
-                        if let Some(i) = num.as_i64() {
-                            Box::new(i)
-                        } else if let Some(f) = num.as_f64() {
-                            Box::new(f)
-                        } else {
-                            Box::new(rusqlite::types::Null)
+            let params = rusqlite::params_from_iter(vals.iter().map(
+                |v| -> Box<dyn rusqlite::types::ToSql> {
+                    match v {
+                        Value::Null => Box::new(rusqlite::types::Null),
+                        Value::Bool(b) => Box::new(*b),
+                        Value::Number(num) => {
+                            if let Some(i) = num.as_i64() {
+                                Box::new(i)
+                            } else if let Some(f) = num.as_f64() {
+                                Box::new(f)
+                            } else {
+                                Box::new(rusqlite::types::Null)
+                            }
                         }
+                        Value::String(s) => Box::new(s.clone()),
+                        _ => Box::new(v.to_string()),
                     }
-                    Value::String(s) => Box::new(s.clone()),
-                    _ => Box::new(v.to_string()),
-                }
-            }));
+                },
+            ));
 
-            stmt.execute(params).map_err(|e| format!("Execute error: {} (SQL: {})", e, sql))?;
+            stmt.execute(params)
+                .map_err(|e| format!("Execute error: {} (SQL: {})", e, sql))?;
         }
         "DELETE" => {
             if let Some(id_val) = obj.get("id") {
@@ -231,23 +256,25 @@ fn apply_change(conn: &Connection, table: &str, action: &str, payload: &Value) -
                 }
                 let sql = format!("DELETE FROM `{}` WHERE {}", table, conds.join(" AND "));
                 let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-                let params = rusqlite::params_from_iter(vals.iter().map(|v| -> Box<dyn rusqlite::types::ToSql> {
-                    match v {
-                        Value::Null => Box::new(rusqlite::types::Null),
-                        Value::Bool(b) => Box::new(*b),
-                        Value::Number(num) => {
-                            if let Some(i) = num.as_i64() {
-                                Box::new(i)
-                            } else if let Some(f) = num.as_f64() {
-                                Box::new(f)
-                            } else {
-                                Box::new(rusqlite::types::Null)
+                let params = rusqlite::params_from_iter(vals.iter().map(
+                    |v| -> Box<dyn rusqlite::types::ToSql> {
+                        match v {
+                            Value::Null => Box::new(rusqlite::types::Null),
+                            Value::Bool(b) => Box::new(*b),
+                            Value::Number(num) => {
+                                if let Some(i) = num.as_i64() {
+                                    Box::new(i)
+                                } else if let Some(f) = num.as_f64() {
+                                    Box::new(f)
+                                } else {
+                                    Box::new(rusqlite::types::Null)
+                                }
                             }
+                            Value::String(s) => Box::new(s.clone()),
+                            _ => Box::new(v.to_string()),
                         }
-                        Value::String(s) => Box::new(s.clone()),
-                        _ => Box::new(v.to_string()),
-                    }
-                }));
+                    },
+                ));
                 stmt.execute(params).map_err(|e| e.to_string())?;
             }
         }
@@ -270,9 +297,18 @@ pub fn setup_database_triggers(conn: &Connection) -> Result<(), rusqlite::Error>
         .collect();
 
     for table in tables {
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_insert`", table), []);
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_update`", table), []);
-        let _ = conn.execute(&format!("DROP TRIGGER IF EXISTS `sync_{}_delete`", table), []);
+        let _ = conn.execute(
+            &format!("DROP TRIGGER IF EXISTS `sync_{}_insert`", table),
+            [],
+        );
+        let _ = conn.execute(
+            &format!("DROP TRIGGER IF EXISTS `sync_{}_update`", table),
+            [],
+        );
+        let _ = conn.execute(
+            &format!("DROP TRIGGER IF EXISTS `sync_{}_delete`", table),
+            [],
+        );
 
         let mut col_stmt = conn.prepare(&format!("PRAGMA table_info(`{}`)", table))?;
         let columns: Vec<(String, bool)> = col_stmt
@@ -371,7 +407,10 @@ async fn handle_register(
     State(state): State<Arc<AxumState>>,
     Json(payload): Json<RegisterRequest>,
 ) -> impl IntoResponse {
-    println!("[REGISTER] Device registered: {} ({})", payload.name, payload.id);
+    println!(
+        "[REGISTER] Device registered: {} ({})",
+        payload.name, payload.id
+    );
     let _counter = RequestCounter::new(state.live_requests.clone());
 
     let conn = match Connection::open(&state.db_path) {
@@ -386,7 +425,10 @@ async fn handle_register(
                VALUES (?, ?, ?, ?, strftime('%s', 'now') * 1000) \
                ON CONFLICT(id) DO UPDATE SET name=excluded.name, ip=excluded.ip, role=excluded.role, last_seen=excluded.last_seen";
 
-    if let Err(e) = conn.execute(sql, rusqlite::params![payload.id, payload.name, payload.ip, payload.role]) {
+    if let Err(e) = conn.execute(
+        sql,
+        rusqlite::params![payload.id, payload.name, payload.ip, payload.role],
+    ) {
         println!("[REGISTER] Failed to execute register SQL: {}", e);
         return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
     }
@@ -395,19 +437,24 @@ async fn handle_register(
 
     // Get the current max sync_queue sequence so the cashier knows where to start pulling from
     let max_seq: i64 = conn
-        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| row.get(0))
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
+            row.get(0)
+        })
         .unwrap_or(0);
 
     // Broadcast to websockets
-    let _ = state.ws_tx.send(serde_json::json!({
-        "event": "device_registered",
-        "device": {
-            "id": payload.id,
-            "name": payload.name,
-            "ip": payload.ip,
-            "role": payload.role
-        }
-    }).to_string());
+    let _ = state.ws_tx.send(
+        serde_json::json!({
+            "event": "device_registered",
+            "device": {
+                "id": payload.id,
+                "name": payload.name,
+                "ip": payload.ip,
+                "role": payload.role
+            }
+        })
+        .to_string(),
+    );
 
     Json(serde_json::json!({
         "deviceId": payload.id,
@@ -427,7 +474,9 @@ async fn handle_get_devices(State(state): State<Arc<AxumState>>) -> impl IntoRes
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let mut stmt = match conn.prepare("SELECT `id`, `name`, `ip`, `role`, `last_seen` FROM `devices` ORDER BY last_seen DESC") {
+    let mut stmt = match conn.prepare(
+        "SELECT `id`, `name`, `ip`, `role`, `last_seen` FROM `devices` ORDER BY last_seen DESC",
+    ) {
         Ok(s) => s,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
@@ -465,17 +514,34 @@ async fn handle_push(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
+    let start_queue_id: i64 = tx
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(0);
+
     for change in &payload.changes {
         if let Err(err) = apply_change(&tx, &change.entity, &change.action, &change.payload) {
-            return (StatusCode::BAD_REQUEST, format!("Failed to apply change on entity {}: {}", change.entity, err)).into_response();
+            return (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Failed to apply change on entity {}: {}",
+                    change.entity, err
+                ),
+            )
+                .into_response();
         }
     }
 
     if let Err(e) = tx.execute(
-        "UPDATE `sync_queue` SET `device_id` = ? WHERE `device_id` = 'local'",
-        rusqlite::params![payload.device_id],
+        "UPDATE `sync_queue` SET `device_id` = ? WHERE `id` > ? AND `device_id` = 'local'",
+        rusqlite::params![payload.device_id, start_queue_id],
     ) {
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update sync_queue device_id: {}", e)).into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update sync_queue device_id: {}", e),
+        )
+            .into_response();
     }
 
     if let Err(e) = tx.commit() {
@@ -487,13 +553,88 @@ async fn handle_push(
         rusqlite::params![payload.device_id],
     );
 
-    let _ = state.ws_tx.send(serde_json::json!({
-        "event": "changes_pushed",
-        "deviceId": payload.device_id,
-        "count": payload.changes.len()
-    }).to_string());
+    let _ = state.ws_tx.send(
+        serde_json::json!({
+            "event": "changes_pushed",
+            "deviceId": payload.device_id,
+            "count": payload.changes.len()
+        })
+        .to_string(),
+    );
 
     (StatusCode::OK, "pushed").into_response()
+}
+
+async fn handle_push_snapshot(
+    State(state): State<Arc<AxumState>>,
+    Json(payload): Json<SnapshotPushRequest>,
+) -> impl IntoResponse {
+    let _counter = RequestCounter::new(state.live_requests.clone());
+
+    let mut conn = match Connection::open(&state.db_path) {
+        Ok(c) => c,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let tx = match conn.transaction() {
+        Ok(t) => t,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let start_queue_id: i64 = tx
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(0);
+
+    let mut applied_count = 0usize;
+    for (table, rows) in &payload.tables {
+        if EXCLUDED_TABLES.contains(&table.as_str()) {
+            continue;
+        }
+
+        for row in rows {
+            if let Err(err) = apply_change(&tx, table, "INSERT", row) {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    format!("Failed to apply snapshot row on entity {}: {}", table, err),
+                )
+                    .into_response();
+            }
+            applied_count += 1;
+        }
+    }
+
+    if let Err(e) = tx.execute(
+        "UPDATE `sync_queue` SET `device_id` = ? WHERE `id` > ? AND `device_id` = 'local'",
+        rusqlite::params![payload.device_id, start_queue_id],
+    ) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to tag snapshot sync rows: {}", e),
+        )
+            .into_response();
+    }
+
+    if let Err(e) = tx.commit() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+    }
+
+    let _ = conn.execute(
+        "UPDATE `devices` SET `last_seen` = strftime('%s', 'now') * 1000 WHERE `id` = ?",
+        rusqlite::params![payload.device_id],
+    );
+
+    let _ = state.ws_tx.send(
+        serde_json::json!({
+            "event": "changes_pushed",
+            "deviceId": payload.device_id,
+            "count": applied_count
+        })
+        .to_string(),
+    );
+
+    Json(serde_json::json!({ "applied": applied_count })).into_response()
 }
 
 async fn handle_pull(
@@ -509,7 +650,7 @@ async fn handle_pull(
 
     let rows = if let Some(ref d_id) = query.device_id {
         let sql = "SELECT `id`, `entity`, `action`, `payload`, `created_at` FROM `sync_queue` \
-                   WHERE `id` > ? AND (`device_id` != ? OR `device_id` IS NULL) \
+                   WHERE `id` > ? AND (`device_id` != ? OR `device_id` = 'local' OR `device_id` IS NULL) \
                    ORDER BY id ASC LIMIT 500";
         let mut stmt = match conn.prepare(sql) {
             Ok(s) => s,
@@ -568,7 +709,9 @@ async fn handle_snapshot(State(state): State<Arc<AxumState>>) -> impl IntoRespon
     // Current max sequence — cashier should store this and use it as lastSequence
     // so it won't re-pull what the snapshot already covered.
     let max_seq: i64 = conn
-        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| row.get(0))
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
+            row.get(0)
+        })
         .unwrap_or(0);
 
     // Enumerate application tables
@@ -619,15 +762,11 @@ async fn handle_snapshot(State(state): State<Arc<AxumState>>) -> impl IntoRespon
                     let val: Value = match row.get_ref(i) {
                         Ok(rusqlite::types::ValueRef::Null) => Value::Null,
                         Ok(rusqlite::types::ValueRef::Integer(n)) => Value::from(n),
-                        Ok(rusqlite::types::ValueRef::Real(f)) => {
-                            Value::from(f)
-                        }
+                        Ok(rusqlite::types::ValueRef::Real(f)) => Value::from(f),
                         Ok(rusqlite::types::ValueRef::Text(t)) => {
                             Value::String(String::from_utf8_lossy(t).to_string())
                         }
-                        Ok(rusqlite::types::ValueRef::Blob(b)) => {
-                            Value::String(base64_encode(b))
-                        }
+                        Ok(rusqlite::types::ValueRef::Blob(b)) => Value::String(base64_encode(b)),
                         Err(_) => Value::Null,
                     };
                     obj.insert(col.clone(), val);
@@ -654,21 +793,34 @@ fn base64_encode(input: &[u8]) -> String {
     let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
     for chunk in input.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
         out.push(CHARS[b0 >> 2] as char);
         out.push(CHARS[((b0 & 3) << 4) | (b1 >> 4)] as char);
-        out.push(if chunk.len() > 1 { CHARS[((b1 & 0xf) << 2) | (b2 >> 6)] as char } else { '=' });
-        out.push(if chunk.len() > 2 { CHARS[b2 & 0x3f] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            CHARS[((b1 & 0xf) << 2) | (b2 >> 6)] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            CHARS[b2 & 0x3f] as char
+        } else {
+            '='
+        });
     }
     out
 }
 
 // WebSocket connection handler
-async fn handle_ws(
-    ws: WebSocketUpgrade,
-    State(state): State<Arc<AxumState>>,
-) -> impl IntoResponse {
+async fn handle_ws(ws: WebSocketUpgrade, State(state): State<Arc<AxumState>>) -> impl IntoResponse {
     println!("[WS] New WebSocket upgrade request received");
     ws.on_upgrade(move |socket| {
         let state = Arc::clone(&state);
@@ -744,7 +896,8 @@ pub async fn start_sync_server(
 
     {
         let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
-        conn.execute_batch(r#"
+        conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS `devices` (
                 `id` text PRIMARY KEY NOT NULL,
                 `name` text NOT NULL,
@@ -761,7 +914,9 @@ pub async fn start_sync_server(
                 `synced` integer DEFAULT 0 NOT NULL,
                 `device_id` text
             );
-        "#).map_err(|e| e.to_string())?;
+        "#,
+        )
+        .map_err(|e| e.to_string())?;
 
         setup_database_triggers(&conn).map_err(|e| e.to_string())?;
     }
@@ -784,8 +939,9 @@ pub async fn start_sync_server(
         .route("/register", post(handle_register))
         .route("/devices", get(handle_get_devices))
         .route("/sync/push", post(handle_push))
+        .route("/sync/push-snapshot", post(handle_push_snapshot))
         .route("/sync/pull", get(handle_pull))
-        .route("/sync/snapshot", get(handle_snapshot))  // ← NEW
+        .route("/sync/snapshot", get(handle_snapshot)) // ← NEW
         .route("/ws", get(handle_ws))
         .layer(
             CorsLayer::new()
@@ -834,7 +990,8 @@ pub async fn start_sync_server(
     )
     .map_err(|e| e.to_string())?;
 
-    mdns.register(service_info.clone()).map_err(|e| e.to_string())?;
+    mdns.register(service_info.clone())
+        .map_err(|e| e.to_string())?;
 
     *state.mdns_daemon.lock().await = Some(mdns);
     *state.mdns_service.lock().await = Some(service_info);
@@ -900,17 +1057,23 @@ pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
     while let Ok(event) = receiver.try_recv() {
         if let mdns_sd::ServiceEvent::ServiceResolved(info) = event {
             let props = info.get_properties();
-            let store_name = props.get_property_val_str("store_name")
+            let store_name = props
+                .get_property_val_str("store_name")
                 .unwrap_or_else(|| info.get_fullname())
                 .to_string();
-            let store_id = props.get_property_val_str("store_id")
+            let store_id = props
+                .get_property_val_str("store_id")
                 .unwrap_or("")
                 .to_string();
-            let device_name = props.get_property_val_str("device_name")
+            let device_name = props
+                .get_property_val_str("device_name")
                 .unwrap_or_else(|| info.get_fullname())
                 .to_string();
 
-            let ip_str = info.get_addresses().iter().next()
+            let ip_str = info
+                .get_addresses()
+                .iter()
+                .next()
                 .map(|a| a.to_string())
                 .unwrap_or_else(|| info.get_hostname().replace(".local.", ""));
 
@@ -929,10 +1092,7 @@ pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
 }
 
 #[tauri::command]
-pub async fn apply_sync_changes(
-    app: AppHandle,
-    changes: Vec<ChangeItem>,
-) -> Result<(), String> {
+pub async fn apply_sync_changes(app: AppHandle, changes: Vec<ChangeItem>) -> Result<(), String> {
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_data.join("data.db");
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
@@ -960,7 +1120,7 @@ pub async fn apply_sync_changes(
             let payload_str = change.payload.to_string();
             let _ = tx.execute(
                 "DELETE FROM `sync_queue` WHERE `entity` = ? AND `action` = ? AND `payload` = ?",
-                rusqlite::params![change.entity, change.action, payload_str]
+                rusqlite::params![change.entity, change.action, payload_str],
             );
         }
     }
@@ -983,6 +1143,11 @@ pub async fn apply_sync_snapshot(
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let start_queue_id: i64 = tx
+        .query_row("SELECT COALESCE(MAX(id), 0) FROM sync_queue", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(0);
 
     for (table, rows) in &tables {
         // Skip system tables — just in case the server accidentally sends them
@@ -997,6 +1162,12 @@ pub async fn apply_sync_snapshot(
             }
         }
     }
+
+    tx.execute(
+        "DELETE FROM `sync_queue` WHERE `id` > ? AND `device_id` = 'local'",
+        rusqlite::params![start_queue_id],
+    )
+    .map_err(|e| e.to_string())?;
 
     tx.commit().map_err(|e| e.to_string())?;
     Ok(max_sequence)
@@ -1030,7 +1201,10 @@ pub async fn sync_register(
 
     if res.status().is_success() {
         // Return the full JSON so the caller can read currentSequence
-        let json: Value = res.json().await.unwrap_or(serde_json::json!({"status":"registered"}));
+        let json: Value = res
+            .json()
+            .await
+            .unwrap_or(serde_json::json!({"status":"registered"}));
         Ok(json)
     } else {
         Err(format!("Register returned HTTP {}", res.status()))
@@ -1083,11 +1257,18 @@ pub async fn sync_pull(
             let entity = v.get("entity")?.as_str()?.to_string();
             let action = v.get("action")?.as_str()?.to_string();
             let payload = v.get("payload").cloned().unwrap_or(Value::Null);
-            Some(ChangeItem { entity, action, payload })
+            Some(ChangeItem {
+                entity,
+                action,
+                payload,
+            })
         })
         .collect();
 
-    Ok(PullResult { changes, max_sequence })
+    Ok(PullResult {
+        changes,
+        max_sequence,
+    })
 }
 
 /// Fetch the full current snapshot from the admin server.
@@ -1108,6 +1289,113 @@ pub async fn sync_fetch_snapshot(server_url: String) -> Result<Value, String> {
     res.json::<Value>()
         .await
         .map_err(|e| format!("Snapshot JSON parse error: {}", e))
+}
+
+#[tauri::command]
+pub async fn sync_push_snapshot(
+    app: AppHandle,
+    server_url: String,
+    device_id: String,
+) -> Result<usize, String> {
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_data.join("data.db");
+
+    let (snapshot, row_count) = {
+        let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+
+        let mut table_stmt = conn
+            .prepare(
+                "SELECT name FROM sqlite_master \
+                 WHERE type='table' AND name NOT LIKE 'sqlite_%' \
+                 AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations')",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let tables: Vec<String> = table_stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let mut snapshot: HashMap<String, Vec<Value>> = HashMap::new();
+        let mut row_count = 0usize;
+
+        for table in &tables {
+            let col_sql = format!("PRAGMA table_info(`{}`)", table);
+            let mut col_stmt = match conn.prepare(&col_sql) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let columns: Vec<String> = col_stmt
+                .query_map([], |row| row.get::<_, String>(1))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            if columns.is_empty() {
+                continue;
+            }
+
+            let select_sql = format!("SELECT * FROM `{}`", table);
+            let mut row_stmt = match conn.prepare(&select_sql) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let rows: Vec<Value> = row_stmt
+                .query_map([], |row| {
+                    let mut obj = serde_json::Map::new();
+                    for (i, col) in columns.iter().enumerate() {
+                        let val: Value = match row.get_ref(i) {
+                            Ok(rusqlite::types::ValueRef::Null) => Value::Null,
+                            Ok(rusqlite::types::ValueRef::Integer(n)) => Value::from(n),
+                            Ok(rusqlite::types::ValueRef::Real(f)) => Value::from(f),
+                            Ok(rusqlite::types::ValueRef::Text(t)) => {
+                                Value::String(String::from_utf8_lossy(t).to_string())
+                            }
+                            Ok(rusqlite::types::ValueRef::Blob(b)) => {
+                                Value::String(base64_encode(b))
+                            }
+                            Err(_) => Value::Null,
+                        };
+                        obj.insert(col.clone(), val);
+                    }
+                    Ok(Value::Object(obj))
+                })
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            row_count += rows.len();
+            snapshot.insert(table.clone(), rows);
+        }
+
+        (snapshot, row_count)
+    };
+
+    if row_count == 0 {
+        return Ok(0);
+    }
+
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "deviceId": device_id,
+        "tables": snapshot,
+    });
+
+    let res = client
+        .post(format!("{}/sync/push-snapshot", server_url))
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+        .map_err(|e| format!("Snapshot push request failed: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Snapshot push returned HTTP {}", res.status()));
+    }
+
+    Ok(row_count)
 }
 
 #[tauri::command]
@@ -1152,7 +1440,14 @@ pub async fn sync_push(
                 let action: String = row.get(2)?;
                 let payload_str: String = row.get(3)?;
                 let payload: Value = serde_json::from_str(&payload_str).unwrap_or(Value::Null);
-                Ok((id, ChangeItem { entity, action, payload }))
+                Ok((
+                    id,
+                    ChangeItem {
+                        entity,
+                        action,
+                        payload,
+                    },
+                ))
             })
             .map_err(|e| e.to_string())?
             .filter_map(|r| r.ok())

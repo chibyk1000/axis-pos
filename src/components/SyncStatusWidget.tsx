@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useSync } from "@/hooks/useSync";
 import { useSettings } from "@/hooks/useSettings";
 import { RefreshCw, Server, Wifi, WifiOff, AlertCircle, Laptop, Radio, Database } from "lucide-react";

@@ -49,6 +49,7 @@ export default function SettingsPage() {
     serverStats,
     discoveredServers,
     isSearching,
+    connectionStatus,
     discoverServers,
     startServer,
     stopServer,
@@ -1376,23 +1377,37 @@ export default function SettingsPage() {
                           {isSearching ? "Scanning local network for servers..." : "No servers discovered. Try scanning or enter URL manually."}
                         </div>
                       ) : (
-                        discoveredServers.map((srv, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-3 bg-slate-800/20 border border-slate-700/50 rounded-xl"
-                          >
-                            <div>
-                              <span className="font-semibold text-sm text-slate-200 block">{srv.storeName}</span>
-                              <span className="text-xs text-slate-500">Host: {srv.name} | {srv.ip}:{srv.port}</span>
-                            </div>
-                            <button
-                              onClick={() => connectToServer(`http://${srv.ip}:${srv.port}`)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-xs text-white rounded font-medium cursor-pointer transition-colors"
+                        discoveredServers.map((srv, idx) => {
+                          const serverUrl = `http://${srv.ip}:${srv.port}`;
+                          const isSelectedServer = settings.syncServerUrl === serverUrl;
+                          const isConnected = isSelectedServer && connectionStatus === "connected";
+                          const isConnecting = isSelectedServer && connectionStatus === "connecting";
+
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-3 bg-slate-800/20 border border-slate-700/50 rounded-xl"
                             >
-                              Connect
-                            </button>
-                          </div>
-                        ))
+                              <div>
+                                <span className="font-semibold text-sm text-slate-200 block">{srv.storeName}</span>
+                                <span className="text-xs text-slate-500">Host: {srv.name} | {srv.ip}:{srv.port}</span>
+                              </div>
+                              <button
+                                onClick={() => connectToServer(serverUrl)}
+                                disabled={isConnected || isConnecting}
+                                className={`px-3 py-1.5 text-xs text-white rounded font-medium transition-colors ${
+                                  isConnected
+                                    ? "bg-emerald-600 cursor-default"
+                                    : isConnecting
+                                    ? "bg-amber-600 cursor-wait"
+                                    : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                                }`}
+                              >
+                                {isConnected ? "Connected" : isConnecting ? "Connecting..." : "Connect"}
+                              </button>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
