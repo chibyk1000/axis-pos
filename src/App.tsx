@@ -31,6 +31,7 @@ import {
   PermissionId,
 } from "@/lib/security";
 import { AuthProvider, useAuth } from "./providers/auth-provider";
+import { checkForAppUpdates } from "./helpers/updater";
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
@@ -250,6 +251,10 @@ const Loader = () => (
 function App() {
   const initialized = useRef(false);
   useSync(); // Start background sync / server based on settings
+ useEffect(() => {
+   // Fire-and-forget on mount; don't block app render on this
+   checkForAppUpdates(false); // false = don't show a "no update" toast on silent startup check
+ }, []);
 
   useEffect(() => {
     if (initialized.current) return;
