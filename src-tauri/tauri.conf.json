@@ -24,6 +24,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,7 +35,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PASTE_THE_ACTUAL_TEXT_CONTENT_OF_YOUR_PUBLIC_KEY_HERE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYyRUQwQUY4MTk0Q0ZGRTMKUldUai8wd1orQXJ0OHZ3dXhWR1ZRbVVqbllmWnY0a3ZmVDJ5RThiL2xkTHcrQmJBaWthRnVLaEoK",
       "endpoints": [
         "https://github.com/chibyk1000/axis-pos/releases/latest/download/latest.json"
       ],
