@@ -148,6 +148,25 @@ fn describe_request_error(action: &str, url: &str, err: reqwest::Error) -> Strin
     format!("{} failed for {}: {}. {}", action, url, err, hint)
 }
 
+// Secondary UNIQUE columns (besides `id`) per table. When an upsert keyed on
+// `id` collides with one of these instead (e.g. two devices each auto-seed
+// their own "Walk-in Customer" with the same `code` but different `id`s),
+// we fall back to updating whichever existing row actually owns that unique
+// value, rather than failing the whole snapshot/push.
+fn secondary_unique_columns(table: &str) -> &'static [&'static str] {
+    match table {
+        "customers" => &["code"],
+        "products" => &["code"],
+        "barcodes" => &["value"],
+        "taxes" => &["code"],
+        "users" => &["email"],
+        "countries" => &["code"],
+        "customer_balances" => &["customer_id"],
+        "stock_entries" => &["product_id"],
+        _ => &[],
+    }
+}
+
 // Dynamic Sqlite Change Applier
 fn apply_change(
     conn: &Connection,
@@ -244,8 +263,88 @@ fn apply_change(
                 },
             ));
 
-            stmt.execute(params)
-                .map_err(|e| format!("Execute error: {} (SQL: {})", e, sql))?;
+            let exec_result = stmt.execute(params);
+
+            if let Err(rusqlite::Error::SqliteFailure(sqlite_err, ref msg)) = exec_result {
+                let is_unique_violation = sqlite_err.code
+                    == rusqlite::ErrorCode::ConstraintViolation
+                    && msg
+                        .as_ref()
+                        .map(|m| m.contains("UNIQUE constraint failed"))
+                        .unwrap_or(false);
+
+                if is_unique_violation {
+                    let secondary_cols = secondary_unique_columns(table);
+                    // Find which secondary unique column actually collided, if any.
+                    let colliding_col = secondary_cols
+                        .iter()
+                        .find(|c| obj.contains_key(**c))
+                        .copied();
+
+                    if let Some(unique_col) = colliding_col {
+                        if let Some(incoming_val) = obj.get(unique_col) {
+                            // The row already in this DB owns `unique_col`'s value
+                            // (under a different id). Treat the incoming payload
+                            // as authoritative and UPDATE that existing row,
+                            // identified by `unique_col`, with every other field.
+                            let mut update_sets = Vec::new();
+                            let mut update_vals: Vec<Value> = Vec::new();
+                            for (k, v) in obj {
+                                if k == "id" || k == unique_col {
+                                    continue;
+                                }
+                                update_sets.push(format!("`{}` = ?", k));
+                                update_vals.push(v.clone());
+                            }
+                            update_vals.push(incoming_val.clone());
+
+                            if !update_sets.is_empty() {
+                                let update_sql = format!(
+                                    "UPDATE `{}` SET {} WHERE `{}` = ?",
+                                    table,
+                                    update_sets.join(", "),
+                                    unique_col
+                                );
+                                let mut update_stmt = conn.prepare(&update_sql).map_err(|e| {
+                                    format!(
+                                        "Prepare error (secondary-unique fallback): {} (SQL: {})",
+                                        e, update_sql
+                                    )
+                                })?;
+                                let update_params =
+                                    rusqlite::params_from_iter(update_vals.iter().map(
+                                        |v| -> Box<dyn rusqlite::types::ToSql> {
+                                            match v {
+                                                Value::Null => Box::new(rusqlite::types::Null),
+                                                Value::Bool(b) => Box::new(*b),
+                                                Value::Number(num) => {
+                                                    if let Some(i) = num.as_i64() {
+                                                        Box::new(i)
+                                                    } else if let Some(f) = num.as_f64() {
+                                                        Box::new(f)
+                                                    } else {
+                                                        Box::new(rusqlite::types::Null)
+                                                    }
+                                                }
+                                                Value::String(s) => Box::new(s.clone()),
+                                                _ => Box::new(v.to_string()),
+                                            }
+                                        },
+                                    ));
+                                update_stmt.execute(update_params).map_err(|e| {
+                                    format!(
+                                        "Execute error (secondary-unique fallback on {}.{}): {} (SQL: {})",
+                                        table, unique_col, e, update_sql
+                                    )
+                                })?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+
+            exec_result.map_err(|e| format!("Execute error: {} (SQL: {})", e, sql))?;
         }
         "DELETE" => {
             if let Some(id_val) = obj.get("id") {
