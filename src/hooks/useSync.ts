@@ -65,6 +65,7 @@ export function useSync() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(() =>
     localStorage.getItem(LS_LAST_TIME),
   );
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -172,7 +173,9 @@ export function useSync() {
         );
 
         if (result.changes.length > 0) {
-          console.log(`[SYNC] Pulling ${result.changes.length} changes from server`);
+          console.log(
+            `[SYNC] Pulling ${result.changes.length} changes from server`,
+          );
           await applyPulledChanges(result.changes);
           localStorage.setItem(LS_LAST_SEQ, result.maxSequence.toString());
           console.log(`[SYNC] Updated sequence to ${result.maxSequence}`);
@@ -234,7 +237,9 @@ export function useSync() {
           ? res.currentSequence
           : -1;
       } catch (err) {
-        console.error("Registration failed", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[SYNC] Registration failed:", msg);
+        setLastSyncError(`Registration failed: ${msg}`);
         return -1;
       }
     },
@@ -263,16 +268,25 @@ export function useSync() {
   // 9b. Push this terminal's current database to the admin server.
   const pushLocalSnapshot = useCallback(
     async (url: string) => {
+      console.log("[SYNC] Pushing local snapshot to", url);
       try {
         const count = await invoke<number>("sync_push_snapshot", {
           serverUrl: url,
           deviceId,
         });
+        console.log(`[SYNC] sync_push_snapshot returned count=${count}`);
         if (count > 0) {
           console.log(`[SYNC] Pushed ${count} snapshot rows to server`);
+        } else {
+          console.warn(
+            "[SYNC] Snapshot push returned 0 rows — local database appears to have no data to send, or the push was skipped. Check Rust logs for '[SNAPSHOT PUSH]'.",
+          );
         }
+        return count;
       } catch (err) {
-        console.error("[SYNC] Snapshot push error:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[SYNC] Snapshot push error:", msg);
+        setLastSyncError(`Snapshot push failed: ${msg}`);
         throw err;
       }
     },
@@ -314,7 +328,12 @@ export function useSync() {
       const needSnapshot = !snapshotDone || (serverSeq > 0 && localSeq === 0);
 
       if (needSnapshot) {
-        console.log("[SYNC] Need snapshot, serverSeq:", serverSeq, "localSeq:", localSeq);
+        console.log(
+          "[SYNC] Need snapshot, serverSeq:",
+          serverSeq,
+          "localSeq:",
+          localSeq,
+        );
         await pullSnapshot(url);
       } else {
         await pullChanges(url);
@@ -358,7 +377,10 @@ export function useSync() {
           console.log("[WS] Received:", data);
           if (data.event === "changes_pushed" && data.deviceId !== deviceId) {
             // A different terminal pushed — pull immediately
-            console.log("[WS] Triggering immediate sync due to changes from", data.deviceId);
+            console.log(
+              "[WS] Triggering immediate sync due to changes from",
+              data.deviceId,
+            );
             pullChanges(url);
           }
         } catch (err) {
@@ -489,6 +511,7 @@ export function useSync() {
     connectionStatus,
     pendingSyncCount,
     lastSyncTime,
+    lastSyncError,
     discoverServers,
     startServer,
     stopServer,
@@ -497,13 +520,22 @@ export function useSync() {
       localStorage.removeItem(LS_SNAPSHOT_OK);
       localStorage.setItem(LS_LAST_SEQ, "0");
       persistStatus("connecting");
+      setLastSyncError(null);
 
       try {
+        console.log("[SYNC] connectToServer: registering with", url);
         const serverSeq = await registerDevice(url);
         if (serverSeq === -1) {
+          setLastSyncError(
+            "Could not register with server — check the server URL and that it's reachable.",
+          );
           persistStatus("error");
           return false;
         }
+        console.log(
+          "[SYNC] connectToServer: registered, serverSeq =",
+          serverSeq,
+        );
 
         updateSetting("syncServerUrl", url);
         updateSetting("syncEnabled", true);
@@ -511,18 +543,30 @@ export function useSync() {
         saveSettings();
 
         if (serverSeq > 0) {
+          console.log(
+            "[SYNC] connectToServer: server has data, pulling snapshot",
+          );
           await pullSnapshot(url);
         } else {
+          console.log("[SYNC] connectToServer: server is empty, skipping pull");
           localStorage.setItem(LS_SNAPSHOT_OK, "1");
         }
 
-        await pushLocalSnapshot(url);
+        console.log("[SYNC] connectToServer: pushing local snapshot");
+        const pushedRows = await pushLocalSnapshot(url);
+        console.log(
+          "[SYNC] connectToServer: pushLocalSnapshot rows =",
+          pushedRows,
+        );
+
         await pushLocalChanges(url);
         connectWebSocket(url);
         persistStatus("connected");
         return true;
       } catch (err) {
-        console.error("[SYNC] Connect failed:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[SYNC] Connect failed:", msg);
+        setLastSyncError(msg);
         persistStatus("error");
         return false;
       }

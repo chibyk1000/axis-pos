@@ -599,14 +599,36 @@ async fn handle_push_snapshot(
         })
         .unwrap_or(0);
 
+    // Snapshots are trusted bulk loads from a peer device, not arbitrary user
+    // input, and the insertion order of `payload.tables` (a HashMap) is not
+    // guaranteed — a child row (e.g. document_items) can easily be applied
+    // before its parent (documents) exists yet. Disable FK enforcement for
+    // the duration of this transaction so insert order doesn't matter.
+    if let Err(e) = tx.execute_batch("PRAGMA foreign_keys = OFF;") {
+        println!("[SNAPSHOT] Warning: failed to disable foreign_keys: {}", e);
+    }
+
+    println!(
+        "[SNAPSHOT] Received push from device, {} table(s): {:?}",
+        payload.tables.len(),
+        payload.tables.keys().collect::<Vec<_>>()
+    );
+
     let mut applied_count = 0usize;
     for (table, rows) in &payload.tables {
         if EXCLUDED_TABLES.contains(&table.as_str()) {
+            println!("[SNAPSHOT] Skipping excluded table `{}`", table);
             continue;
         }
 
+        println!("[SNAPSHOT] Applying {} row(s) to `{}`", rows.len(), table);
+
         for row in rows {
             if let Err(err) = apply_change(&tx, table, "INSERT", row) {
+                println!(
+                    "[SNAPSHOT] FAILED on entity {} (row: {}): {}",
+                    table, row, err
+                );
                 return (
                     StatusCode::BAD_REQUEST,
                     format!("Failed to apply snapshot row on entity {}: {}", table, err),
@@ -616,6 +638,8 @@ async fn handle_push_snapshot(
             applied_count += 1;
         }
     }
+
+    println!("[SNAPSHOT] Applied {} row(s) total", applied_count);
 
     if let Err(e) = tx.execute(
         "UPDATE `sync_queue` SET `device_id` = ? WHERE `id` > ? AND `device_id` = 'local'",
@@ -1387,7 +1411,16 @@ pub async fn sync_push_snapshot(
         (snapshot, row_count)
     };
 
+    println!(
+        "[SNAPSHOT PUSH] Collected {} row(s) across {} table(s) from {:?}: {:?}",
+        row_count,
+        snapshot.len(),
+        db_path,
+        snapshot.iter().map(|(t, r)| format!("{}={}", t, r.len())).collect::<Vec<_>>()
+    );
+
     if row_count == 0 {
+        println!("[SNAPSHOT PUSH] Nothing to push — local database has no rows in any table, aborting before sending request");
         return Ok(0);
     }
 
@@ -1397,17 +1430,29 @@ pub async fn sync_push_snapshot(
         "tables": snapshot,
     });
 
+    println!("[SNAPSHOT PUSH] Sending POST {}/sync/push-snapshot ({} rows)", server_url, row_count);
+
     let res = client
         .post(format!("{}/sync/push-snapshot", server_url))
         .json(&body)
         .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
-        .map_err(|e| format!("Snapshot push request failed: {}", e))?;
+        .map_err(|e| {
+            let msg = format!("Snapshot push request failed: {}", e);
+            println!("[SNAPSHOT PUSH] {}", msg);
+            msg
+        })?;
 
     if !res.status().is_success() {
-        return Err(format!("Snapshot push returned HTTP {}", res.status()));
+        let status = res.status();
+        let body_text = res.text().await.unwrap_or_default();
+        let msg = format!("Snapshot push returned HTTP {}: {}", status, body_text);
+        println!("[SNAPSHOT PUSH] {}", msg);
+        return Err(msg);
     }
+
+    println!("[SNAPSHOT PUSH] Server accepted snapshot ({} rows)", row_count);
 
     Ok(row_count)
 }
