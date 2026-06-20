@@ -12,7 +12,7 @@ export type SelectQueryResult = {
 /**
  * Loads the sqlite database via the Tauri Proxy.
  */
-export const sqlite = await Database.load("sqlite:file:data.db");
+export const sqlite = await Database.load("sqlite:data.db");
 
 // Enable WAL mode for concurrent read/write access and prevent lock errors
 await sqlite.execute("PRAGMA journal_mode = WAL");

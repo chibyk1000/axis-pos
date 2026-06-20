@@ -53,7 +53,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
-                .add_migrations("sqlite:file:data.db", migrations)
+                .add_migrations("sqlite:data.db", migrations)
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
