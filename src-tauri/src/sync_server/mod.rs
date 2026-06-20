@@ -1287,7 +1287,10 @@ pub async fn apply_sync_snapshot(
     // Snapshot rows arrive in HashMap (unordered) iteration order, so a
     // child row's parent may not exist yet at insert time.
     if let Err(e) = conn.execute_batch("PRAGMA foreign_keys = OFF;") {
-        println!("[SNAPSHOT PULL] Warning: failed to disable foreign_keys: {}", e);
+        println!(
+            "[SNAPSHOT PULL] Warning: failed to disable foreign_keys: {}",
+            e
+        );
     }
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -1540,7 +1543,10 @@ pub async fn sync_push_snapshot(
         row_count,
         snapshot.len(),
         db_path,
-        snapshot.iter().map(|(t, r)| format!("{}={}", t, r.len())).collect::<Vec<_>>()
+        snapshot
+            .iter()
+            .map(|(t, r)| format!("{}={}", t, r.len()))
+            .collect::<Vec<_>>()
     );
 
     if row_count == 0 {
@@ -1554,7 +1560,10 @@ pub async fn sync_push_snapshot(
         "tables": snapshot,
     });
 
-    println!("[SNAPSHOT PUSH] Sending POST {}/sync/push-snapshot ({} rows)", server_url, row_count);
+    println!(
+        "[SNAPSHOT PUSH] Sending POST {}/sync/push-snapshot ({} rows)",
+        server_url, row_count
+    );
 
     let res = client
         .post(format!("{}/sync/push-snapshot", server_url))
@@ -1576,7 +1585,10 @@ pub async fn sync_push_snapshot(
         return Err(msg);
     }
 
-    println!("[SNAPSHOT PUSH] Server accepted snapshot ({} rows)", row_count);
+    println!(
+        "[SNAPSHOT PUSH] Server accepted snapshot ({} rows)",
+        row_count
+    );
 
     Ok(row_count)
 }

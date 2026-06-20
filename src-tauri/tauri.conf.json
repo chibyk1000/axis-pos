@@ -31,5 +31,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PASTE_THE_ACTUAL_TEXT_CONTENT_OF_YOUR_PUBLIC_KEY_HERE",
+      "endpoints": [
+        "https://github.com/chibyk1000/axis-pos/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -36,6 +36,8 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app: &mut tauri::App| {
             // Ensure DB triggers exist on every instance (admin and cashier)
             if let Ok(app_data) = app.path().app_data_dir() {
