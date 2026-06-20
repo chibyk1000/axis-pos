@@ -69,6 +69,7 @@ export function useSync() {
   const wsRef = useRef<WebSocket | null>(null);
   const syncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const connectionStatusRef = useRef(connectionStatus);
   // Prevent concurrent syncs
   const syncingRef = useRef(false);
 
@@ -76,6 +77,7 @@ export function useSync() {
 
   const persistStatus = (s: typeof connectionStatus) => {
     localStorage.setItem("axis_sync_conn_status", s);
+    connectionStatusRef.current = s;
     setConnectionStatus(s);
   };
 
@@ -434,8 +436,13 @@ export function useSync() {
       connectWebSocket(url);
 
       syncTimerRef.current = setInterval(() => {
-        pushLocalChanges(url);
-        pullChanges(url);
+        if (connectionStatusRef.current === "connected") {
+          pushLocalChanges(url);
+          pullChanges(url);
+          return;
+        }
+
+        forceSync();
       }, 5_000);
     } else {
       wsRef.current?.close();
@@ -490,10 +497,6 @@ export function useSync() {
       localStorage.removeItem(LS_SNAPSHOT_OK);
       localStorage.setItem(LS_LAST_SEQ, "0");
       persistStatus("connecting");
-      updateSetting("syncServerUrl", url);
-      updateSetting("syncEnabled", true);
-      updateSetting("isStoreServer", false);
-      saveSettings();
 
       try {
         const serverSeq = await registerDevice(url);
@@ -501,6 +504,11 @@ export function useSync() {
           persistStatus("error");
           return false;
         }
+
+        updateSetting("syncServerUrl", url);
+        updateSetting("syncEnabled", true);
+        updateSetting("isStoreServer", false);
+        saveSettings();
 
         if (serverSeq > 0) {
           await pullSnapshot(url);

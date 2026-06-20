@@ -136,6 +136,18 @@ pub struct DiscoveredServer {
 // Tables to exclude from snapshot (system/meta tables)
 const EXCLUDED_TABLES: &[&str] = &["sync_queue", "devices", "drizzle_migrations"];
 
+fn describe_request_error(action: &str, url: &str, err: reqwest::Error) -> String {
+    let hint = if err.is_timeout() {
+        "The request timed out. Make sure the admin POS is running and both devices are on the same LAN."
+    } else if err.is_connect() {
+        "Could not connect. Check the admin POS IP address, port 8080, Windows Firewall, and that the Store Server is started."
+    } else {
+        "Network request failed before the server returned a response."
+    };
+
+    format!("{} failed for {}: {}. {}", action, url, err, hint)
+}
+
 // Dynamic Sqlite Change Applier
 fn apply_change(
     conn: &Connection,
@@ -1191,13 +1203,14 @@ pub async fn sync_register(
         "ip": local_ip_addr.to_string(),
         "role": "cashier",
     });
+    let url = format!("{}/register", server_url);
     let res = client
-        .post(format!("{}/register", server_url))
+        .post(&url)
         .json(&body)
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| describe_request_error("Register request", &url, e))?;
 
     if res.status().is_success() {
         // Return the full JSON so the caller can read currentSequence
@@ -1234,7 +1247,7 @@ pub async fn sync_pull(
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| format!("Pull request failed: {}", e))?;
+        .map_err(|e| describe_request_error("Pull request", &url, e))?;
 
     if !res.status().is_success() {
         return Err(format!("Pull returned HTTP {}", res.status()));
@@ -1275,12 +1288,13 @@ pub async fn sync_pull(
 #[tauri::command]
 pub async fn sync_fetch_snapshot(server_url: String) -> Result<Value, String> {
     let client = reqwest::Client::new();
+    let url = format!("{}/sync/snapshot", server_url);
     let res = client
-        .get(format!("{}/sync/snapshot", server_url))
+        .get(&url)
         .timeout(std::time::Duration::from_secs(30)) // snapshot can be large
         .send()
         .await
-        .map_err(|e| format!("Snapshot request failed: {}", e))?;
+        .map_err(|e| describe_request_error("Snapshot request", &url, e))?;
 
     if !res.status().is_success() {
         return Err(format!("Snapshot returned HTTP {}", res.status()));
