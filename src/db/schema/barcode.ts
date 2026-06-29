@@ -3,6 +3,7 @@ import {
   text,
   integer,
   foreignKey,
+  index,
 } from "drizzle-orm/sqlite-core";
 
 
@@ -35,6 +36,10 @@ export const barcodes = sqliteTable(
       foreignColumns: [products.id],
       name: "barcodes_product_fk",
     }).onDelete("cascade"),
+    // PERF: barcode scanning in the POS looks up by `value` (already unique
+    // and indexed), but "give me all barcodes for this product" — used
+    // every time products load with relations — had no index on productId.
+    productIdIdx: index("barcodes_product_id_idx").on(table.productId),
   }),
 );
 

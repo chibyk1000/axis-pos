@@ -4,9 +4,6 @@ import {
   ChevronLeftIcon,
   RefreshCw,
   Search,
-  ChevronRight,
-  Folder,
-  FolderOpen,
   Clock,
   Printer,
   FileText,
@@ -18,6 +15,9 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   Sheet,
+  ChevronRight,
+  Folder,
+  FolderOpen,
 } from "lucide-react";
 import { useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
@@ -66,25 +66,8 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface TreeNode {
-  id: string;
-  name: string;
-  displayName?: string | null;
-  parentId: string | null;
-  children: TreeNode[];
-  products: any[];
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function collectProductIds(node: TreeNode): Set<string> {
-  const ids = new Set<string>();
-  node.products?.forEach((p: any) => ids.add(p.id));
-  node.children?.forEach((child) =>
-    collectProductIds(child).forEach((id) => ids.add(id)),
-  );
-  return ids;
-}
 
 // ─── PDF styles ───────────────────────────────────────────────────────────────
 
@@ -132,6 +115,22 @@ const pdfStyles = StyleSheet.create({
 // ─── PDF Doc ──────────────────────────────────────────────────────────────────
 
 type EnrichedProduct = any & { cost: number; salePrice: number };
+type TreeNode = any & {
+  children?: TreeNode[];
+  products?: any[];
+};
+
+function collectProductIds(node: TreeNode) {
+  const ids = new Set<string>();
+
+  function walk(current: TreeNode) {
+    current.products?.forEach((product: any) => ids.add(product.id));
+    current.children?.forEach(walk);
+  }
+
+  walk(node);
+  return ids;
+}
 
 function StockPdfDoc({
   products,
@@ -269,7 +268,7 @@ function TreeItem({
       </div>
       {expanded && hasChildren && (
         <div>
-          {node.children.map((child) => (
+          {node.children.map((child: TreeNode) => (
             <TreeItem
               key={child.id}
               node={child}
@@ -1312,7 +1311,7 @@ export default function StockView() {
               Product Groups
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto py-1.5">
+          <div className="flex-1 min-h-0 overflow-y-auto py-1.5">
             <div
               onClick={() => setSelectedNodeId(null)}
               className={`flex items-center gap-1.5 px-3 py-1.5 mx-1 cursor-pointer rounded transition-colors text-xs
@@ -1389,7 +1388,7 @@ export default function StockView() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-auto">
             {productsQuery.isLoading ? (
               <div className="flex items-center justify-center h-full text-slate-500 text-sm gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" /> Loading products…

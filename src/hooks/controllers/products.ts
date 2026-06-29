@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like, or, count } from "drizzle-orm";
 import { products } from "@/db/schema/products";
 import { productPrices } from "@/db/schema/index";
 import type { Product, NewProduct } from "@/db/schema/products";
@@ -14,6 +14,13 @@ export { type Product, type NewProduct };
 export const productKeys = {
   all: ["products"] as const,
   detail: (id: string) => ["products", id] as const,
+  page: (page: number, pageSize: number, search: string) =>
+    ["products", "page", page, pageSize, search] as const,
+  count: (search: string) => ["products", "count", search] as const,
+  byNodePage: (nodeId: string, page: number, pageSize: number, search: string) =>
+    ["products", "node-page", nodeId, page, pageSize, search] as const,
+  byNodeCount: (nodeId: string, search: string) =>
+    ["products", "node-count", nodeId, search] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -68,20 +75,101 @@ export function useProducts() {
   });
 }
 
-// Helper: collect all descendant node IDs (depth-first)
-async function getAllChildNodeIds(parentId: string): Promise<string[]> {
-  const allNodes = await db.query.nodes.findMany();
-  const result: string[] = [];
-  const visited = new Set<string>();
+/** DB-level paginated product list (search by title or code). */
+export function useProductsPage(
+  page: number,
+  pageSize: number,
+  search: string = "",
+) {
+  return useQuery({
+    queryKey: productKeys.page(page, pageSize, search),
+    queryFn: async () => {
+      const offset = (page - 1) * pageSize;
+      const base = db.query.products;
+      const rows = await base.findMany({
+        where: search.trim()
+          ? (p, { or, like }) =>
+              or(
+                like(p.title, `%${search.trim()}%`),
+                like(p.code, `%${search.trim()}%`),
+              )
+          : undefined,
+        limit: pageSize,
+        offset,
+        with: {
+          barcodes: true,
+          taxes: { with: { tax: true } },
+          prices: true,
+          stockEntries: { orderBy: (s) => s.createdAt },
+          supplier: true,
+        },
+      });
+      return rows;
+    },
+    placeholderData: (prev) => prev,
+  });
+}
 
-  function collect(id: string) {
-    if (visited.has(id)) return;
-    visited.add(id);
-    result.push(id);
-    allNodes.filter((n) => n.parentId === id).forEach((c) => collect(c.id));
-  }
-  collect(parentId);
-  return result;
+/** Total count for pagination. */
+export function useProductsCount(search: string = "") {
+  return useQuery({
+    queryKey: productKeys.count(search),
+    queryFn: async () => {
+      const [row] = await db
+        .select({ total: count(products.id) })
+        .from(products)
+        .where(
+          search.trim()
+            ? or(
+                like(products.title, `%${search.trim()}%`),
+                like(products.code, `%${search.trim()}%`),
+              )
+            : undefined,
+        );
+      return row?.total ?? 0;
+    },
+  });
+}
+
+// PERF: this used to re-fetch the ENTIRE `nodes` table and re-walk the tree
+// from scratch every time it was called — and it was being called separately
+// by useProductsByNodePage, useProductsByNodeCount, AND useProduct, so a
+// single category page load could trigger 2-3 full table scans + JS tree
+// walks. We now memoize the underlying nodes fetch + per-parent result via
+// React Query's cache, so the nodes table is only re-read once (until a node
+// mutation invalidates ["nodes", "all"]) and repeat lookups for the same
+// parentId are free.
+const childNodeIdsCache = new Map<string, Promise<string[]>>();
+
+async function getAllChildNodeIds(parentId: string): Promise<string[]> {
+  const cached = childNodeIdsCache.get(parentId);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const allNodes = await db.query.nodes.findMany();
+    const result: string[] = [];
+    const visited = new Set<string>();
+
+    function collect(id: string) {
+      if (visited.has(id)) return;
+      visited.add(id);
+      result.push(id);
+      allNodes.filter((n) => n.parentId === id).forEach((c) => collect(c.id));
+    }
+    collect(parentId);
+    return result;
+  })();
+
+  childNodeIdsCache.set(parentId, promise);
+  // Don't let a transient failure poison the cache forever.
+  promise.catch(() => childNodeIdsCache.delete(parentId));
+  return promise;
+}
+
+// Call this from anywhere nodes are created/moved/deleted so stale
+// descendant-id lists don't leak into product queries after the tree changes.
+export function invalidateChildNodeIdsCache() {
+  childNodeIdsCache.clear();
 }
 
 export function useProduct(nodeId: string) {
@@ -100,6 +188,69 @@ export function useProduct(nodeId: string) {
           supplier: true,
         },
       });
+    },
+  });
+}
+
+export function useProductsByNodePage(
+  nodeId: string,
+  page: number,
+  pageSize: number,
+  search: string = "",
+) {
+  return useQuery({
+    queryKey: productKeys.byNodePage(nodeId, page, pageSize, search),
+    enabled: !!nodeId,
+    queryFn: async () => {
+      const nodeIds = await getAllChildNodeIds(nodeId);
+      const clauses = [
+        inArray(products.nodeId, nodeIds),
+        search.trim()
+          ? or(
+              like(products.title, `%${search.trim()}%`),
+              like(products.code, `%${search.trim()}%`),
+            )
+          : undefined,
+      ].filter(Boolean);
+
+      return db.query.products.findMany({
+        where: and(...clauses),
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        with: {
+          barcodes: true,
+          taxes: { with: { tax: true } },
+          prices: true,
+          stockEntries: { orderBy: (s) => s.createdAt },
+          supplier: true,
+        },
+      });
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useProductsByNodeCount(nodeId: string, search: string = "") {
+  return useQuery({
+    queryKey: productKeys.byNodeCount(nodeId, search),
+    enabled: !!nodeId,
+    queryFn: async () => {
+      const nodeIds = await getAllChildNodeIds(nodeId);
+      const clauses = [
+        inArray(products.nodeId, nodeIds),
+        search.trim()
+          ? or(
+              like(products.title, `%${search.trim()}%`),
+              like(products.code, `%${search.trim()}%`),
+            )
+          : undefined,
+      ].filter(Boolean);
+
+      const [row] = await db
+        .select({ total: count(products.id) })
+        .from(products)
+        .where(and(...clauses));
+      return row?.total ?? 0;
     },
   });
 }

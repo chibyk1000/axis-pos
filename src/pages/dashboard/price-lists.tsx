@@ -266,6 +266,12 @@ function NodeTree({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const roots = nodes.filter((n) => !n.parentId);
 
+  function childrenOf(node: any) {
+    return node.children?.length
+      ? node.children
+      : nodes.filter((n) => n.parentId === node.id);
+  }
+
   function toggle(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -275,7 +281,7 @@ function NodeTree({
   }
 
   function NodeRow({ node, depth }: { node: any; depth: number }) {
-    const children = nodes.filter((n) => n.parentId === node.id);
+    const children = childrenOf(node);
     const isOpen = expanded.has(node.id);
     const isSelected = selectedNodeId === node.id;
     return (
@@ -301,7 +307,7 @@ function NodeTree({
           <span className="truncate">{node.name}</span>
         </button>
         {isOpen &&
-          children.map((c) => (
+          children.map((c: any) => (
             <NodeRow key={c.id} node={c} depth={depth + 1} />
           ))}
       </div>
@@ -375,9 +381,30 @@ export function PriceListsView() {
   }, [allLabelPrices, selectedLabel]);
 
   const enrichedProducts = useMemo(() => {
+    const selectedNodeIds = new Set<string>();
+
+    function collectNodeIds(node: any) {
+      if (!node || selectedNodeIds.has(node.id)) return;
+      selectedNodeIds.add(node.id);
+      (node.children ?? []).forEach(collectNodeIds);
+    }
+
+    if (selectedNodeId) {
+      const stack = [...allNodes];
+      while (stack.length) {
+        const node = stack.shift();
+        if (node?.id === selectedNodeId) {
+          collectNodeIds(node);
+          break;
+        }
+        stack.push(...(node?.children ?? []));
+      }
+      if (selectedNodeIds.size === 0) selectedNodeIds.add(selectedNodeId);
+    }
+
     return allProducts
       .filter((p) => {
-        if (selectedNodeId && p.nodeId !== selectedNodeId) return false;
+        if (selectedNodeId && !selectedNodeIds.has(p.nodeId)) return false;
         if (
           searchTerm &&
           !p.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -400,7 +427,7 @@ export function PriceListsView() {
           priceRowId: pp?.id,
         };
       });
-  }, [allProducts, priceMap, selectedNodeId, searchTerm]);
+  }, [allNodes, allProducts, priceMap, selectedNodeId, searchTerm]);
 
   const pricedCount = enrichedProducts.filter((p) => p.hasPriceRow).length;
   function handleSetDefault(productId: string, priceRowId?: string) {
@@ -505,7 +532,7 @@ export function PriceListsView() {
         <TBtn icon={HelpCircle} label="Help" />
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
         <div className="w-56 border-r border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden">
           <div className="p-3 border-b border-slate-300 dark:border-slate-800">
@@ -536,7 +563,7 @@ export function PriceListsView() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-3">
+          <div className="flex-1 min-h-0 overflow-auto p-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
               Product groups
             </p>
@@ -576,7 +603,7 @@ export function PriceListsView() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="flex-1 min-h-0 overflow-auto px-6 py-4">
             <div className="border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead>

@@ -17,6 +17,18 @@ export const sqlite = await Database.load("sqlite:data.db");
 // Enable WAL mode for concurrent read/write access and prevent lock errors
 await sqlite.execute("PRAGMA journal_mode = WAL");
 await sqlite.execute("PRAGMA busy_timeout = 30000");
+// PERF: with WAL already enabled, NORMAL is safe (durable across app
+// crashes, only loses the last few transactions on an OS crash/power loss)
+// and avoids an fsync on every single transaction commit — FULL (the
+// default) was making every insert/update wait on disk.
+await sqlite.execute("PRAGMA synchronous = NORMAL");
+// PERF: bump the page cache from SQLite's tiny default (~2MB) so repeated
+// reads of hot tables (products, stock_entries, product_taxes, etc.) are
+// served from memory instead of re-reading from disk. Negative value = KB.
+await sqlite.execute("PRAGMA cache_size = -16000"); // ~16MB cache
+// PERF: keep temp tables/indexes used during sorts and GROUP BY (dashboard
+// queries, reporting) in memory instead of spilling to disk temp files.
+await sqlite.execute("PRAGMA temp_store = MEMORY");
 
 /**
  * The drizzle database instance.
@@ -50,8 +62,11 @@ export const db = drizzle<typeof schema>(
 
     return { rows: results };
   },
-  // Pass the schema to the drizzle instance
-  { schema: schema, logger: true }
+  // PERF: `logger: true` was serializing and printing every single query +
+  // params for every read and write the app does (every cart calc, every
+  // focus-triggered refetch, every 5s sync tick). That's pure overhead on
+  // the hottest path in the app. Flip on manually when you need to debug.
+  { schema: schema, logger: false },
 );
 
 /**

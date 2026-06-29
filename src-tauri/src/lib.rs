@@ -1,7 +1,12 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod commands;
 mod sync_server;
-use crate::commands::greet;
+use crate::commands::{
+    greet,
+    check_sql_server_installation,
+    install_sql_server_localdb,
+    import_aronium_bak,
+};
 use rusqlite::Connection;
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -61,16 +66,21 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            // ── SQL Server / Aronium .bak import ──────────────────────────
+            check_sql_server_installation,
+            install_sql_server_localdb,
+            import_aronium_bak,
+            // ── LAN Sync ──────────────────────────────────────────────────
             sync_server::start_sync_server,
             sync_server::stop_sync_server,
             sync_server::discover_sync_servers,
             sync_server::get_sync_server_status,
             sync_server::apply_sync_changes,
-            sync_server::apply_sync_snapshot, // ← NEW
+            sync_server::apply_sync_snapshot,
             sync_server::sync_register,
             sync_server::sync_pull,
             sync_server::sync_push,
-            sync_server::sync_fetch_snapshot, // ← NEW
+            sync_server::sync_fetch_snapshot,
             sync_server::sync_push_snapshot,
             sync_server::connect_sync_ws,
         ])

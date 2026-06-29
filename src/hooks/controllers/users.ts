@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { eq } from "drizzle-orm";
+import { and, count, eq, isNull, like, or } from "drizzle-orm";
 import { users } from "@/db/schema";
 import type { User, NewUser } from "@/db/schema";
 
@@ -14,6 +14,14 @@ export const userKeys = {
   all: ["users"] as const,
   list: () => [...userKeys.all, "list"] as const,
   byId: (id: string) => [...userKeys.all, "byId", id] as const,
+  page: (
+    page: number,
+    pageSize: number,
+    search: string,
+    includeInactive: boolean,
+  ) => [...userKeys.all, "page", page, pageSize, search, includeInactive] as const,
+  count: (search: string, includeInactive: boolean) =>
+    [...userKeys.all, "count", search, includeInactive] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -24,6 +32,88 @@ export function useUsers() {
   return useQuery({
     queryKey: userKeys.list(),
     queryFn: () => db.query.users.findMany({ orderBy: (u) => u.id }),
+  });
+}
+
+/** DB-level paginated users list. */
+export function useUsersPage(
+  page: number,
+  pageSize: number,
+  search: string = "",
+  includeInactive: boolean = true,
+) {
+  return useQuery({
+    queryKey: userKeys.page(page, pageSize, search, includeInactive),
+    queryFn: async () => {
+      const offset = (page - 1) * pageSize;
+      const clauses = [
+        search.trim()
+          ? or(
+              like(users.name, `%${search.trim()}%`),
+              like(users.email, `%${search.trim()}%`),
+            )
+          : undefined,
+        includeInactive
+          ? undefined
+          : or(eq(users.deleted_at, "NULL"), isNull(users.deleted_at)),
+      ].filter(Boolean);
+
+      return db.query.users.findMany({
+        where: clauses.length ? and(...clauses) : undefined,
+        limit: pageSize,
+        offset,
+        orderBy: (u) => u.id,
+      });
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Total user count for pagination. */
+export function useUsersCount(search: string = "") {
+  return useQuery({
+    queryKey: userKeys.count(search, true),
+    queryFn: async () => {
+      const [row] = await db
+        .select({ total: count(users.id) })
+        .from(users)
+        .where(
+          search.trim()
+            ? or(
+                like(users.name, `%${search.trim()}%`),
+                like(users.email, `%${search.trim()}%`),
+              )
+            : undefined,
+        );
+      return row?.total ?? 0;
+    },
+  });
+}
+
+export function useVisibleUsersCount(
+  search: string = "",
+  includeInactive: boolean = true,
+) {
+  return useQuery({
+    queryKey: userKeys.count(search, includeInactive),
+    queryFn: async () => {
+      const clauses = [
+        search.trim()
+          ? or(
+              like(users.name, `%${search.trim()}%`),
+              like(users.email, `%${search.trim()}%`),
+            )
+          : undefined,
+        includeInactive
+          ? undefined
+          : or(eq(users.deleted_at, "NULL"), isNull(users.deleted_at)),
+      ].filter(Boolean);
+      const [row] = await db
+        .select({ total: count(users.id) })
+        .from(users)
+        .where(clauses.length ? and(...clauses) : undefined);
+      return row?.total ?? 0;
+    },
   });
 }
 

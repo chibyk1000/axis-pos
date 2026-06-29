@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
 import { RootState } from "@/store";
 import {
   setTaxRatesSelected,
@@ -27,6 +28,8 @@ import {
 import TaxRateDrawer from "@/components/new-taxes-drawer";
 import {
   useTaxes,
+  useTaxesCount,
+  useTaxesPage,
   useCreateTax,
   useUpdateTax,
   useDeleteTax,
@@ -35,6 +38,10 @@ import {
 import { confirm } from "@tauri-apps/plugin-dialog";
 import SwitchTaxesDrawer from "@/components/products/switch-tax-drawer";
 import { getNextNumber } from "@/lib/incrementalId";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { PageLoading } from "@/components/page-loading";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 export default function TaxRatesTable() {
   const dispatch = useDispatch();
@@ -48,19 +55,28 @@ export default function TaxRatesTable() {
   const setSwitchOpen = (val: boolean) => dispatch(setTaxRatesSwitchOpen(val));
 
   const switchTax = useSwitchTax();
-  const { data: taxes = [], refetch } = useTaxes();
+  const { data: allTaxes = [] } = useTaxes();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { data: taxes = [], refetch, isLoading } = useTaxesPage(
+    page,
+    pageSize,
+  );
+  const { data: total = 0 } = useTaxesCount();
   const createTax = useCreateTax();
   const updateTax = useUpdateTax();
   const deleteTax = useDeleteTax();
 
-  const selectedTax = taxes.find((t) => t.id === selected);
+  const selectedTax =
+    taxes.find((t) => t.id === selected) ??
+    allTaxes.find((t) => t.id === selected);
 
   return (
     <div className="h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4">
       <SwitchTaxesDrawer
         open={switchOpen}
         onOpenChange={setSwitchOpen}
-        taxes={taxes}
+        taxes={allTaxes}
         onSwitch={async (oldTaxId, newTaxId) => {
           await switchTax.mutateAsync({ oldTaxId, newTaxId });
         }}
@@ -78,7 +94,7 @@ export default function TaxRatesTable() {
               });
             } else {
               // Add position for new tax
-              const nextNumber = getNextNumber(taxes);
+              const nextNumber = getNextNumber(allTaxes);
               await createTax.mutateAsync({
                 code: taxData.code,
                 name: taxData.name,
@@ -151,9 +167,12 @@ export default function TaxRatesTable() {
       </div>
 
       {/* Table */}
-      <div className="border border-slate-200 dark:border-slate-700 bg-slate- rounded-md overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-120px)]">
-          <Table>
+      <div className="flex h-[calc(100vh-120px)] flex-col overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+        {isLoading ? (
+          <PageLoading label="Loading tax rates" />
+        ) : (
+          <ScrollArea className="flex-1">
+            <Table>
             <TableHeader className="  bg-slate-100 dark:bg-slate-700 border-b border-slate-100">
               <TableRow>
                 <TableHead className="text-slate-800 dark:text-slate-200 w-[40%]">
@@ -198,8 +217,16 @@ export default function TaxRatesTable() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </ScrollArea>
+            </Table>
+          </ScrollArea>
+        )}
+        <DataTablePagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

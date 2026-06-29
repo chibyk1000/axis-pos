@@ -6,6 +6,7 @@ import { ROOT_NODE_ID } from "@/db/constants";
 // hooks/nodes/useRootNodes.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodeKeys } from "../querykeys";
+import { invalidateChildNodeIdsCache } from "./products";
 
 export function useRootNodes() {
   return useQuery({
@@ -54,14 +55,39 @@ export function useRootWithoutChildren() {
 export function useNodeChildren(parentId: string | null) {
   return useQuery({
     queryKey: nodeKeys.children(parentId),
-    queryFn: async () =>
-      db.query.nodes.findMany({
-        where:
-          parentId === null
-            ? (nodes, { isNull }) => isNull(nodes.parentId)
-            : eq(nodes.parentId, parentId),
-        orderBy: (nodes) => nodes.position,
-      }),
+    queryFn: async () => getNodeChildren(parentId),
+  });
+}
+
+export function getNodeChildren(parentId: string | null) {
+  return db.query.nodes.findMany({
+    where:
+      parentId === null
+        ? (nodes, { isNull }) => isNull(nodes.parentId)
+        : eq(nodes.parentId, parentId),
+    orderBy: (nodes) => nodes.position,
+  });
+}
+
+export function useDescendantNodeIds(nodeId: string | null) {
+  return useQuery({
+    queryKey: ["nodes", "descendants", nodeId],
+    enabled: !!nodeId,
+    queryFn: async () => {
+      const allNodes = await db.query.nodes.findMany();
+      const ids = new Set<string>();
+
+      function collect(id: string) {
+        if (ids.has(id)) return;
+        ids.add(id);
+        allNodes
+          .filter((node) => node.parentId === id)
+          .forEach((child) => collect(child.id));
+      }
+
+      collect(nodeId!);
+      return ids;
+    },
   });
 }
 
@@ -161,6 +187,7 @@ export function useCreateNode() {
       qc.invalidateQueries({ queryKey: nodeKeys.all });
       qc.invalidateQueries({ queryKey: ["root-nochild"] });
       qc.invalidateQueries();
+      invalidateChildNodeIdsCache();
     },
   });
 }
@@ -182,6 +209,7 @@ export function useUpdateNode() {
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: nodeKeys.byId(id) });
       qc.invalidateQueries({ queryKey: nodeKeys.all });
+      invalidateChildNodeIdsCache();
     },
   });
 }
@@ -211,6 +239,7 @@ export function useMoveNode() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: nodeKeys.all });
+      invalidateChildNodeIdsCache();
     },
   });
 }
@@ -225,6 +254,7 @@ export function useDeleteNode() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: nodeKeys.all });
+      invalidateChildNodeIdsCache();
     },
   });
 }

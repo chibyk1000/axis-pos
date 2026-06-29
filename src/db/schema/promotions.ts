@@ -4,6 +4,8 @@ import {
   integer,
   real,
   foreignKey,
+  primaryKey,
+  index,
 } from "drizzle-orm/sqlite-core";
 import { relations, InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { products } from "./products";
@@ -94,6 +96,12 @@ export const promotionProducts = sqliteTable(
     productId: text("product_id").notNull(),
   },
   (table) => ({
+    // PERF: no PK/index existed before — checking "does this promo apply to
+    // this product" (done per product, per active promo, on every POS cart
+    // calculation) was a full table scan.
+    pk: primaryKey({ columns: [table.promotionId, table.productId] }),
+    productIdIdx: index("promo_products_product_id_idx").on(table.productId),
+
     promotionFk: foreignKey({
       columns: [table.promotionId],
       foreignColumns: [promotions.id],
@@ -116,6 +124,9 @@ export const promotionNodes = sqliteTable(
     nodeId: text("node_id").notNull(),
   },
   (table) => ({
+    pk: primaryKey({ columns: [table.promotionId, table.nodeId] }),
+    nodeIdIdx: index("promo_nodes_node_id_idx").on(table.nodeId),
+
     promotionFk: foreignKey({
       columns: [table.promotionId],
       foreignColumns: [promotions.id],
@@ -138,6 +149,11 @@ export const promotionCustomers = sqliteTable(
     customerId: text("customer_id").notNull(),
   },
   (table) => ({
+    pk: primaryKey({ columns: [table.promotionId, table.customerId] }),
+    customerIdIdx: index("promo_customers_customer_id_idx").on(
+      table.customerId,
+    ),
+
     promotionFk: foreignKey({
       columns: [table.promotionId],
       foreignColumns: [promotions.id],

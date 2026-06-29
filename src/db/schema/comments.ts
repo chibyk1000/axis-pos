@@ -3,6 +3,7 @@ import {
   text,
   integer,
   foreignKey,
+  index,
 } from "drizzle-orm/sqlite-core";
 
 import { products } from "./products";
@@ -38,6 +39,8 @@ export const comments = sqliteTable(
       foreignColumns: [table.id],
       name: "comments_parent_fk",
     }).onDelete("cascade"),
+
+    productIdIdx: index("comments_product_id_idx").on(table.productId),
   }),
 );
 

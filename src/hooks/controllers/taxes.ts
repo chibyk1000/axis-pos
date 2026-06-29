@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database"; // your Drizzle db instance
-import { eq } from "drizzle-orm";
+import { count, eq, like, or } from "drizzle-orm";
 
 import { productTaxes, taxes } from "@/db/schema";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
@@ -16,6 +16,9 @@ export const taxKeys = {
   all: ["taxes"] as const,
   list: () => [...taxKeys.all, "list"] as const,
   byId: (id: string) => [...taxKeys.all, "byId", id] as const,
+  page: (page: number, pageSize: number, search: string) =>
+    [...taxKeys.all, "page", page, pageSize, search] as const,
+  count: (search: string) => [...taxKeys.all, "count", search] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -30,6 +33,50 @@ export function useTaxes() {
       db.query.taxes.findMany({
         orderBy: (t) => t.createdAt,
       }),
+  });
+}
+
+export function useTaxesPage(
+  page: number,
+  pageSize: number,
+  search: string = "",
+) {
+  return useQuery({
+    queryKey: taxKeys.page(page, pageSize, search),
+    queryFn: () =>
+      db.query.taxes.findMany({
+        where: search.trim()
+          ? (t, { or, like }) =>
+              or(
+                like(t.name, `%${search.trim()}%`),
+                like(t.code, `%${search.trim()}%`),
+              )
+          : undefined,
+        orderBy: (t) => t.position,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      }),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useTaxesCount(search: string = "") {
+  return useQuery({
+    queryKey: taxKeys.count(search),
+    queryFn: async () => {
+      const [row] = await db
+        .select({ total: count(taxes.id) })
+        .from(taxes)
+        .where(
+          search.trim()
+            ? or(
+                like(taxes.name, `%${search.trim()}%`),
+                like(taxes.code, `%${search.trim()}%`),
+              )
+            : undefined,
+        );
+      return row?.total ?? 0;
+    },
   });
 }
 

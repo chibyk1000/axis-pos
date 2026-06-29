@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 import { nodes } from "./nodes";
 import { InferInsertModel, InferSelectModel, relations } from "drizzle-orm";
 import { users } from "./users";
@@ -18,43 +18,51 @@ import { productPrices } from "./priceLists";
 //   reorderPoint, preferredQuantity, lowStockWarning, lowStockWarningQuantity
 //     → stockEntries   (db/schema/stockEntries.ts)
 
-export const products = sqliteTable("products", {
-  id: text("id").primaryKey(),
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
 
-  nodeId: text("node_id")
-    .notNull()
-    .references(() => nodes.id, { onDelete: "cascade" }),
+    nodeId: text("node_id")
+      .notNull()
+      .references(() => nodes.id, { onDelete: "cascade" }),
 
-  supplierId: text("supplier_id").references(() => customers.id, {
-    onDelete: "restrict",
+    supplierId: text("supplier_id").references(() => customers.id, {
+      onDelete: "restrict",
+    }),
+
+    ownerId: integer("owner_id").references(() => users.id),
+    companyId: text("company_id").references(() => companies.id),
+
+    title: text("title").notNull(),
+    code: text("code").notNull().unique(),
+    unit: text("unit").notNull(),
+
+    active: integer("active", { mode: "boolean" }).notNull().default(false),
+    service: integer("service", { mode: "boolean" }).notNull().default(false),
+    defaultQuantity: integer("default_quantity", { mode: "boolean" })
+      .notNull()
+      .default(false),
+
+    ageRestriction: integer("age_restriction"),
+
+    description: text("description"),
+    image: text("image"),
+    color: text("color"),
+
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    // PERF: every category-page load (useProductsByNodePage/Count) filters
+    // products by nodeId via inArray() — unindexed before this.
+    nodeIdIdx: index("products_node_id_idx").on(table.nodeId),
   }),
-
-  ownerId: integer("owner_id").references(() => users.id),
-  companyId: text("company_id").references(() => companies.id),
-
-  title: text("title").notNull(),
-  code: text("code").notNull().unique(),
-  unit: text("unit").notNull(),
-
-  active: integer("active", { mode: "boolean" }).notNull().default(false),
-  service: integer("service", { mode: "boolean" }).notNull().default(false),
-  defaultQuantity: integer("default_quantity", { mode: "boolean" })
-    .notNull()
-    .default(false),
-
-  ageRestriction: integer("age_restriction"),
-
-  description: text("description"),
-  image: text("image"),
-  color: text("color"),
-
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .defaultNow(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$onUpdate(
-    () => new Date(),
-  ),
-});
+);
 
 export const productsRelations = relations(products, ({ many, one }) => ({
   barcodes: many(barcodes),

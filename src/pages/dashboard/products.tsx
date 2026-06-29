@@ -25,7 +25,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
@@ -72,6 +72,9 @@ import type { DrawerPriceEntry } from "@/components/products/add-product-drawer"
 import { useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                         RESIZABLE COLUMNS                                  */
@@ -311,6 +314,8 @@ export function ProductsView() {
   }, [colWidths, dispatch]);
 
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // ── hooks ────────────────────────────────────────────────────────────────
   const deleteNodeMutation = useDeleteNode();
@@ -662,6 +667,20 @@ export function ProductsView() {
       : !searchQuery ||
         p.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / pageSize));
+  const paginatedProducts = visibleProducts.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedId, selectedSingleProductId, searchQuery]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   function getPriceInfo(product: any) {
     const prices = product.prices || [];
     // Prioritize default label, otherwise take the first one
@@ -917,10 +936,10 @@ export function ProductsView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-56 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 overflow-y-auto shrink-0">
-          <div className="pt-3">
+        <div className="w-56 bg-slate-50 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-800 flex flex-col min-h-0 overflow-hidden shrink-0">
+          <div className="flex-1 min-h-0 overflow-y-auto pt-3">
             <Tree
               elements={treeElements}
               initialExpandedItems={rootGroups.map((g: any) => g.id)}
@@ -952,7 +971,7 @@ export function ProductsView() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table
               className="border-collapse text-xs"
               style={{ width: "max-content", minWidth: "100%" }}
@@ -989,7 +1008,7 @@ export function ProductsView() {
                     </td>
                   </tr>
                 ) : (
-                  visibleProducts.map((product) => {
+                  paginatedProducts.map((product) => {
                     const priceInfo = getPriceInfo(product);
                     const stock = getStockLevel(product);
                     return (
@@ -1102,6 +1121,13 @@ export function ProductsView() {
               </tbody>
             </table>
           </div>
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={visibleProducts.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </div>
 

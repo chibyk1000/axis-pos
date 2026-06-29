@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
 import {
@@ -31,6 +31,8 @@ import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { copyFile } from "@tauri-apps/plugin-fs";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useTaxes } from "@/hooks/controllers/taxes";
 import { importAroniumDatabase } from "../../helpers/aroniumImporter";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -39,7 +41,9 @@ export default function SettingsPage() {
   const { isDarkMode: dark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { activeTab, emailTab, printTab } = useSelector((state: RootState) => state.settings);
+  const { activeTab, emailTab, printTab } = useSelector(
+    (state: RootState) => state.settings,
+  );
   const setActiveTab = (v: string) => dispatch(setActiveTabAction(v));
   const setEmailTab = (v: string) => dispatch(setEmailTabAction(v));
   const setPrintTab = (v: string) => dispatch(setPrintTabAction(v));
@@ -60,11 +64,86 @@ export default function SettingsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
 
+  // SQL Server detection state (used in Database tab)
+  const [sqlServerStatus, setSqlServerStatus] = useState<{
+    installed: boolean;
+    variant: string;
+    description: string;
+  } | null>(null);
+  const [isCheckingSqlServer, setIsCheckingSqlServer] = useState(false);
+  const [isInstallingSqlServer, setIsInstallingSqlServer] = useState(false);
+  // Live progress lines streamed from the Rust side while the LocalDB
+  // installer downloads and runs. Lines starting with "ERROR" are
+  // highlighted in the panel below.
+  const [installLogs, setInstallLogs] = useState<string[]>([]);
+
+  const checkSqlServer = async () => {
+    setIsCheckingSqlServer(true);
+    try {
+      const status = await invoke<{
+        installed: boolean;
+        variant: string;
+        description: string;
+      }>("check_sql_server_installation");
+      setSqlServerStatus(status);
+    } catch (err) {
+      setSqlServerStatus({
+        installed: false,
+        variant: "",
+        description: String(err),
+      });
+    } finally {
+      setIsCheckingSqlServer(false);
+    }
+  };
+
+  const handleInstallSqlServer = async () => {
+    setIsInstallingSqlServer(true);
+    setInstallLogs([]);
+
+    // Stream step-by-step progress from the Rust command (download started,
+    // bytes downloaded, msiexec launched, etc.) into the log panel below.
+    const unlisten = await listen<string>("sql-install-log", (event) => {
+      setInstallLogs((prev) => [...prev, event.payload]);
+    });
+
+    try {
+      await invoke("install_sql_server_localdb");
+      setInstallLogs((prev) => [...prev, "Re-checking SQL Server status..."]);
+      // Re-check after install completes
+      await checkSqlServer();
+    } catch (err) {
+      setInstallLogs((prev) => [...prev, `ERROR: ${err}`]);
+      alert(
+        "Installation failed. See the log under the install button for full details.",
+      );
+    } finally {
+      unlisten();
+      setIsInstallingSqlServer(false);
+    }
+  };
+
+  // Check SQL Server whenever the Database tab is opened
+  useEffect(() => {
+    if (
+      activeTab === "Database" &&
+      sqlServerStatus === null &&
+      !isCheckingSqlServer
+    ) {
+      checkSqlServer();
+    }
+  }, [activeTab]);
+
   const handleImportAroniumDb = async () => {
     try {
       const filePath = await dialogOpen({
         multiple: false,
-        filters: [{ name: "Aronium Database", extensions: ["db", "sqlite"] }],
+        filters: [
+          {
+            name: "Aronium Database",
+            extensions: ["db", "sqlite", "bak", "sql"],
+          },
+        ],
       });
 
       if (filePath && typeof filePath === "string") {
@@ -87,7 +166,7 @@ export default function SettingsPage() {
 
       if (result.success) {
         alert(
-          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers`
+          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers`,
         );
       } else {
         alert("Import failed: " + result.message);
@@ -1083,14 +1162,65 @@ export default function SettingsPage() {
                   Backup database
                 </button>
 
-                <button
-                  className="flex items-center gap-3 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500 rounded text-white font-medium transition-colors"
-                  onClick={handleImportAroniumDb}
-                  disabled={isImportingAronium}
-                >
-                  <Upload className="w-5 h-5" />
-                  {isImportingAronium ? "Importing Aronium..." : "Import Aronium Database"}
-                </button>
+                {/* Import Aronium — gated on SQL Server LocalDB detection */}
+                {isCheckingSqlServer ? (
+                  <div className="flex items-center gap-2 px-4 py-3 text-slate-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                    Checking SQL Server...
+                  </div>
+                ) : sqlServerStatus?.installed ? (
+                  <button
+                    className="flex items-center gap-3 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500 rounded text-white font-medium transition-colors"
+                    onClick={handleImportAroniumDb}
+                    disabled={isImportingAronium}
+                  >
+                    <Upload className="w-5 h-5" />
+                    {isImportingAronium
+                      ? "Importing Aronium..."
+                      : "Import Aronium Database"}
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2 w-full max-w-md">
+                    <div className="flex items-start gap-2 px-4 py-3 bg-amber-950/40 border border-amber-700/50 rounded text-sm max-w-md">
+                      <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                      <span className="text-amber-200">
+                        {sqlServerStatus?.description ??
+                          "SQL Server LocalDB is required to import .bak files."}
+                      </span>
+                    </div>
+                    <button
+                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-600 rounded text-slate-100 text-sm font-medium transition-colors self-start"
+                      onClick={handleInstallSqlServer}
+                      disabled={isInstallingSqlServer}
+                    >
+                      <Database className="w-4 h-4" />
+                      {isInstallingSqlServer
+                        ? "Installing..."
+                        : "Install SQL Server LocalDB"}
+                    </button>
+
+                    {/* Live install log — populated by "sql-install-log"
+                        events from the Rust side. Stays visible after a
+                        failure so the full diagnostic output (including the
+                        msiexec verbose log tail) can be read/scrolled. */}
+                    {installLogs.length > 0 && (
+                      <div className="w-full max-h-44 overflow-y-auto bg-slate-950 border border-slate-700 rounded p-2 font-mono text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap">
+                        {installLogs.map((line, i) => (
+                          <div
+                            key={i}
+                            className={
+                              line.startsWith("ERROR")
+                                ? "text-red-400"
+                                : undefined
+                            }
+                          >
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button
@@ -1233,15 +1363,22 @@ export default function SettingsPage() {
                 <h2 className="text-2xl font-light">LAN Synchronization</h2>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mb-6">
-                Connect multiple POS terminals together on your local network (LAN) without external backend services.
-                Designate one machine as the central "Store Server" (Admin Host) and others as "Cashier Terminals".
+                Connect multiple POS terminals together on your local network
+                (LAN) without external backend services. Designate one machine
+                as the central "Store Server" (Admin Host) and others as
+                "Cashier Terminals".
               </p>
 
               <div className="space-y-6 bg-slate-800/10 p-6 rounded-2xl border border-slate-700/50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">Enable LAN Sync</span>
-                    <span className="text-xs text-slate-500">Allows synchronization of sales, inventory, and product changes.</span>
+                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">
+                      Enable LAN Sync
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Allows synchronization of sales, inventory, and product
+                      changes.
+                    </span>
                   </div>
                   <Toggle
                     label=""
@@ -1252,8 +1389,13 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between border-t border-slate-700/30 pt-4">
                   <div>
-                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">Run as Store Server (Host)</span>
-                    <span className="text-xs text-slate-500">Host the central database and allow cashier terminals to connect.</span>
+                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">
+                      Run as Store Server (Host)
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Host the central database and allow cashier terminals to
+                      connect.
+                    </span>
                   </div>
                   <Toggle
                     label=""
@@ -1272,14 +1414,18 @@ export default function SettingsPage() {
             {settings.isStoreServer ? (
               /* ADMIN SERVER SETTINGS */
               <div className="space-y-6">
-                <h3 className="text-xl font-light">Store Server Configuration</h3>
-                
+                <h3 className="text-xl font-light">
+                  Store Server Configuration
+                </h3>
+
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Store Name">
                     <input
                       type="text"
                       value={settings.storeName}
-                      onChange={(e) => updateSetting("storeName", e.target.value)}
+                      onChange={(e) =>
+                        updateSetting("storeName", e.target.value)
+                      }
                       className={`w-full p-2 rounded ${input}`}
                     />
                   </Field>
@@ -1295,7 +1441,9 @@ export default function SettingsPage() {
                     <input
                       type="text"
                       value={settings.deviceName}
-                      onChange={(e) => updateSetting("deviceName", e.target.value)}
+                      onChange={(e) =>
+                        updateSetting("deviceName", e.target.value)
+                      }
                       className={`w-full p-2 rounded ${input}`}
                     />
                   </Field>
@@ -1303,15 +1451,21 @@ export default function SettingsPage() {
 
                 <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-400">Server Status:</span>
-                    <span className={`text-sm font-bold ${serverRunning ? "text-emerald-500 animate-pulse" : "text-rose-500"}`}>
+                    <span className="text-sm text-slate-400">
+                      Server Status:
+                    </span>
+                    <span
+                      className={`text-sm font-bold ${serverRunning ? "text-emerald-500 animate-pulse" : "text-rose-500"}`}
+                    >
                       {serverRunning ? "Active & Advertising" : "Stopped"}
                     </span>
                   </div>
                   {serverRunning && (
                     <div className="flex items-center justify-between text-xs text-slate-300">
                       <span>Server URL:</span>
-                      <span className="font-mono text-cyan-400">http://{serverStats.ip}:{serverStats.port}</span>
+                      <span className="font-mono text-cyan-400">
+                        http://{serverStats.ip}:{serverStats.port}
+                      </span>
                     </div>
                   )}
                   <div className="flex gap-3 pt-2">
@@ -1336,14 +1490,18 @@ export default function SettingsPage() {
             ) : (
               /* CASHIER TERMINAL SETTINGS */
               <div className="space-y-6">
-                <h3 className="text-xl font-light">Cashier Terminal Configuration</h3>
+                <h3 className="text-xl font-light">
+                  Cashier Terminal Configuration
+                </h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Device Name">
                     <input
                       type="text"
                       value={settings.deviceName}
-                      onChange={(e) => updateSetting("deviceName", e.target.value)}
+                      onChange={(e) =>
+                        updateSetting("deviceName", e.target.value)
+                      }
                       className={`w-full p-2 rounded ${input}`}
                     />
                   </Field>
@@ -1352,7 +1510,9 @@ export default function SettingsPage() {
                       type="text"
                       placeholder="http://192.168.x.x:8080"
                       value={settings.syncServerUrl}
-                      onChange={(e) => updateSetting("syncServerUrl", e.target.value)}
+                      onChange={(e) =>
+                        updateSetting("syncServerUrl", e.target.value)
+                      }
                       className={`w-full p-2 rounded ${input}`}
                     />
                   </Field>
@@ -1361,7 +1521,9 @@ export default function SettingsPage() {
                 {settings.syncEnabled && (
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-400">Discovered Store Servers</span>
+                      <span className="text-sm font-semibold text-slate-400">
+                        Discovered Store Servers
+                      </span>
                       <button
                         onClick={discoverServers}
                         disabled={isSearching}
@@ -1374,14 +1536,21 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       {discoveredServers.length === 0 ? (
                         <div className="p-4 border border-dashed border-slate-700/60 rounded-xl text-center text-xs text-slate-500">
-                          {isSearching ? "Scanning local network for servers..." : "No servers discovered. Try scanning or enter URL manually."}
+                          {isSearching
+                            ? "Scanning local network for servers..."
+                            : "No servers discovered. Try scanning or enter URL manually."}
                         </div>
                       ) : (
                         discoveredServers.map((srv, idx) => {
                           const serverUrl = `http://${srv.ip}:${srv.port}`;
-                          const isSelectedServer = settings.syncServerUrl === serverUrl;
-                          const isConnected = isSelectedServer && connectionStatus === "connected";
-                          const isConnecting = isSelectedServer && connectionStatus === "connecting";
+                          const isSelectedServer =
+                            settings.syncServerUrl === serverUrl;
+                          const isConnected =
+                            isSelectedServer &&
+                            connectionStatus === "connected";
+                          const isConnecting =
+                            isSelectedServer &&
+                            connectionStatus === "connecting";
 
                           return (
                             <div
@@ -1389,8 +1558,12 @@ export default function SettingsPage() {
                               className="flex items-center justify-between p-3 bg-slate-800/20 border border-slate-700/50 rounded-xl"
                             >
                               <div>
-                                <span className="font-semibold text-sm text-slate-200 block">{srv.storeName}</span>
-                                <span className="text-xs text-slate-500">Host: {srv.name} | {srv.ip}:{srv.port}</span>
+                                <span className="font-semibold text-sm text-slate-200 block">
+                                  {srv.storeName}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  Host: {srv.name} | {srv.ip}:{srv.port}
+                                </span>
                               </div>
                               <button
                                 onClick={() => connectToServer(serverUrl)}
@@ -1399,11 +1572,15 @@ export default function SettingsPage() {
                                   isConnected
                                     ? "bg-emerald-600 cursor-default"
                                     : isConnecting
-                                    ? "bg-amber-600 cursor-wait"
-                                    : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                                      ? "bg-amber-600 cursor-wait"
+                                      : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
                                 }`}
                               >
-                                {isConnected ? "Connected" : isConnecting ? "Connecting..." : "Connect"}
+                                {isConnected
+                                  ? "Connected"
+                                  : isConnecting
+                                    ? "Connecting..."
+                                    : "Connect"}
                               </button>
                             </div>
                           );
@@ -1416,8 +1593,6 @@ export default function SettingsPage() {
             )}
           </div>
         )}
-
-
 
         {activeTab === "Products" && (
           <div className="space-y-8 max-w-2xl">

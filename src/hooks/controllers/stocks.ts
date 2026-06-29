@@ -44,10 +44,15 @@ export function useStockLevels() {
 
       return levels;
     },
-    staleTime: 0,
+    // PERF: this used to be staleTime: 0 + refetchOnWindowFocus/refetchOnMount,
+    // meaning it re-pulled the *entire* stock_entries table every single time
+    // the app window regained focus or this hook remounted (e.g. navigating
+    // away from POS and back). Every mutation in this file already calls
+    // invalidateQueries + refetchQueries on this exact key, so the data stays
+    // fresh after any actual stock change without needing to force a refetch
+    // on every focus/mount too.
+    staleTime: 30_000,
     gcTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
   });
 }
 
@@ -62,7 +67,7 @@ export function useProductStockHistory(productId: string) {
   return useQuery({
     queryKey: stockKeys.byProduct(productId),
     enabled: !!productId,
-    staleTime: 0,
+    staleTime: 30_000,
     queryFn: () =>
       db.query.stockEntries.findMany({
         where: eq(stockEntries.productId, productId),
@@ -75,7 +80,7 @@ export function useProductStockHistory(productId: string) {
 export function useAllStockHistory() {
   return useQuery({
     queryKey: stockKeys.history(),
-    staleTime: 0,
+    staleTime: 30_000,
     queryFn: () =>
       db.query.stockEntries.findMany({
         orderBy: (s) => desc(s.createdAt),
@@ -87,7 +92,7 @@ export function useAllStockHistory() {
 export function useStockLogs() {
   return useQuery({
     queryKey: stockKeys.logs(),
-    staleTime: 0,
+    staleTime: 30_000,
     queryFn: () =>
       db.query.stockLogs.findMany({
         orderBy: (s) => desc(s.createdAt),
@@ -100,7 +105,7 @@ export function useProductStockLogs(productId: string) {
   return useQuery({
     queryKey: stockKeys.productLogs(productId),
     enabled: !!productId,
-    staleTime: 0,
+    staleTime: 30_000,
     queryFn: () =>
       db.query.stockLogs.findMany({
         where: eq(stockLogs.productId, productId),

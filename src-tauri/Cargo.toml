@@ -37,10 +37,18 @@ futures-util = "0.3"
 reqwest = { version = "0.12", features = ["rustls-tls", "json"], default-features = false }
 tokio-tungstenite = { version = "0.21", default-features = false, features = ["connect", "handshake"] }
 tauri-plugin-process = "2"
+# Used by import_aronium_bak to write T-SQL to a temp file for sqlcmd.
+# Already present as a transitive dependency; listed here explicitly so the
+# compiler resolves it without relying on transitive resolution.
+tempfile = "3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 
-
-
-
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["processthreadsapi", "securitybaseapi", "winnt", "handleapi", 
+    "shellapi",       # ShellExecuteExW
+    "synchapi",       # WaitForSingleObject
+    "winbase",        # INFINITE
+    "errhandlingapi", # GetLastError
+] }

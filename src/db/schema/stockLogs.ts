@@ -1,27 +1,36 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 import { relations, InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { products } from "./products";
 import { documents } from "./documents";
 
-export const stockLogs = sqliteTable("stock_logs", {
-  id: text("id").primaryKey(),
-  productId: text("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
+export const stockLogs = sqliteTable(
+  "stock_logs",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
 
-  documentId: text("document_id").references(() => documents.id, {
-    onDelete: "set null",
+    documentId: text("document_id").references(() => documents.id, {
+      onDelete: "set null",
+    }),
+
+    type: text("type").$type<"in" | "out" | "adjustment">().notNull(),
+
+    quantity: real("quantity").notNull(),
+    note: text("note"),
+
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    // PERF: useProductStockLogs filters by productId, useStockLogs orders the
+    // whole table by createdAt — both unindexed before.
+    productIdIdx: index("stock_logs_product_id_idx").on(table.productId),
+    documentIdIdx: index("stock_logs_document_id_idx").on(table.documentId),
   }),
-
-  type: text("type").$type<"in" | "out" | "adjustment">().notNull(),
-
-  quantity: real("quantity").notNull(),
-  note: text("note"),
-
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .defaultNow(),
-});
+);
 
 export const stockLogsRelations = relations(stockLogs, ({ one }) => ({
   product: one(products, {

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
 import { documents, documentItems } from "@/db/schema";
-import { and, gte, lte, eq, like, sql, desc } from "drizzle-orm";
+import { and, gte, lte, eq, like, sql, desc, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 /* -------------------------------------------------------------------------- */
@@ -48,8 +48,10 @@ export type SalesFilters = {
 
 export const salesHistoryKeys = {
   all: ["salesHistory"] as const,
-  documents: (f: SalesFilters) =>
-    [...salesHistoryKeys.all, "documents", JSON.stringify(f)] as const,
+  documents: (f: SalesFilters, page: number, pageSize: number) =>
+    [...salesHistoryKeys.all, "documents", JSON.stringify(f), page, pageSize] as const,
+  count: (f: SalesFilters) =>
+    [...salesHistoryKeys.all, "count", JSON.stringify(f)] as const,
   items: (documentId: string) =>
     [...salesHistoryKeys.all, "items", documentId] as const,
   summary: (f: SalesFilters) =>
@@ -60,9 +62,13 @@ export const salesHistoryKeys = {
 /*                            DOCUMENTS QUERY                                 */
 /* -------------------------------------------------------------------------- */
 
-export function useSalesDocuments(filters: SalesFilters) {
+export function useSalesDocuments(
+  filters: SalesFilters,
+  page: number = 1,
+  pageSize: number = 25,
+) {
   return useQuery({
-    queryKey: salesHistoryKeys.documents(filters),
+    queryKey: salesHistoryKeys.documents(filters, page, pageSize),
     queryFn: async (): Promise<DocumentRow[]> => {
       const { customers } = await import("@/db/schema");
 
@@ -97,9 +103,40 @@ export function useSalesDocuments(filters: SalesFilters) {
         .from(documents)
         .leftJoin(customers, eq(documents.customerId, customers.id))
         .where(and(...conditions))
-        .orderBy(desc(documents.date));
+        .orderBy(desc(documents.date))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
 
       return rows as DocumentRow[];
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Total document count matching the current filters — used by pagination. */
+export function useSalesDocumentsCount(filters: SalesFilters) {
+  return useQuery({
+    queryKey: salesHistoryKeys.count(filters),
+    queryFn: async (): Promise<number> => {
+      const conditions = [
+        gte(documents.date, filters.from),
+        lte(documents.date, filters.to),
+      ];
+      if (filters.numberPrefix.trim()) {
+        conditions.push(
+          like(documents.number, `${filters.numberPrefix.trim()}%`),
+        );
+      }
+      if (filters.customerId) {
+        conditions.push(eq(documents.customerId, filters.customerId));
+      }
+
+      const [row] = await db
+        .select({ total: count(documents.id) })
+        .from(documents)
+        .where(and(...conditions));
+
+      return row?.total ?? 0;
     },
   });
 }

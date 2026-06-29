@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
 import { RootState } from "@/store";
 import {
   setPaymentTypesActiveRow,
@@ -17,13 +18,18 @@ import {
 
 import {
   usePaymentTypes,
+  usePaymentTypesCount,
+  usePaymentTypesPage,
   useCreatePaymentType,
   useUpdatePaymentType,
   useDeletePaymentType,
 } from "@/hooks/controllers/paymentTypes";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import PaymentTypeDrawer from "@/components/payment-types-drawer";
-import { getNextPosition } from "@/lib/incrementalId";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { PageLoading } from "@/components/page-loading";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 export default function PaymentTypesClient() {
   const dispatch = useDispatch();
@@ -36,20 +42,30 @@ export default function PaymentTypesClient() {
   const setDrawerOpen = (val: boolean) =>
     dispatch(setPaymentTypesDrawerOpen(val));
 
-  const { data: paymentTypes = [], refetch, isFetching } = usePaymentTypes();
+  const { data: allPaymentTypes = [] } = usePaymentTypes();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const {
+    data: paymentTypes = [],
+    refetch,
+    isFetching,
+    isLoading,
+  } = usePaymentTypesPage(page, pageSize);
+  const { data: total = 0 } = usePaymentTypesCount();
   const createType = useCreatePaymentType();
   const updateType = useUpdatePaymentType();
   const deleteType = useDeletePaymentType();
 
-  const selected = paymentTypes.find((p) => p.id === activeRow);
+  const selected =
+    paymentTypes.find((p) => p.id === activeRow) ??
+    allPaymentTypes.find((p) => p.id === activeRow);
 
   const handleSave = async (data: any) => {
     if (selected) {
       await updateType.mutateAsync({ id: selected.id, data });
     } else {
       // Add position for new payment type
-      const nextPosition = getNextPosition(paymentTypes);
-      await createType.mutateAsync({ ...data, position: nextPosition });
+      await createType.mutateAsync({ ...data, position: total + 1 });
     }
     refetch();
   };
@@ -159,8 +175,12 @@ export default function PaymentTypesClient() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden p-4">
+      <div className="flex-1 overflow-hidden px-6 py-6">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-300 dark:border-slate-800">
+          {isLoading ? (
+            <PageLoading label="Loading payment types" />
+          ) : (
+          <div className="flex-1 overflow-auto p-4">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
@@ -239,6 +259,15 @@ export default function PaymentTypesClient() {
               )}
             </tbody>
           </table>
+          </div>
+          )}
+          <DataTablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </div>
     </div>

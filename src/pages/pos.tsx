@@ -2971,6 +2971,22 @@ export default function AroniumLite() {
     dispatch(setCustomerModalSearch(val));
 
   // Persistence effect
+  // PERF: this used to call JSON.stringify + localStorage.setItem
+  // synchronously on every single change to `items` — i.e. every qty bump,
+  // every discount tweak, every item added during fast barcode scanning.
+  // localStorage I/O is synchronous and blocks the main thread, so a busy
+  // cart visibly stutters. Debounce it so rapid-fire cart edits collapse
+  // into one write ~400ms after things settle, instead of one write per click.
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestCartStateRef = useRef<{
+    items: typeof items;
+    selectedItemId: typeof selectedItemId;
+    cartDiscount: typeof cartDiscount;
+    selectedCustomer: typeof selectedCustomer;
+    dineIn: typeof dineIn;
+    orderNote: typeof orderNote;
+  } | null>(null);
+
   useEffect(() => {
     const state = {
       items,
@@ -2980,7 +2996,19 @@ export default function AroniumLite() {
       dineIn,
       orderNote,
     };
-    localStorage.setItem(POS_STATE_KEY, JSON.stringify(state));
+    latestCartStateRef.current = state;
+
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      localStorage.setItem(POS_STATE_KEY, JSON.stringify(state));
+    }, 400);
+
+    // NOTE: this cleanup runs between every dependency change too, not just
+    // on unmount — so it must only cancel the pending timer, never write
+    // synchronously here, or we're back to writing on every keystroke.
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
   }, [
     items,
     selectedItemId,
@@ -2989,6 +3017,20 @@ export default function AroniumLite() {
     dineIn,
     orderNote,
   ]);
+
+  // Flush any still-pending write when the screen actually unmounts (e.g.
+  // navigating away mid-edit), so the very last cart change isn't lost.
+  useEffect(() => {
+    return () => {
+      if (latestCartStateRef.current) {
+        localStorage.setItem(
+          POS_STATE_KEY,
+          JSON.stringify(latestCartStateRef.current),
+        );
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const priceList = useAllPrices();
 

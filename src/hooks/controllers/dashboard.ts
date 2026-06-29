@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { documents, documentItems, customers, nodes } from "@/db/schema";
+import { documents, documentItems, customers, nodes, products } from "@/db/schema";
 import { and, gte, lte, eq, sql, desc } from "drizzle-orm";
 
 /* -------------------------------------------------------------------------- */
@@ -178,7 +178,11 @@ export function useTopProductGroups(from: Date, to: Date, limit = 5) {
   return useQuery({
     queryKey: dashboardKeys.topProductGroups(from, to),
     queryFn: async (): Promise<TopGroupRow[]> => {
-      // documentItems.productId → products.nodeId → nodes.name
+      // PERF: previously joined via a correlated scalar subquery
+      // `(SELECT node_id FROM products WHERE id = documentItems.productId LIMIT 1)`
+      // which SQLite has to re-execute once per document_items row. A plain
+      // join lets it use the index on products.id (PK) / document_items.productId
+      // and do a single pass instead.
       return db
         .select({
           name: nodes.name,
@@ -186,12 +190,8 @@ export function useTopProductGroups(from: Date, to: Date, limit = 5) {
         })
         .from(documentItems)
         .innerJoin(documents, eq(documentItems.documentId, documents.id))
-        .innerJoin(
-          nodes,
-          sql`${nodes.id} = (
-            SELECT node_id FROM products WHERE id = ${documentItems.productId} LIMIT 1
-          )`,
-        )
+        .innerJoin(products, eq(products.id, documentItems.productId))
+        .innerJoin(nodes, eq(nodes.id, products.nodeId))
         .where(dateRange(from, to))
         .groupBy(nodes.name)
         .orderBy(desc(sql`sum(${documentItems.total})`))

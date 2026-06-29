@@ -20,13 +20,15 @@ import {
 } from "lucide-react";
 import AccessLevelSettings from "@/components/securityTab";
 import {
-  useUsers,
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
+  useUsersPage,
+  useVisibleUsersCount,
 } from "@/hooks/controllers/users";
 import type { User, NewUser } from "@/hooks/controllers/users";
-import { getNextNumber } from "@/lib/incrementalId";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { PageLoading } from "@/components/page-loading";
 
 /* -------------------------------------------------------------------------- */
 /*                              CONSTANTS                                     */
@@ -354,13 +356,9 @@ function DeleteConfirm({
 /* -------------------------------------------------------------------------- */
 
 type PanelMode = "idle" | "add" | "edit" | "delete";
+const DEFAULT_PAGE_SIZE = 25;
 
 function UsersTab() {
-  const { data: allUsers = [], isLoading, refetch } = useUsers();
-  const createMutation = useCreateUser();
-  const updateMutation = useUpdateUser();
-  const deleteMutation = useDeleteUser();
-
   const dispatch = useDispatch();
   const { selectedId, panelMode, showInactive } = useSelector(
     (state: RootState) => state.dashboard.usersTab,
@@ -371,8 +369,20 @@ function UsersTab() {
   const setShowInactive = (val: boolean) =>
     dispatch(setUsersTabShowInactive(val));
 
-  const selected = allUsers.find((u) => u.id === selectedId) ?? null;
-  const displayed = showInactive ? allUsers : allUsers.filter(isActive);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const {
+    data: displayed = [],
+    isLoading,
+    refetch,
+  } = useUsersPage(page, pageSize, "", showInactive);
+  const { data: total = 0 } = useVisibleUsersCount("", showInactive);
+  const { data: allTotal = 0 } = useVisibleUsersCount("", true);
+  const createMutation = useCreateUser();
+  const updateMutation = useUpdateUser();
+  const deleteMutation = useDeleteUser();
+
+  const selected = displayed.find((u) => u.id === selectedId) ?? null;
 
   // ── NOTE ON PASSWORDS ───────────────────────────────────────────────────────
   // This is a Tauri desktop app with a local SQLite DB, so we're not doing
@@ -394,13 +404,11 @@ function UsersTab() {
   async function handleAdd(payload: Partial<NewUser> & { password?: string }) {
     const { password, ...data } = payload;
     const passwordHash = password ? await hashPassword(password) : undefined;
-    // Add position for new user
-    const nextNumber = getNextNumber(allUsers);
     createMutation.mutate(
       {
         ...data,
         passwordHash,
-        position: nextNumber,
+        position: allTotal + 1,
         created_at: "CURRENT_TIMESTAMP",
         updated_at: "CURRENT_TIMESTAMP",
         deleted_at: "NULL",
@@ -528,9 +536,7 @@ function UsersTab() {
         {/* Table */}
         <div className="flex-1 overflow-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-              Loading…
-            </div>
+            <PageLoading label="Loading users" />
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-white dark:bg-slate-800 sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
@@ -636,15 +642,13 @@ function UsersTab() {
           )}
         </div>
 
-        {/* Status bar */}
-        <div className="px-4 py-1.5 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-500 shrink-0">
-          {displayed.length} user{displayed.length !== 1 ? "s" : ""}
-          {!showInactive && allUsers.length !== displayed.length && (
-            <span className="ml-2 text-slate-600">
-              ({allUsers.length - displayed.length} inactive hidden)
-            </span>
-          )}
-        </div>
+        <DataTablePagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       {/* Side panel */}

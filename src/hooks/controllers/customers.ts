@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { eq } from "drizzle-orm";
+import { eq, like, or, count } from "drizzle-orm";
 
 import { customers, loyaltyCards, customerDiscounts } from "@/db/schema";
 
@@ -21,6 +21,9 @@ export const customerKeys = {
   byId: (id: string) => [...customerKeys.all, "byId", id] as const,
   loyaltyCards: (customerId: string) =>
     [...customerKeys.all, "loyaltyCards", customerId] as const,
+  page: (page: number, pageSize: number, search: string) =>
+    [...customerKeys.all, "page", page, pageSize, search] as const,
+  count: (search: string) => [...customerKeys.all, "count", search] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -41,6 +44,58 @@ export function useCustomers() {
       });
 
       return res;
+    },
+  });
+}
+
+/** DB-level paginated customer list (search by name, code, email). */
+export function useCustomersPage(
+  page: number,
+  pageSize: number,
+  search: string = "",
+) {
+  return useQuery({
+    queryKey: customerKeys.page(page, pageSize, search),
+    queryFn: async () => {
+      const offset = (page - 1) * pageSize;
+      const rows = await db.query.customers.findMany({
+        where: search.trim()
+          ? (c, { or, like }) =>
+              or(
+                like(c.name, `%${search.trim()}%`),
+                like(c.code, `%${search.trim()}%`),
+                like(c.email, `%${search.trim()}%`),
+              )
+          : undefined,
+        limit: pageSize,
+        offset,
+        orderBy: (c) => c.name,
+        with: { loyaltyCards: true, discounts: true },
+      });
+      return rows;
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Total count for pagination. */
+export function useCustomersCount(search: string = "") {
+  return useQuery({
+    queryKey: customerKeys.count(search),
+    queryFn: async () => {
+      const [row] = await db
+        .select({ total: count(customers.id) })
+        .from(customers)
+        .where(
+          search.trim()
+            ? or(
+                like(customers.name, `%${search.trim()}%`),
+                like(customers.code, `%${search.trim()}%`),
+                like(customers.email, `%${search.trim()}%`),
+              )
+            : undefined,
+        );
+      return row?.total ?? 0;
     },
   });
 }

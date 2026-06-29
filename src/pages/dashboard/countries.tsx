@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
 import { RootState } from "@/store";
 import {
   setCountriesSelected,
@@ -16,14 +17,18 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, RefreshCcw, Pencil, Trash2 } from "lucide-react";
 import {
-  useCountries,
+  useCountriesCount,
+  useCountriesPage,
   useCreateCountry,
   useUpdateCountry,
   useDeleteCountry,
 } from "@/hooks/controllers/countries";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import CountryDrawer from "@/components/country-drawer";
-import { getNextNumber } from "@/lib/incrementalId";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { PageLoading } from "@/components/page-loading";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 export default function CountriesTable() {
   const dispatch = useDispatch();
@@ -35,7 +40,13 @@ export default function CountriesTable() {
     dispatch(setCountriesSelected(val));
   const setDrawerOpen = (val: boolean) => dispatch(setCountriesDrawerOpen(val));
 
-  const { data: countries = [], refetch } = useCountries();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const { data: countries = [], refetch, isLoading } = useCountriesPage(
+    page,
+    pageSize,
+  );
+  const { data: total = 0 } = useCountriesCount();
   const createCountry = useCreateCountry();
   const updateCountry = useUpdateCountry();
   const deleteCountry = useDeleteCountry();
@@ -56,9 +67,7 @@ export default function CountriesTable() {
               data,
             });
           } else {
-            // Add position for new country
-            const nextNumber = getNextNumber(countries);
-            await createCountry.mutateAsync({ ...data, position: nextNumber });
+            await createCountry.mutateAsync({ ...data, position: total + 1 });
           }
           refetch();
         }}
@@ -115,26 +124,29 @@ export default function CountriesTable() {
       </div>
 
       {/* Table */}
-      <div className="border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-110px)]">
-          <Table>
-            <TableHeader className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <TableRow>
-                <TableHead className="w-[70%] text-slate-800 dark:text-slate-200">
-                  Name
-                </TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">
-                  Code
-                </TableHead>
-              </TableRow>
-            </TableHeader>
+      <div className="flex h-[calc(100vh-110px)] flex-col overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+        {isLoading ? (
+          <PageLoading label="Loading countries" />
+        ) : (
+          <ScrollArea className="flex-1">
+            <Table>
+              <TableHeader className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <TableRow>
+                  <TableHead className="w-[70%] text-slate-800 dark:text-slate-200">
+                    Name
+                  </TableHead>
+                  <TableHead className="text-slate-800 dark:text-slate-200">
+                    Code
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
 
-            <TableBody>
-              {countries.map((country) => (
-                <TableRow
-                  key={country.id}
-                  onClick={() => setSelected(country.id)}
-                  className={`
+              <TableBody>
+                {countries.map((country) => (
+                  <TableRow
+                    key={country.id}
+                    onClick={() => setSelected(country.id)}
+                    className={`
                     cursor-pointer transition-colors
                     ${
                       selected === country.id
@@ -142,16 +154,24 @@ export default function CountriesTable() {
                         : "hover:bg-slate-100 dark:bg-slate-700/50"
                     }
                   `}
-                >
-                  <TableCell>{country.name}</TableCell>
-                  <TableCell className="text-slate-500 dark:text-slate-400">
-                    {country.code}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
+                  >
+                    <TableCell>{country.name}</TableCell>
+                    <TableCell className="text-slate-500 dark:text-slate-400">
+                      {country.code}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        )}
+        <DataTablePagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

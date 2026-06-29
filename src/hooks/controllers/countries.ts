@@ -2,15 +2,68 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { countries } from "@/db/schema/countries";
-import { eq } from "drizzle-orm";
+import { count, eq, like, or } from "drizzle-orm";
 import { db } from "@/db/database";
 import { allCountries } from "@/lib/data";
+
+export const countryKeys = {
+  all: ["countries"] as const,
+  page: (page: number, pageSize: number, search: string) =>
+    ["countries", "page", page, pageSize, search] as const,
+  count: (search: string) => ["countries", "count", search] as const,
+};
 
 // Fetch all countries
 export function useCountries() {
   return useQuery({
-    queryKey: ["countries"],
+    queryKey: countryKeys.all,
     queryFn: () => db.select().from(countries),
+  });
+}
+
+export function useCountriesPage(
+  page: number,
+  pageSize: number,
+  search: string = "",
+) {
+  return useQuery({
+    queryKey: countryKeys.page(page, pageSize, search),
+    queryFn: () =>
+      db
+        .select()
+        .from(countries)
+        .where(
+          search.trim()
+            ? or(
+                like(countries.name, `%${search.trim()}%`),
+                like(countries.code, `%${search.trim()}%`),
+              )
+            : undefined,
+        )
+        .orderBy(countries.position, countries.name)
+        .limit(pageSize)
+        .offset((page - 1) * pageSize),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useCountriesCount(search: string = "") {
+  return useQuery({
+    queryKey: countryKeys.count(search),
+    queryFn: async () => {
+      const [row] = await db
+        .select({ total: count(countries.id) })
+        .from(countries)
+        .where(
+          search.trim()
+            ? or(
+                like(countries.name, `%${search.trim()}%`),
+                like(countries.code, `%${search.trim()}%`),
+              )
+            : undefined,
+        );
+      return row?.total ?? 0;
+    },
   });
 }
 
@@ -30,7 +83,7 @@ export function useCreateCountry() {
         position: data.position ?? 0,
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["countries"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: countryKeys.all }),
   });
 }
 
@@ -47,7 +100,7 @@ export function useUpdateCountry() {
     }) => {
       await db.update(countries).set(data).where(eq(countries.id, id));
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["countries"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: countryKeys.all }),
   });
 }
 
@@ -58,7 +111,7 @@ export function useDeleteCountry() {
     mutationFn: async (id: string) => {
       await db.delete(countries).where(eq(countries.id, id));
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["countries"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: countryKeys.all }),
   });
 }
 
