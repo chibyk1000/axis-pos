@@ -277,35 +277,35 @@ function CalcModal({
 
   const btnCls = (v: string) => {
     if (v === "C")
-      return "bg-red-700/80 hover:bg-red-600 text-slate-900 dark:text-white font-semibold";
+      return "bg-red-700/80 hover:bg-red-600 text-stone-900 dark:text-white font-semibold";
     if (v === "⌫")
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 font-semibold text-base";
+      return "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-400 font-semibold text-base";
     if (["+", "-", "×", "÷"].includes(v))
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-lg";
-    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-medium text-base";
+      return "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-300 font-bold text-lg";
+    return "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100 font-medium text-base";
   };
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-80 shadow-2xl overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-80 shadow-2xl overflow-hidden">
         <div className="px-4 pt-4 pb-2">
-          <p className="text-xs text-slate-600 dark:text-slate-400 uppercase tracking-widest font-semibold">
+          <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
             Quantity
           </p>
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
             {product?.title}
           </p>
         </div>
-        <div className="mx-4 mb-3 bg-slate-100 dark:bg-slate-950 rounded-xl px-4 py-3 border border-slate-300 dark:border-slate-800">
+        <div className="mx-4 mb-3 bg-stone-100 dark:bg-stone-950 rounded-xl px-4 py-3 border border-stone-300 dark:border-stone-800">
           {expr && (
-            <div className="text-slate-500 text-sm text-right h-5 truncate">
+            <div className="text-stone-500 text-sm text-right h-5 truncate">
               {expr}
             </div>
           )}
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate
             ${display.length > 10 ? "text-xl" : display.length > 7 ? "text-2xl" : "text-3xl"}
-            ${display === "Error" ? "text-red-400" : "text-slate-900 dark:text-slate-100"}`}
+            ${display === "Error" ? "text-red-400" : "text-stone-900 dark:text-stone-100"}`}
           >
             {display}
           </div>
@@ -362,7 +362,7 @@ function CalcModal({
             ))}
             <button
               onClick={confirm}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold text-xl transition-colors"
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold text-xl transition-colors"
               style={{ gridRow: "span 2", minHeight: "116px" }}
             >
               ✓
@@ -381,7 +381,7 @@ function CalcModal({
         <div className="px-3 pb-4">
           <button
             onClick={onClose}
-            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 rounded-xl h-10 text-xs transition-colors"
+            className="w-full bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-800 dark:text-stone-200 rounded-xl h-10 text-xs transition-colors"
           >
             Cancel
           </button>
@@ -425,15 +425,15 @@ function DiscountModal({
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-96 shadow-2xl overflow-hidden">
-        <div className="flex border-b border-slate-300 dark:border-slate-800">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-96 shadow-2xl overflow-hidden">
+        <div className="flex border-b border-stone-300 dark:border-stone-800">
           {item && (
             <button
               onClick={() => {
                 setTab("item");
                 setValue(String(item.discount));
               }}
-              className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "item" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
+              className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "item" ? "text-amber-400 border-b-2 border-amber-400" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200"}`}
             >
               Item Discount
             </button>
@@ -443,16 +443,16 @@ function DiscountModal({
               setTab("cart");
               setValue(String(cartDiscount));
             }}
-            className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "cart" ? "text-cyan-400 border-b-2 border-cyan-400" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"}`}
+            className={`flex-1 py-3 text-xs font-semibold transition-colors ${tab === "cart" ? "text-amber-400 border-b-2 border-amber-400" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200"}`}
           >
             Cart Discount
           </button>
         </div>
         <div className="p-5">
           {tab === "item" && item && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 truncate">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mb-3 truncate">
               Applying to:{" "}
-              <span className="text-slate-800 dark:text-slate-200">
+              <span className="text-stone-800 dark:text-stone-200">
                 {item.title}
               </span>
             </p>
@@ -467,9 +467,9 @@ function DiscountModal({
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && apply()}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-2xl font-mono text-right text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
+              className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-xl px-4 py-3 text-2xl font-mono text-right text-stone-900 dark:text-stone-100 outline-none focus:border-amber-500"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 text-xl pointer-events-none">
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-600 dark:text-stone-400 text-xl pointer-events-none">
               %
             </span>
           </div>
@@ -478,7 +478,7 @@ function DiscountModal({
               <button
                 key={p}
                 onClick={() => setValue(String(p))}
-                className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-lg py-2 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                className="bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 rounded-lg py-2 text-xs font-medium text-stone-700 dark:text-stone-300 transition-colors"
               >
                 {p}%
               </button>
@@ -487,13 +487,13 @@ function DiscountModal({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-3 text-xs text-slate-600 dark:text-slate-400"
+              className="flex-1 bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 rounded-xl py-3 text-xs text-stone-600 dark:text-stone-400"
             >
               Cancel
             </button>
             <button
               onClick={apply}
-              className="flex-1 bg-cyan-600 hover:bg-cyan-500 rounded-xl py-3 text-xs font-semibold text-slate-900 dark:text-white"
+              className="flex-1 bg-amber-600 hover:bg-amber-500 rounded-xl py-3 text-xs font-semibold text-stone-900 dark:text-white"
             >
               Apply
             </button>
@@ -529,19 +529,19 @@ function CustomerModal({
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-105 max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="p-4 border-b border-slate-300 dark:border-slate-800">
-          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-3">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-105 max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="p-4 border-b border-stone-300 dark:border-stone-800">
+          <p className="text-xs font-semibold text-stone-800 dark:text-stone-200 mb-3">
             Select Customer
           </p>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500 dark:text-stone-400" />
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name or code…"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500"
+              className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-4 py-2 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-amber-500"
             />
           </div>
         </div>
@@ -551,7 +551,7 @@ function CustomerModal({
               onSelect(null);
               onClose();
             }}
-            className="w-full px-4 py-3 text-left text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 flex items-center gap-2"
+            className="w-full px-4 py-3 text-left text-xs text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-white dark:bg-stone-800 border-b border-stone-300 dark:border-stone-800 flex items-center gap-2"
           >
             <X className="w-4 h-4" /> No Customer (Walk-in)
           </button>
@@ -562,35 +562,35 @@ function CustomerModal({
                 onSelect(c);
                 onClose();
               }}
-              className={`w-full px-4 py-3 text-left hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800 transition-colors ${selected?.id === c.id ? "bg-slate-200 dark:bg-slate-800" : ""}`}
+              className={`w-full px-4 py-3 text-left hover:bg-stone-200 dark:hover:bg-white dark:bg-stone-800 border-b border-stone-300 dark:border-stone-800 transition-colors ${selected?.id === c.id ? "bg-stone-200 dark:bg-stone-800" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
+                  <p className="text-xs font-medium text-stone-900 dark:text-stone-100">
                     {c.name}
                   </p>
                   {c.code && (
-                    <p className="text-xs text-slate-600 dark:text-slate-500">
+                    <p className="text-xs text-stone-600 dark:text-stone-500">
                       {c.code}
                     </p>
                   )}
                 </div>
                 {selected?.id === c.id && (
-                  <Check className="w-4 h-4 text-cyan-400" />
+                  <Check className="w-4 h-4 text-amber-400" />
                 )}
               </div>
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="text-center text-slate-500 py-8 text-xs">
+            <p className="text-center text-stone-500 py-8 text-xs">
               No customers found
             </p>
           )}
         </div>
-        <div className="p-3 border-t border-slate-300 dark:border-slate-800">
+        <div className="p-3 border-t border-stone-300 dark:border-stone-800">
           <button
             onClick={onClose}
-            className="w-full bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-2 text-xs text-slate-600 dark:text-slate-400"
+            className="w-full bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 rounded-xl py-2 text-xs text-stone-600 dark:text-stone-400"
           >
             Close
           </button>
@@ -705,40 +705,40 @@ function SplitPaymentScreen({
 
   console.log("SplitPaymentScreen rendering with total:", total);
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
+      <div className="w-1/3 border-r border-stone-300 dark:border-stone-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Split Payment
             </p>
             {customer && (
-              <p className="text-xs text-cyan-400 mt-0.5">{customer.name}</p>
+              <p className="text-xs text-amber-400 mt-0.5">{customer.name}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
             Items
           </p>
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+              className="flex justify-between text-sm border-b border-stone-300 dark:border-stone-800 pb-2"
             >
-              <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
+              <span className="text-stone-700 dark:text-stone-300 truncate max-w-[65%]">
                 {item.qty !== 1 && (
-                  <span className="text-slate-500 mr-1">{item.qty}×</span>
+                  <span className="text-stone-500 mr-1">{item.qty}×</span>
                 )}
                 {item.title}
               </span>
-              <span className="tabular-nums text-slate-800 dark:text-slate-200">
+              <span className="tabular-nums text-stone-800 dark:text-stone-200">
                 ₦
                 {itemTotal(item).toLocaleString("en-NG", {
                   minimumFractionDigits: 2,
@@ -747,20 +747,20 @@ function SplitPaymentScreen({
             </div>
           ))}
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 space-y-1.5 text-sm">
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+        <div className="px-5 py-4 border-t border-stone-200 dark:border-stone-700 space-y-1.5 text-sm">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Subtotal</span>
             <span>
               ₦{subtotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Tax</span>
             <span>
               ₦{taxTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="flex justify-between font-bold text-xl text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between font-bold text-xl text-amber-400 pt-2 border-t border-stone-200 dark:border-stone-700">
             <span>Total</span>
             <span>₦{formatPrice(total)}</span>
           </div>
@@ -776,9 +776,9 @@ function SplitPaymentScreen({
       </div>
 
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Payment Methods
             </p>
           </div>
@@ -787,8 +787,8 @@ function SplitPaymentScreen({
         <div className="flex-1 overflow-auto p-5">
           <div className="space-y-4">
             {/* Payment Type Selection */}
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-              <label className="text-xs text-slate-500 mb-2 block">
+            <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Payment Type
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -798,8 +798,8 @@ function SplitPaymentScreen({
                     onClick={() => setSelectedTypeId(pt.id)}
                     className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
                       selectedTypeId === pt.id
-                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "bg-amber-900 border-amber-500 text-amber-200"
+                        : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}
                   >
                     {pt.name.toLowerCase().includes("card") ? (
@@ -817,7 +817,7 @@ function SplitPaymentScreen({
             <div className="flex-1 flex flex-col justify-between min-h-0">
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Amount</p>
+                  <p className="text-xs text-stone-500 mb-0.5">Amount</p>
                   <input
                     type="text"
                     value={paidInput}
@@ -825,12 +825,12 @@ function SplitPaymentScreen({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSave();
                     }}
-                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-3xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Remaining</p>
+                  <p className="text-xs text-stone-500 mb-0.5">Remaining</p>
                   <p className="text-2xl font-bold tabular-nums text-red-400">
                     ₦{formatPrice(remaining)}
                     {remaining > 0 && (
@@ -852,12 +852,12 @@ function SplitPaymentScreen({
                       onClick={() => handleKey(key)}
                       className={`py-4 rounded text-lg font-medium transition-colors ${
                         isBackspace
-                          ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                          ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
                           : isEnter
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
                             : isDash
-                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
-                              : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                              ? "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-300 text-sm"
+                              : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                       }`}
                       title={isDash ? "Set to exact total" : undefined}
                     >
@@ -870,7 +870,7 @@ function SplitPaymentScreen({
               <button
                 onClick={handleSave}
                 disabled={!selectedType || paidAmount <= 0}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-lg font-bold rounded transition-colors"
               >
                 Save · ₦
                 {paidAmount.toLocaleString("en-NG", {
@@ -916,17 +916,17 @@ function TaxManagementScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Tax Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -936,13 +936,13 @@ function TaxManagementScreen({
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400" />
               <input
                 type="text"
                 placeholder="Search taxes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
@@ -954,24 +954,24 @@ function TaxManagementScreen({
                   onClick={() => handleTaxClick(tax)}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     selectedTaxId === tax.id
-                      ? "border-cyan-500 bg-cyan-950/20"
-                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "border-amber-500 bg-amber-950/20"
+                      : "border-stone-300 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                      <p className="font-medium text-stone-900 dark:text-stone-100">
                         {tax.name}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-stone-500">
                         {tax.description || "No description"}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-cyan-600">
+                      <p className="text-lg font-bold text-amber-600">
                         {tax.rate}%
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-stone-500">
                         {tax.compound ? "Compound" : "Standard"}
                       </p>
                     </div>
@@ -1079,17 +1079,17 @@ function DiscountManagementScreen({
       : `₦${discountValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Discount Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1098,8 +1098,8 @@ function DiscountManagementScreen({
         <div className="flex-1 overflow-auto p-5">
           <div className="space-y-6">
             {/* Discount Type Selection */}
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-              <label className="text-xs text-slate-500 mb-2 block">
+            <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Discount Type
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -1107,8 +1107,8 @@ function DiscountManagementScreen({
                   onClick={() => setDiscountType("percent")}
                   className={`py-2 rounded text-sm font-medium transition-colors border ${
                     discountType === "percent"
-                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      ? "bg-amber-900 border-amber-500 text-amber-200"
+                      : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                   }`}
                 >
                   <Percent className="w-4 h-4 inline mr-1" />
@@ -1118,8 +1118,8 @@ function DiscountManagementScreen({
                   onClick={() => setDiscountType("amount")}
                   className={`py-2 rounded text-sm font-medium transition-colors border ${
                     discountType === "amount"
-                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      ? "bg-amber-900 border-amber-500 text-amber-200"
+                      : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                   }`}
                 >
                   <Banknote className="w-4 h-4 inline mr-1" />
@@ -1130,7 +1130,7 @@ function DiscountManagementScreen({
 
             {/* Preset Discounts */}
             <div>
-              <label className="text-xs text-slate-500 mb-2 block">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Quick Presets
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -1140,8 +1140,8 @@ function DiscountManagementScreen({
                     onClick={() => handlePresetClick(preset)}
                     className={`py-2 rounded text-sm font-medium transition-colors border ${
                       selectedPreset === preset.id
-                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "bg-amber-900 border-amber-500 text-amber-200"
+                        : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}
                   >
                     {preset.label}
@@ -1152,7 +1152,7 @@ function DiscountManagementScreen({
 
             {/* Custom Amount Input */}
             <div>
-              <label className="text-xs text-slate-500 mb-2 block">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Custom Amount
               </label>
               <div className="space-y-3">
@@ -1164,7 +1164,7 @@ function DiscountManagementScreen({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleApply();
                     }}
-                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-3xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
                     placeholder="0"
                   />
                 </div>
@@ -1188,10 +1188,10 @@ function DiscountManagementScreen({
                     onClick={() => handleKey(key)}
                     className={`py-4 rounded text-lg font-medium transition-colors ${
                       isBackspace
-                        ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                        ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
                         : isEnter
-                          ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
-                          : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
+                          : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                     }`}
                   >
                     {key}
@@ -1204,7 +1204,7 @@ function DiscountManagementScreen({
             <button
               onClick={handleApply}
               disabled={discountValue <= 0}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-lg font-bold rounded transition-colors"
             >
               Apply Discount · {displayValue}
             </button>
@@ -1288,17 +1288,17 @@ function CustomerManagementScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Customer Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1309,18 +1309,18 @@ function CustomerManagementScreen({
             {/* Search and Add */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400" />
                 <input
                   type="text"
                   placeholder="Search customers..."
                   value={customerSearchTerm}
                   onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Customer
@@ -1329,8 +1329,8 @@ function CustomerManagementScreen({
 
             {/* Add Customer Form */}
             {showAddForm && (
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
+              <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+                <h3 className="text-sm font-medium text-stone-900 dark:text-stone-100 mb-3">
                   Add New Customer
                 </h3>
                 <div className="space-y-3">
@@ -1344,7 +1344,7 @@ function CustomerManagementScreen({
                         name: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <input
                     type="email"
@@ -1356,7 +1356,7 @@ function CustomerManagementScreen({
                         email: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <input
                     type="tel"
@@ -1368,7 +1368,7 @@ function CustomerManagementScreen({
                         phone: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <div className="flex gap-2">
                     <button
@@ -1383,7 +1383,7 @@ function CustomerManagementScreen({
                         setShowAddForm(false);
                         setNewCustomerData({ name: "", email: "", phone: "" });
                       }}
-                      className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+                      className="flex-1 py-2 bg-stone-600 hover:bg-stone-500 text-white text-sm font-medium rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -1399,8 +1399,8 @@ function CustomerManagementScreen({
                   key={customer.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors group ${
                     selectedCustomerId === customer.id
-                      ? "border-cyan-500 bg-cyan-950/20"
-                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "border-amber-500 bg-amber-950/20"
+                      : "border-stone-300 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -1408,16 +1408,16 @@ function CustomerManagementScreen({
                       className="flex-1"
                       onClick={() => handleCustomerClick(customer)}
                     >
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                      <p className="font-medium text-stone-900 dark:text-stone-100">
                         {customer.name}
                       </p>
                       {customer.email && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-stone-500">
                           {customer.email}
                         </p>
                       )}
                       {customer.phone && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-stone-500">
                           {customer.phone}
                         </p>
                       )}
@@ -1729,40 +1729,40 @@ function PaymentScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex min-h-screen  bg-white dark:bg-slate-900 text-slate-900  dark:text-slate-200">
-      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex min-h-screen  bg-white dark:bg-stone-900 text-stone-900  dark:text-stone-200">
+      <div className="w-1/3 border-r border-stone-300 dark:border-stone-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Payment
             </p>
             {customer && (
-              <p className="text-xs text-cyan-400 mt-0.5">{customer.name}</p>
+              <p className="text-xs text-amber-400 mt-0.5">{customer.name}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
             Items
           </p>
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+              className="flex justify-between text-sm border-b border-stone-300 dark:border-stone-800 pb-2"
             >
-              <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
+              <span className="text-stone-700 dark:text-stone-300 truncate max-w-[65%]">
                 {item.qty !== 1 && (
-                  <span className="text-slate-500 mr-1">{item.qty}×</span>
+                  <span className="text-stone-500 mr-1">{item.qty}×</span>
                 )}
                 {item.title}
               </span>
-              <span className="tabular-nums text-slate-800 dark:text-slate-200">
+              <span className="tabular-nums text-stone-800 dark:text-stone-200">
                 ₦
                 {itemTotal(item).toLocaleString("en-NG", {
                   minimumFractionDigits: 2,
@@ -1771,20 +1771,20 @@ function PaymentScreen({
             </div>
           ))}
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 space-y-1.5 text-sm">
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+        <div className="px-5 py-4 border-t border-stone-200 dark:border-stone-700 space-y-1.5 text-sm">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Subtotal</span>
             <span>
               ₦{subtotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Tax</span>
             <span>
               ₦{taxTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="flex justify-between font-bold text-xl text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between font-bold text-xl text-amber-400 pt-2 border-t border-stone-200 dark:border-stone-700">
             <span>Total</span>
             <span>
               ₦{total.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
@@ -1797,32 +1797,32 @@ function PaymentScreen({
         <div className="flex items-center justify-between">
           <button
             onClick={onClose}
-            className="bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white text-sm font-medium px-5 py-2 rounded transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white text-sm font-medium px-5 py-2 rounded transition-colors"
           >
             Cancel
           </button>
           <div className="flex gap-2">
             <button
               onClick={() => setShowTaxManagement(true)}
-              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+              className="bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 text-sm px-4 py-2 rounded transition-colors"
             >
               Taxes
             </button>
             <button
               onClick={() => setShowDiscountManagement(true)}
-              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+              className="bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 text-sm px-4 py-2 rounded transition-colors"
             >
               Discount
             </button>
             <button
               onClick={() => toast.info("Rounds management coming soon!")}
-              className="bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm px-4 py-2 rounded transition-colors"
+              className="bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 text-sm px-4 py-2 rounded transition-colors"
             >
               Rounds
             </button>
             <button
               onClick={() => setShowCustomerManagement(true)}
-              className={`text-sm px-4 py-2 rounded transition-colors ${customer ? "bg-cyan-800 hover:bg-cyan-700 text-cyan-200 border border-cyan-600" : "bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
+              className={`text-sm px-4 py-2 rounded transition-colors ${customer ? "bg-amber-800 hover:bg-amber-700 text-amber-200 border border-amber-600" : "bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"}`}
             >
               {customer ? customer.name.split(" ")[0] : "Customer"}
             </button>
@@ -1830,21 +1830,21 @@ function PaymentScreen({
         </div>
 
         {/* Selected Items Display */}
-        <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 space-y-2">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
+        <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-3 space-y-2">
+          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold mb-2">
             Applied Items
           </p>
 
           {/* Selected Tax */}
           {selectedTax && (
-            <div className="flex items-center justify-between bg-purple-100 dark:bg-purple-900/30 rounded p-2">
+            <div className="flex items-center justify-between bg-rose-100 dark:bg-rose-900/30 rounded p-2">
               <div className="flex items-center gap-2">
-                <Receipt className="w-3 h-3 text-purple-600" />
-                <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                <Receipt className="w-3 h-3 text-rose-600" />
+                <span className="text-xs font-medium text-rose-700 dark:text-rose-300">
                   Tax
                 </span>
               </div>
-              <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+              <span className="text-xs font-bold text-rose-700 dark:text-rose-300">
                 {selectedTax.name} ({selectedTax.rate}%)
               </span>
             </div>
@@ -1869,21 +1869,21 @@ function PaymentScreen({
 
           {/* Selected Customer */}
           {customer && (
-            <div className="flex items-center justify-between bg-blue-100 dark:bg-blue-900/30 rounded p-2">
+            <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-900/30 rounded p-2">
               <div className="flex items-center gap-2">
-                <Users className="w-3 h-3 text-blue-600" />
-                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                <Users className="w-3 h-3 text-amber-600" />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
                   Customer
                 </span>
               </div>
-              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 truncate max-w-24">
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-300 truncate max-w-24">
                 {customer.name}
               </span>
             </div>
           )}
 
           {!selectedTax && !appliedDiscount && !customer && (
-            <div className="text-center text-xs text-slate-400 italic">
+            <div className="text-center text-xs text-stone-400 italic">
               No tax, discount, or customer selected
             </div>
           )}
@@ -1891,7 +1891,7 @@ function PaymentScreen({
 
         <div className="flex gap-6 flex-1 min-h-0">
           <div className="w-[180px] flex flex-col gap-2 shrink-0">
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
+            <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold mb-1">
               Payment type
             </p>
             {displayTypes.map((pt) => (
@@ -1900,8 +1900,8 @@ function PaymentScreen({
                 onClick={() => setSelectedPaymentType(pt.id)}
                 className={`w-full py-3 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
                   selectedPaymentType === pt.id
-                    ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    ? "bg-amber-900 border-amber-500 text-amber-200"
+                    : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                 }`}
               >
                 {pt.name.toLowerCase().includes("card") ? (
@@ -1920,8 +1920,8 @@ function PaymentScreen({
             <div className="space-y-3">
               {/* Subtotal */}
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Subtotal</p>
-                <p className="text-lg font-medium text-slate-300 tabular-nums">
+                <p className="text-xs text-stone-500 mb-0.5">Subtotal</p>
+                <p className="text-lg font-medium text-stone-300 tabular-nums">
                   ₦{formatPrice(subtotal)}
                 </p>
               </div>
@@ -1929,7 +1929,7 @@ function PaymentScreen({
               {/* Discount */}
               {discountAmount > 0 && (
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Discount</p>
+                  <p className="text-xs text-stone-500 mb-0.5">Discount</p>
                   <p className="text-lg font-medium text-orange-400 tabular-nums">
                     -₦{formatPrice(discountAmount)}
                   </p>
@@ -1938,20 +1938,20 @@ function PaymentScreen({
 
               {/* Tax */}
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Tax</p>
-                <p className="text-lg font-medium text-slate-300 tabular-nums">
+                <p className="text-xs text-stone-500 mb-0.5">Tax</p>
+                <p className="text-lg font-medium text-stone-300 tabular-nums">
                   ₦{formatPrice(adjustedTaxTotal)}
                 </p>
               </div>
 
               {/* Final Total */}
-              <div className="pt-2 border-t border-slate-300 dark:border-slate-700">
-                <p className="text-xs text-slate-500 mb-0.5">Total</p>
-                <p className="text-3xl font-bold text-cyan-400 tabular-nums">
+              <div className="pt-2 border-t border-stone-300 dark:border-stone-700">
+                <p className="text-xs text-stone-500 mb-0.5">Total</p>
+                <p className="text-3xl font-bold text-amber-400 tabular-nums">
                   ₦{formatPrice(finalTotal)}
                 </p>
                 {(discountAmount > 0 || selectedTax) && (
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-stone-400 mt-1">
                     {discountAmount > 0 &&
                       `Discount: -₦${formatPrice(discountAmount)} `}
                     {selectedTax && `Tax: ${selectedTax.rate}%`}
@@ -1959,7 +1959,7 @@ function PaymentScreen({
                 )}
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Paid</p>
+                <p className="text-xs text-stone-500 mb-0.5">Paid</p>
                 <input
                   ref={paidInputRef}
                   type="number"
@@ -1968,19 +1968,19 @@ function PaymentScreen({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleConfirm();
                   }}
-                  className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                  className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-3xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
                   placeholder="0.00"
                 />
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-0.5">Balance/Change</p>
+                <p className="text-xs text-stone-500 mb-0.5">Balance/Change</p>
                 <p
                   className={`text-2xl font-bold tabular-nums ${
                     balance > 0
                       ? "text-emerald-400"
                       : balance < 0
                         ? "text-red-400"
-                        : "text-slate-400"
+                        : "text-stone-400"
                   }`}
                 >
                   ₦{formatPrice(Math.abs(balance))}
@@ -2001,12 +2001,12 @@ function PaymentScreen({
                     onClick={() => handleKey(key)}
                     className={`py-4 rounded text-lg font-medium transition-colors ${
                       isBackspace
-                        ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                        ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
                         : isEnter
-                          ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
                           : isDash
-                            ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-sm"
-                            : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                            ? "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-300 text-sm"
+                            : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                     }`}
                     title={isDash ? "Set to exact total" : undefined}
                   >
@@ -2019,7 +2019,7 @@ function PaymentScreen({
             <button
               onClick={handleConfirm}
               disabled={!selectedPaymentType || paidAmount <= 0}
-              className="w-full py-4 mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              className="w-full py-4 mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-lg font-bold rounded transition-colors"
             >
               Confirm Payment · ₦
               {finalTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
@@ -2153,40 +2153,40 @@ function RefundScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700">
-          <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
+      <div className="w-1/3 border-r border-stone-300 dark:border-stone-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700">
+          <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
             Refund
           </p>
-          <p className="text-base font-semibold text-slate-900 dark:text-slate-100 mt-0.5">
+          <p className="text-base font-semibold text-stone-900 dark:text-stone-100 mt-0.5">
             {matchedDoc ? matchedDoc.number : "—"}
           </p>
           {matchedDoc?.customer?.name && (
-            <p className="text-xs text-cyan-400 mt-0.5">
+            <p className="text-xs text-amber-400 mt-0.5">
               {matchedDoc.customer.name}
             </p>
           )}
         </div>
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
             Refund items
           </p>
           {refundItems.length === 0 ? (
-            <p className="text-sm text-slate-600 py-4 text-center">
+            <p className="text-sm text-stone-600 py-4 text-center">
               {receipt.trim() ? "No items found" : "Enter receipt number"}
             </p>
           ) : (
             refundItems.map((item, i) => (
               <div
                 key={i}
-                className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+                className="flex justify-between text-sm border-b border-stone-300 dark:border-stone-800 pb-2"
               >
                 <div>
-                  <p className="text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
+                  <p className="text-stone-700 dark:text-stone-300 truncate max-w-[180px]">
                     {item.name}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-stone-500">
                     {item.qty} × ₦{formatPrice(item.price)}
                   </p>
                 </div>
@@ -2197,12 +2197,12 @@ function RefundScreen({
             ))
           )}
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700">
-          <p className="text-xs text-slate-500 uppercase tracking-wider">
+        <div className="px-5 py-4 border-t border-stone-200 dark:border-stone-700">
+          <p className="text-xs text-stone-500 uppercase tracking-wider">
             Total refund amount
           </p>
           <p
-            className={`text-2xl font-bold mt-1 tabular-nums ${refundTotal > 0 ? "text-cyan-400" : "text-slate-600"}`}
+            className={`text-2xl font-bold mt-1 tabular-nums ${refundTotal > 0 ? "text-amber-400" : "text-stone-600"}`}
           >
             {refundTotal > 0 ? `−₦${formatPrice(refundTotal)}` : "—"}
           </p>
@@ -2212,24 +2212,24 @@ function RefundScreen({
       <div className="w-2/3 p-6 flex flex-col relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors"
+          className="absolute top-4 right-4 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
         <div className="flex-1 flex flex-col items-center justify-center gap-8">
-          <div className="w-16 h-16 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-3xl text-slate-500 dark:text-slate-400 select-none">
+          <div className="w-16 h-16 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-3xl text-stone-500 dark:text-stone-400 select-none">
             ↩
           </div>
-          <p className="text-slate-500 dark:text-slate-400 text-center max-w-sm text-sm">
+          <p className="text-stone-500 dark:text-stone-400 text-center max-w-sm text-sm">
             Enter the receipt number and select a refund payment type to
             confirm.
           </p>
           <div className="w-96 flex flex-col gap-1.5">
-            <label className="text-xs text-slate-500 dark:text-slate-400">
+            <label className="text-xs text-stone-500 dark:text-stone-400">
               Receipt number
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
               <input
                 autoFocus
                 value={receipt}
@@ -2239,8 +2239,8 @@ function RefundScreen({
                 }}
                 onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
                 placeholder="e.g. POS-00012345"
-                className={`w-full bg-white dark:bg-slate-800 border pl-9 pr-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none transition-colors rounded-sm
-                  ${error ? "border-red-500 focus:border-red-400" : matchedDoc ? "border-emerald-500 focus:border-emerald-400" : "border-slate-600 focus:border-cyan-500"}`}
+                className={`w-full bg-white dark:bg-stone-800 border pl-9 pr-4 py-2.5 text-sm text-stone-900 dark:text-stone-100 focus:outline-none transition-colors rounded-sm
+                  ${error ? "border-red-500 focus:border-red-400" : matchedDoc ? "border-emerald-500 focus:border-emerald-400" : "border-stone-600 focus:border-amber-500"}`}
               />
               {matchedDoc && (
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
@@ -2255,7 +2255,7 @@ function RefundScreen({
             )}
           </div>
           <div className="flex flex-col items-center gap-3">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">
+            <p className="text-xs text-stone-500 uppercase tracking-wider">
               Refund payment type
             </p>
             <div className="flex gap-3 flex-wrap justify-center">
@@ -2267,10 +2267,10 @@ function RefundScreen({
                   <button
                     key={pt.id}
                     onClick={() => setPaymentType(pt.id || pt.name)}
-                    className={`relative px-7 py-4 border rounded text-sm font-medium transition-colors ${active ? "bg-cyan-700 border-cyan-500 text-slate-900 dark:text-white" : "bg-white dark:bg-slate-800 border-slate-600 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
+                    className={`relative px-7 py-4 border rounded text-sm font-medium transition-colors ${active ? "bg-amber-700 border-amber-500 text-stone-900 dark:text-white" : "bg-white dark:bg-stone-800 border-stone-600 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"}`}
                   >
                     {active && (
-                      <span className="absolute -top-2.5 -left-2.5 bg-cyan-500 rounded-full w-6 h-6 flex items-center justify-center text-xs text-slate-900 dark:text-white shadow">
+                      <span className="absolute -top-2.5 -left-2.5 bg-amber-500 rounded-full w-6 h-6 flex items-center justify-center text-xs text-stone-900 dark:text-white shadow">
                         ✓
                       </span>
                     )}
@@ -2281,17 +2281,17 @@ function RefundScreen({
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-300 dark:border-slate-800">
+        <div className="flex justify-end gap-3 pt-4 border-t border-stone-300 dark:border-stone-800">
           <button
             onClick={handleConfirm}
             disabled={!receipt.trim()}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white px-6 py-2.5 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white px-6 py-2.5 rounded text-sm font-medium transition-colors"
           >
             <Check className="w-4 h-4" /> OK
           </button>
           <button
             onClick={onClose}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white px-6 py-2.5 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white px-6 py-2.5 rounded text-sm font-medium transition-colors"
           >
             <X className="w-4 h-4" /> Cancel
           </button>
@@ -2390,18 +2390,18 @@ function TransferScreen({
     return (
       <div
         onClick={() => setSrcSel(sel ? null : item.id)}
-        className={`flex justify-between border-b border-slate-200 dark:border-slate-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none ${sel ? "bg-slate-100 dark:bg-slate-700 border-l-2 border-l-cyan-400" : "hover:bg-white dark:bg-slate-800/60"}`}
+        className={`flex justify-between border-b border-stone-200 dark:border-stone-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none ${sel ? "bg-stone-100 dark:bg-stone-700 border-l-2 border-l-amber-400" : "hover:bg-white dark:bg-stone-800/60"}`}
       >
         <div>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+          <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
             {item.title}
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-stone-500">
             {item.qty} × ₦
             {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300 self-center">
+        <span className="text-sm tabular-nums text-stone-700 dark:text-stone-300 self-center">
           ₦
           {(item.qty * item.cost * (1 - item.discount / 100)).toLocaleString(
             "en-NG",
@@ -2417,18 +2417,18 @@ function TransferScreen({
     return (
       <div
         onClick={() => setStageSel(sel ? null : item.id)}
-        className={`flex justify-between border border-cyan-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none ${sel ? "bg-cyan-700/60 border-cyan-400" : "bg-cyan-900/30 hover:bg-cyan-800/40"}`}
+        className={`flex justify-between border border-amber-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none ${sel ? "bg-amber-700/60 border-amber-400" : "bg-amber-900/30 hover:bg-amber-800/40"}`}
       >
         <div>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+          <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
             {item.title}
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-stone-500 dark:text-stone-400">
             {item.qty} × ₦
             {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <span className="text-sm tabular-nums text-cyan-300 self-center">
+        <span className="text-sm tabular-nums text-amber-300 self-center">
           ₦
           {(item.qty * item.cost * (1 - item.discount / 100)).toLocaleString(
             "en-NG",
@@ -2441,9 +2441,9 @@ function TransferScreen({
 
   function OrderPicker() {
     return (
-      <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-slate-800 border border-slate-600 rounded-sm shadow-xl max-h-48 overflow-auto">
+      <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-stone-800 border border-stone-600 rounded-sm shadow-xl max-h-48 overflow-auto">
         {openOrders.length === 0 ? (
-          <p className="text-xs text-slate-500 px-3 py-4 text-center">
+          <p className="text-xs text-stone-500 px-3 py-4 text-center">
             No open orders
           </p>
         ) : (
@@ -2454,10 +2454,10 @@ function TransferScreen({
                 setTargetDocId(doc.id);
                 setShowOrderPicker(false);
               }}
-              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex justify-between ${targetDocId === doc.id ? "bg-cyan-700/40 text-cyan-200" : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700"}`}
+              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex justify-between ${targetDocId === doc.id ? "bg-amber-700/40 text-amber-200" : "text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700"}`}
             >
               <span className="font-mono">{doc.number}</span>
-              <span className="text-slate-500 text-xs">
+              <span className="text-stone-500 text-xs">
                 ₦{(doc.total ?? 0).toFixed(2)}
               </span>
             </button>
@@ -2479,7 +2479,7 @@ function TransferScreen({
     <button
       onClick={onClick}
       title={title}
-      className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 border border-slate-600 px-4 py-2.5 rounded text-lg font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-colors w-12 text-center"
+      className="bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 border border-stone-600 px-4 py-2.5 rounded text-lg font-bold text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white transition-colors w-12 text-center"
     >
       {label}
     </button>
@@ -2497,26 +2497,26 @@ function TransferScreen({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-2.5 px-3 bg-white dark:bg-slate-800 border border-slate-600 rounded text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700 hover:text-slate-900 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left"
+      className="w-full py-2.5 px-3 bg-white dark:bg-stone-800 border border-stone-600 rounded text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700 hover:text-stone-900 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left"
     >
       {label}
     </button>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-      <div className="w-[30%] border-r border-slate-300 dark:border-slate-700 flex flex-col">
-        <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-700">
-          <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-wider font-semibold">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
+      <div className="w-[30%] border-r border-stone-300 dark:border-stone-700 flex flex-col">
+        <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-700">
+          <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-wider font-semibold">
             Order items
           </p>
-          <p className="text-xs text-slate-600 mt-0.5">
+          <p className="text-xs text-stone-600 mt-0.5">
             {source.length} item{source.length !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex-1 overflow-auto px-3 py-2">
           {source.length === 0 ? (
-            <p className="text-xs text-slate-600 text-center py-8">
+            <p className="text-xs text-stone-600 text-center py-8">
               All items transferred
             </p>
           ) : (
@@ -2525,25 +2525,25 @@ function TransferScreen({
         </div>
       </div>
 
-      <div className="w-[8%] flex flex-col items-center justify-center gap-3 border-r border-slate-300 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-900/50">
+      <div className="w-[8%] flex flex-col items-center justify-center gap-3 border-r border-stone-300 dark:border-stone-700 bg-stone-100/50 dark:bg-stone-900/50">
         <CtrlBtn label="›" onClick={moveOne} title="Move selected →" />
         <CtrlBtn label="»" onClick={moveAll} title="Move all →" />
         <CtrlBtn label="‹" onClick={removeOne} title="← Move back" />
         <CtrlBtn label="«" onClick={removeAll} title="← Move all back" />
       </div>
 
-      <div className="w-[30%] border-r border-slate-200 dark:border-slate-700 flex flex-col">
-        <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+      <div className="w-[30%] border-r border-stone-200 dark:border-stone-700 flex flex-col">
+        <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-700">
+          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">
             Selected for transfer
           </p>
-          <p className="text-xs text-slate-600 mt-0.5">
+          <p className="text-xs text-stone-600 mt-0.5">
             {staged.length} item{staged.length !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex-1 overflow-auto px-3 py-2">
           {staged.length === 0 ? (
-            <p className="text-xs text-slate-600 text-center py-8">
+            <p className="text-xs text-stone-600 text-center py-8">
               No items staged
             </p>
           ) : (
@@ -2551,9 +2551,9 @@ function TransferScreen({
           )}
         </div>
         {staged.length > 0 && (
-          <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm">
-            <span className="text-slate-500">Transfer total</span>
-            <span className="text-cyan-400 font-medium tabular-nums">
+          <div className="px-4 py-2.5 border-t border-stone-200 dark:border-stone-700 flex justify-between text-sm">
+            <span className="text-stone-500">Transfer total</span>
+            <span className="text-amber-400 font-medium tabular-nums">
               ₦
               {staged
                 .reduce(
@@ -2568,10 +2568,10 @@ function TransferScreen({
 
       <div className="flex-1 flex flex-col p-4 gap-3">
         <div className="relative">
-          <p className="text-xs text-slate-500 mb-1">Target order</p>
+          <p className="text-xs text-stone-500 mb-1">Target order</p>
           <button
             onClick={() => setShowOrderPicker(!showOrderPicker)}
-            className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center ${targetDoc ? "bg-cyan-900/30 border-cyan-600 text-cyan-200" : "bg-white dark:bg-slate-800 border-slate-600 text-slate-500 dark:text-slate-400 hover:border-slate-500"}`}
+            className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center ${targetDoc ? "bg-amber-900/30 border-amber-600 text-amber-200" : "bg-white dark:bg-stone-800 border-stone-600 text-stone-500 dark:text-stone-400 hover:border-stone-500"}`}
           >
             <span className="font-mono">
               {targetDoc ? targetDoc.number : "Select order…"}
@@ -2602,17 +2602,17 @@ function TransferScreen({
           />
           <ActionBtn label="Transfer all orders" onClick={() => {}} disabled />
         </div>
-        <div className="flex gap-2 justify-end pt-2 border-t border-slate-300 dark:border-slate-800">
+        <div className="flex gap-2 justify-end pt-2 border-t border-stone-300 dark:border-stone-800">
           <button
             onClick={handleOk}
             disabled={staged.length === 0}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
           >
             <Check className="w-4 h-4" /> OK
           </button>
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
           >
             <X className="w-4 h-4" /> Cancel
           </button>
@@ -2621,7 +2621,7 @@ function TransferScreen({
 
       <button
         onClick={onClose}
-        className="absolute top-3 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors"
+        className="absolute top-3 right-4 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white transition-colors"
       >
         <X className="w-5 h-5" />
       </button>
@@ -2640,24 +2640,24 @@ function VoidModal({
 }) {
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-slate-900 border border-red-300 dark:border-red-800 rounded-2xl w-80 shadow-2xl p-6 text-center">
+      <div className="bg-white dark:bg-stone-900 border border-red-300 dark:border-red-800 rounded-2xl w-80 shadow-2xl p-6 text-center">
         <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-        <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
+        <p className="text-lg font-bold text-stone-900 dark:text-stone-100 mb-1">
           Void Order?
         </p>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+        <p className="text-sm text-stone-600 dark:text-stone-400 mb-6">
           This will clear all items from the cart. This cannot be undone.
         </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-2 text-sm text-slate-500 dark:text-slate-400"
+            className="flex-1 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 rounded-xl py-2 text-sm text-stone-500 dark:text-stone-400"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 bg-red-600 hover:bg-red-500 rounded-xl py-2 text-sm font-bold text-slate-900 dark:text-white"
+            className="flex-1 bg-red-600 hover:bg-red-500 rounded-xl py-2 text-sm font-bold text-stone-900 dark:text-white"
           >
             Void
           </button>
@@ -2688,11 +2688,11 @@ function CommentModal({
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-96 shadow-2xl p-5">
-        <p className="text-xs text-slate-600 dark:text-slate-400 uppercase tracking-widest font-semibold mb-1">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-96 shadow-2xl p-5">
+        <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold mb-1">
           Note
         </p>
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3 truncate">
+        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 mb-3 truncate">
           {item?.title ?? "Order note"}
         </p>
         <textarea
@@ -2701,12 +2701,12 @@ function CommentModal({
           onChange={(e) => setNote(e.target.value)}
           rows={4}
           placeholder="Add a note or special instruction…"
-          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500 resize-none mb-3"
+          className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-900 dark:text-stone-100 outline-none focus:border-amber-500 resize-none mb-3"
         />
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 rounded-xl py-2 text-sm text-slate-500 dark:text-slate-400"
+            className="flex-1 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 rounded-xl py-2 text-sm text-stone-500 dark:text-stone-400"
           >
             Cancel
           </button>
@@ -2715,7 +2715,7 @@ function CommentModal({
               onSave(note);
               onClose();
             }}
-            className="flex-1 bg-cyan-600 hover:bg-cyan-500 rounded-xl py-2 text-sm font-semibold text-slate-900 dark:text-white"
+            className="flex-1 bg-amber-600 hover:bg-amber-500 rounded-xl py-2 text-sm font-semibold text-stone-900 dark:text-white"
           >
             Save
           </button>
@@ -2734,8 +2734,8 @@ function CashDrawerToast({ onClose }: { onClose: () => void }) {
   }, [onClose]);
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-emerald-800 border border-emerald-500 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
-      <ImDrawer className="w-5 h-5 text-slate-900 dark:text-white" />
-      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+      <ImDrawer className="w-5 h-5 text-stone-900 dark:text-white" />
+      <p className="text-sm font-semibold text-stone-900 dark:text-white">
         Cash drawer opened
       </p>
     </div>
@@ -2748,9 +2748,9 @@ function SaveToast({ onClose }: { onClose: () => void }) {
     return () => clearTimeout(t);
   }, [onClose]);
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-white dark:bg-slate-800 border border-slate-600 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
-      <Save className="w-5 h-5 text-cyan-400" />
-      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-60 bg-white dark:bg-stone-800 border border-stone-600 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-3">
+      <Save className="w-5 h-5 text-amber-400" />
+      <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
         Sale saved as draft
       </p>
     </div>
@@ -2775,7 +2775,7 @@ function InlineWarning({
       <p className="text-sm font-semibold text-amber-200">{message}</p>
       <button
         onClick={onClose}
-        className="text-amber-400 hover:text-slate-900 dark:text-white ml-2"
+        className="text-amber-400 hover:text-stone-900 dark:text-white ml-2"
       >
         <X className="w-4 h-4" />
       </button>
@@ -2787,7 +2787,7 @@ function InlineWarning({
 
 function ZoneLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[9px] uppercase tracking-[0.08em] text-slate-600 font-semibold mb-1.5 px-0.5">
+    <p className="text-[9px] uppercase tracking-[0.08em] text-stone-600 font-semibold mb-1.5 px-0.5">
       {children}
     </p>
   );
@@ -2821,12 +2821,12 @@ function ActBtn({
           danger
             ? "bg-red-900/60 border-red-800 hover:bg-red-800 text-red-300"
             : active
-              ? "bg-cyan-950 border-cyan-700 hover:bg-cyan-900 text-cyan-300"
-              : "bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+              ? "bg-amber-950 border-amber-700 hover:bg-amber-900 text-amber-300"
+              : "bg-stone-100 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-stone-200 dark:hover:bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300"
         }`}
     >
       {hotkey && (
-        <span className="absolute top-1 left-1.5 text-[8px] text-slate-600 leading-none">
+        <span className="absolute top-1 left-1.5 text-[8px] text-stone-600 leading-none">
           {hotkey}
         </span>
       )}
@@ -3547,7 +3547,7 @@ export default function AroniumLite() {
   };
 
   return (
-    <div className="h-dvh w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden">
+    <div className="h-dvh w-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col overflow-hidden">
       {/* Toasts */}
       {showCashDrawer && (
         <CashDrawerToast onClose={() => setShowCashDrawer(false)} />
@@ -3679,11 +3679,11 @@ export default function AroniumLite() {
       <SidebarDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* ── Header ── */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5">
+      <header className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 py-2.5">
         <div className="flex items-center gap-3">
           {/* Brand */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
+            <div className="w-6 h-6 rounded-full bg-amber-400 text-black flex items-center justify-center text-xs font-bold">
               A
             </div>
             <span className="text-sm font-medium hidden md:block">
@@ -3741,8 +3741,8 @@ export default function AroniumLite() {
               styles={{
                 control: (b) => ({
                   ...b,
-                  backgroundColor: "#020617",
-                  borderColor: "#334155",
+                  backgroundColor: "#1c1917",
+                  borderColor: "#44403c",
                   minHeight: "34px",
                   boxShadow: "none",
                 }),
@@ -3763,7 +3763,7 @@ export default function AroniumLite() {
           {/* Status chips — only shown when active */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {selectedCustomer && (
-              <span className="flex items-center gap-1 bg-cyan-950 border border-cyan-800 rounded px-2 py-0.5 text-xs text-cyan-300">
+              <span className="flex items-center gap-1 bg-orange-950 border border-orange-800 rounded px-2 py-0.5 text-xs text-orange-300">
                 <UserCheck className="w-3 h-3" />
                 {selectedCustomer.name.split(" ")[0]}
                 <button
@@ -3777,7 +3777,7 @@ export default function AroniumLite() {
             {dineIn && (
               <button
                 onClick={() => setDineIn(false)}
-                className="flex items-center gap-1 bg-cyan-950 border border-cyan-800 rounded px-2 py-0.5 text-xs text-cyan-300 hover:bg-cyan-900"
+                className="flex items-center gap-1 bg-orange-950 border border-orange-800 rounded px-2 py-0.5 text-xs text-orange-300 hover:bg-orange-900"
               >
                 <Accessibility className="w-3 h-3" /> Dine-in{" "}
                 <X className="w-3 h-3 opacity-50" />
@@ -3800,7 +3800,7 @@ export default function AroniumLite() {
             {orderNote && (
               <button
                 onClick={() => setModal("comment")}
-                className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-700"
+                className="flex items-center gap-1 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded px-2 py-0.5 text-xs text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:bg-stone-700"
               >
                 <MessageSquare className="w-3 h-3" /> Note
               </button>
@@ -3809,19 +3809,19 @@ export default function AroniumLite() {
 
           {/* User + controls — pushed right */}
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            <span className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="hidden lg:flex items-center gap-1.5 text-xs text-stone-500">
               Signed in:{" "}
-              <strong className="text-slate-700 dark:text-slate-300 font-medium">
+              <strong className="text-stone-700 dark:text-stone-300 font-medium">
                 {useAuth().user?.username ?? "—"}
               </strong>
             </span>
             <button
               onClick={() => setDrawerOpen(true)}
-              className="p-1.5 rounded hover:bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors"
+              className="p-1.5 rounded hover:bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 transition-colors"
             >
               <Menu className="w-4 h-4" />
             </button>
-            <button className="p-1.5 rounded hover:bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-colors">
+            <button className="p-1.5 rounded hover:bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 transition-colors">
               <Hash className="w-4 h-4" />
             </button>
           </div>
@@ -3833,9 +3833,9 @@ export default function AroniumLite() {
         <Group orientation="horizontal" className="h-full gap-2">
           {/* ── LEFT: Cart ── */}
           <Panel defaultSize={76} minSize={50}>
-            <div className="h-full flex flex-col rounded border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+            <div className="h-full flex flex-col rounded border border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
               {/* Column headers */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 text-[10px] font-semibold border-b border-slate-300 dark:border-slate-800 text-slate-500 uppercase tracking-wider shrink-0">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 text-[10px] font-semibold border-b border-stone-300 dark:border-stone-800 text-stone-500 uppercase tracking-wider shrink-0">
                 <div>Product</div>
                 <div className="text-right">Qty</div>
                 <div className="text-right">Price</div>
@@ -3845,7 +3845,7 @@ export default function AroniumLite() {
               {/* Items */}
               <div className="flex-1 overflow-auto">
                 {items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-slate-600 select-none">
+                  <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-stone-600 select-none">
                     <p className="text-xl font-medium">Cart is empty</p>
                     <p className="text-sm">
                       Search or scan a product to add it
@@ -3859,14 +3859,14 @@ export default function AroniumLite() {
                       onDoubleClick={() =>
                         !item.isLocked && openQtyModal(item, item.qty)
                       }
-                      className={`grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors ${
+                      className={`grid grid-cols-[2fr_1fr_1fr_1fr] px-5 py-2.5 border-b border-stone-300 dark:border-stone-800/60 cursor-pointer select-none transition-colors ${
                         selectedItemId === item.id
                           ? "bg-emerald-900/30 border-l-2 border-l-emerald-500"
-                          : "hover:bg-white dark:bg-slate-800/40"
+                          : "hover:bg-white dark:bg-stone-800/40"
                       }`}
                     >
                       <div className="flex flex-col justify-center min-w-0">
-                        <span className="truncate text-sm text-slate-800 dark:text-slate-200">
+                        <span className="truncate text-sm text-stone-800 dark:text-stone-200">
                           {item.title}
                           {item.isLocked && (
                             <Lock className="inline w-3 h-3 text-amber-500 ml-1.5 mb-0.5" />
@@ -3877,24 +3877,24 @@ export default function AroniumLite() {
                             className={`text-[8px] font-bold px-1 rounded uppercase tracking-tighter ${
                               item.priceLabel === "Wholesale"
                                 ? "bg-amber-900/40 text-amber-400 border border-amber-800"
-                                : "bg-sky-900/40 text-sky-400 border border-sky-800"
+                                : "bg-yellow-900/40 text-yellow-400 border border-yellow-800"
                             }`}
                           >
                             {item.priceLabel}
                           </span>
                           {item.unit && (
-                            <span className="text-[10px] text-slate-600">
+                            <span className="text-[10px] text-stone-600">
                               {item.unit}
                             </span>
                           )}
                         </div>
                       </div>
                       <div
-                        className={`text-right text-sm self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-700 dark:text-slate-300"}`}
+                        className={`text-right text-sm self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-stone-700 dark:text-stone-300"}`}
                       >
                         {item.qty}
                       </div>
-                      <div className="text-right text-sm self-center tabular-nums text-slate-500 dark:text-slate-400">
+                      <div className="text-right text-sm self-center tabular-nums text-stone-500 dark:text-stone-400">
                         <button
                           onClick={(e) =>
                             !item.isLocked && toggleItemPrice(e, item.id)
@@ -3902,7 +3902,7 @@ export default function AroniumLite() {
                           className={`px-1.5 py-0.5 rounded transition-colors ${
                             item.isLocked
                               ? "cursor-not-allowed opacity-60"
-                              : "hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                              : "hover:text-amber-600 dark:hover:text-amber-400 hover:bg-stone-200 dark:hover:bg-stone-700"
                           }`}
                           title={
                             item.isLocked
@@ -3914,7 +3914,7 @@ export default function AroniumLite() {
                         </button>
                       </div>
                       <div
-                        className={`text-right text-sm font-medium self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-slate-800 dark:text-slate-200"}`}
+                        className={`text-right text-sm font-medium self-center tabular-nums ${item.qty < 0 ? "text-red-400" : "text-stone-800 dark:text-stone-200"}`}
                       >
                         ₦{formatPrice(itemTotal(item))}
                       </div>
@@ -3924,8 +3924,8 @@ export default function AroniumLite() {
               </div>
 
               {/* Totals footer */}
-              <div className="border-t border-slate-300 dark:border-slate-800 px-5 py-3 space-y-1 shrink-0">
-                <div className="flex justify-between text-xs text-slate-500">
+              <div className="border-t border-stone-300 dark:border-stone-800 px-5 py-3 space-y-1 shrink-0">
+                <div className="flex justify-between text-xs text-stone-500">
                   <span>Subtotal</span>
                   <span className="tabular-nums">
                     ₦{formatPrice(subtotalGross)}
@@ -3939,15 +3939,15 @@ export default function AroniumLite() {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-stone-500">
                   <span>Tax</span>
                   <span className="tabular-nums">₦{formatPrice(taxTotal)}</span>
                 </div>
-                <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-slate-300 dark:border-slate-800">
-                  <span className="text-slate-800 dark:text-slate-200">
+                <div className="flex justify-between font-semibold text-base pt-1.5 border-t border-stone-300 dark:border-stone-800">
+                  <span className="text-stone-800 dark:text-stone-200">
                     Total
                   </span>
-                  <span className="tabular-nums text-slate-900 dark:text-slate-100">
+                  <span className="tabular-nums text-stone-900 dark:text-stone-100">
                     ₦{formatPrice(total)}
                   </span>
                 </div>
@@ -3955,13 +3955,13 @@ export default function AroniumLite() {
             </div>
           </Panel>
 
-          <Separator className="w-px bg-white dark:bg-slate-800 hover:bg-slate-600 transition-colors cursor-col-resize" />
+          <Separator className="w-px bg-white dark:bg-stone-800 hover:bg-stone-600 transition-colors cursor-col-resize" />
 
           {/* ── RIGHT: Actions panel ── */}
           <Panel defaultSize={24} minSize={18}>
-            <div className="h-full flex flex-col overflow-y-auto gap-0 bg-white dark:bg-slate-900 rounded border border-slate-300 dark:border-slate-800">
+            <div className="h-full flex flex-col overflow-y-auto gap-0 bg-white dark:bg-stone-900 rounded border border-stone-300 dark:border-stone-800">
               {/* ── Zone: Item actions ── */}
-              <div className="px-2 pt-2.5 pb-2 border-b border-slate-300 dark:border-slate-800">
+              <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Item</ZoneLabel>
                 <div className="grid grid-cols-4 gap-1.5">
                   <ActBtn
@@ -4003,7 +4003,7 @@ export default function AroniumLite() {
               </div>
 
               {/* ── Zone: Order ── */}
-              <div className="px-2 pt-2.5 pb-2 border-b border-slate-300 dark:border-slate-800">
+              <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Order</ZoneLabel>
                 <div className="grid grid-cols-4 gap-1.5">
                   <ActBtn
@@ -4029,18 +4029,18 @@ export default function AroniumLite() {
               </div>
 
               {/* ── Zone: Quick pay ── */}
-              <div className="px-2 pt-2.5 pb-2 border-b border-slate-300 dark:border-slate-800">
+              <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Quick pay</ZoneLabel>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={() => handleQuickPay("cash")}
-                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 border-b-2 border-b-emerald-600 rounded h-10 hover:bg-slate-100 dark:hover:bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                    className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 border-b-2 border-b-emerald-600 rounded h-10 hover:bg-stone-100 dark:hover:bg-white dark:bg-stone-800 text-xs font-medium text-stone-700 dark:text-stone-300 transition-colors"
                   >
                     F12 Cash
                   </button>
                   <button
                     onClick={() => handleQuickPay("card")}
-                    className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 border-b-2 border-b-blue-600 rounded h-10 hover:bg-slate-100 dark:hover:bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors"
+                    className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 border-b-2 border-b-amber-600 rounded h-10 hover:bg-stone-100 dark:hover:bg-white dark:bg-stone-800 text-xs font-medium text-stone-700 dark:text-stone-300 transition-colors"
                   >
                     Card
                   </button>
@@ -4048,11 +4048,11 @@ export default function AroniumLite() {
               </div>
 
               {/* ── Zone: Payment (primary CTA) ── */}
-              <div className="px-2 pt-2.5 pb-2 border-b border-slate-300 dark:border-slate-800">
+              <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <button
                   onClick={openPayment}
                   disabled={items.length === 0}
-                  className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed rounded flex flex-col items-center justify-center gap-0.5 py-4 text-slate-900 dark:text-white font-semibold transition-colors"
+                  className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed rounded flex flex-col items-center justify-center gap-0.5 py-4 text-stone-900 dark:text-white font-semibold transition-colors"
                 >
                   <span className="text-[10px] opacity-70 font-normal">
                     F10
@@ -4067,28 +4067,28 @@ export default function AroniumLite() {
               </div>
 
               {/* ── Zone: Document ── */}
-              <div className="px-2 pt-2.5 pb-2 border-b border-slate-300 dark:border-slate-800">
+              <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Document</ZoneLabel>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={saveSale}
                     disabled={items.length === 0 || createDocument.isPending}
-                    className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
                   >
-                    <Save className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-[9px] text-slate-500 font-medium">
+                    <Save className="w-4 h-4 text-stone-500 dark:text-stone-400" />
+                    <span className="text-[9px] text-stone-500 font-medium">
                       F9
                     </span>
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300">
+                    <span className="text-[10px] text-stone-700 dark:text-stone-300">
                       Save
                     </span>
                   </button>
                   <button
                     onClick={() => setModal("refund")}
-                    className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 rounded py-2.5 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 rounded py-2.5 transition-colors"
                   >
-                    <RefreshCw className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-[10px] text-slate-700 dark:text-slate-300">
+                    <RefreshCw className="w-4 h-4 text-stone-500 dark:text-stone-400" />
+                    <span className="text-[10px] text-stone-700 dark:text-stone-300">
                       Refund
                     </span>
                   </button>
@@ -4109,7 +4109,7 @@ export default function AroniumLite() {
                   </button>
                   <button
                     onClick={toggleLock}
-                    className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 rounded py-2.5 transition-colors text-slate-500 dark:text-slate-400"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 rounded py-2.5 transition-colors text-stone-500 dark:text-stone-400"
                   >
                     {selectedItem?.isLocked ? (
                       <>
@@ -4125,7 +4125,7 @@ export default function AroniumLite() {
                   </button>
                   <button
                     onClick={() => setDrawerOpen(true)}
-                    className="flex flex-col items-center justify-center gap-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:bg-white dark:bg-slate-800 rounded py-2.5 transition-colors text-slate-500 dark:text-slate-400"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 rounded py-2.5 transition-colors text-stone-500 dark:text-stone-400"
                   >
                     <BsThreeDots className="w-4 h-4" />
                     <span className="text-[10px]">More</span>

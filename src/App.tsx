@@ -95,10 +95,10 @@ function Unauthorized({
       <div className="mb-4 rounded-full bg-red-100 text-red-700 w-16 h-16 flex items-center justify-center text-2xl">
         !
       </div>
-      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+      <h1 className="text-2xl font-semibold text-stone-900 dark:text-stone-100 mb-2">
         Access denied
       </h1>
-      <p className="max-w-lg text-sm text-slate-600 dark:text-slate-300">
+      <p className="max-w-lg text-sm text-stone-600 dark:text-stone-300">
         You don&apos;t have permission to view this page.
         {permission ? (
           <span>
@@ -109,7 +109,7 @@ function Unauthorized({
       <div className="mt-6 flex flex-col sm:flex-row gap-3">
         <a
           href="/"
-          className="inline-flex items-center justify-center rounded-full bg-slate-900 text-white px-5 py-2 text-sm hover:bg-slate-700 transition-colors"
+          className="inline-flex items-center justify-center rounded-full bg-stone-900 text-white px-5 py-2 text-sm hover:bg-stone-700 transition-colors"
         >
           Back to home
         </a>
@@ -224,12 +224,12 @@ const PaymentScreen = lazy(() => import("./pages/payment"));
 
 function AppLoader() {
   return (
-    <div className="min-h-screen bg-white dark:bg-[#020617] flex items-center justify-center">
+    <div className="min-h-screen bg-white dark:bg-[#1c1917] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-cyan-500 flex items-center justify-center text-black font-bold text-xl animate-pulse">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-black font-bold text-xl animate-pulse">
           A
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
+        <p className="text-sm text-stone-600 dark:text-stone-400">Loading…</p>
       </div>
     </div>
   );
@@ -238,8 +238,8 @@ function AppLoader() {
 const Loader = () => (
   <div className="flex items-center justify-center h-[60vh]">
     <div className="flex flex-col items-center gap-3">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 dark:border-slate-600 border-t-slate-900 dark:border-t-white" />
-      <p className="text-sm text-slate-600 dark:text-slate-400">Loading...</p>
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-stone-300 dark:border-stone-600 border-t-stone-900 dark:border-t-white" />
+      <p className="text-sm text-stone-600 dark:text-stone-400">Loading...</p>
     </div>
   </div>
 );

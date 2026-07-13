@@ -99,6 +99,50 @@ export interface Settings {
   deviceName: string;
   storeName: string;
   storeId: string;
+
+  // Order & payment
+  defaultOrderType: string;
+  askOrderTypeOnSale: boolean;
+  enableTips: boolean;
+  tipSuggestions: string;
+  enableServiceCharge: boolean;
+  serviceChargeName: string;
+  serviceChargeRate: number;
+  roundTotalAmount: boolean;
+  roundingIncrement: number;
+  allowSplitPayment: boolean;
+  allowPartialPayment: boolean;
+  defaultPaymentType: string;
+  requireCustomerForCreditSale: boolean;
+  confirmBeforeVoidingItem: boolean;
+  confirmBeforeCancelingSale: boolean;
+
+  // Documents
+  defaultDocumentType: string;
+  autoPrintOnSave: boolean;
+  autoEmailOnSave: boolean;
+  documentNumberPrefix: string;
+  documentNumberPadding: number;
+  resetDocumentNumberYearly: boolean;
+  allowEditingClosedDocuments: boolean;
+  requireApprovalForRefunds: boolean;
+  defaultInvoiceDueDays: number;
+
+  // Weighing scale
+  weighingScaleEnabled: boolean;
+  weighingScalePort: string;
+  weighingScaleBaudRate: string;
+  weighingScaleProtocol: string;
+  weighingScaleUnit: string;
+  weighingScaleAutoRead: boolean;
+
+  // Customer display
+  customerDisplayEnabled: boolean;
+  customerDisplayType: string;
+  customerDisplayPort: string;
+  customerDisplayWelcomeMessage: string;
+  customerDisplayShowLineItems: boolean;
+  customerDisplayShowLogo: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -200,6 +244,50 @@ export const DEFAULT_SETTINGS: Settings = {
   deviceName: "POS Terminal",
   storeName: "Axis POS Store",
   storeId: "store-001",
+
+  // Order & payment
+  defaultOrderType: "Dine in",
+  askOrderTypeOnSale: false,
+  enableTips: false,
+  tipSuggestions: "5,10,15,20",
+  enableServiceCharge: false,
+  serviceChargeName: "Service charge",
+  serviceChargeRate: 0,
+  roundTotalAmount: false,
+  roundingIncrement: 0.05,
+  allowSplitPayment: true,
+  allowPartialPayment: true,
+  defaultPaymentType: "Cash",
+  requireCustomerForCreditSale: true,
+  confirmBeforeVoidingItem: true,
+  confirmBeforeCancelingSale: true,
+
+  // Documents
+  defaultDocumentType: "Receipt",
+  autoPrintOnSave: true,
+  autoEmailOnSave: false,
+  documentNumberPrefix: "",
+  documentNumberPadding: 6,
+  resetDocumentNumberYearly: false,
+  allowEditingClosedDocuments: false,
+  requireApprovalForRefunds: true,
+  defaultInvoiceDueDays: 14,
+
+  // Weighing scale
+  weighingScaleEnabled: false,
+  weighingScalePort: "",
+  weighingScaleBaudRate: "9600",
+  weighingScaleProtocol: "Generic",
+  weighingScaleUnit: "kg",
+  weighingScaleAutoRead: true,
+
+  // Customer display
+  customerDisplayEnabled: false,
+  customerDisplayType: "Secondary monitor",
+  customerDisplayPort: "",
+  customerDisplayWelcomeMessage: "Welcome!",
+  customerDisplayShowLineItems: true,
+  customerDisplayShowLogo: true,
 };
 
 const SETTINGS_KEY = "axis_lite_settings";

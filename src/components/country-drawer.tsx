@@ -45,7 +45,7 @@ export default function CountryDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2">
+      <DrawerContent className="bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 px-2">
         <DrawerHeader>
           <DrawerTitle>
             {initialData ? "Edit country" : "New country"}
@@ -54,7 +54,7 @@ export default function CountryDrawer({
 
         <div className="flex flex-col gap-4 mt-6">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-600 dark:text-slate-400">
+            <label className="text-xs text-stone-600 dark:text-stone-400">
               Country name
             </label>
             <Input
@@ -65,7 +65,7 @@ export default function CountryDrawer({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-600 dark:text-slate-400">
+            <label className="text-xs text-stone-600 dark:text-stone-400">
               Country code
             </label>
             <Input

@@ -32,7 +32,6 @@ import { copyFile } from "@tauri-apps/plugin-fs";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { useTaxes } from "@/hooks/controllers/taxes";
 import { importAroniumDatabase } from "../../helpers/aroniumImporter";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -71,11 +70,11 @@ export default function SettingsPage() {
     description: string;
   } | null>(null);
   const [isCheckingSqlServer, setIsCheckingSqlServer] = useState(false);
-  const [isInstallingSqlServer, setIsInstallingSqlServer] = useState(false);
-  // Live progress lines streamed from the Rust side while the LocalDB
-  // installer downloads and runs. Lines starting with "ERROR" are
-  // highlighted in the panel below.
-  const [installLogs, setInstallLogs] = useState<string[]>([]);
+
+  // Official Microsoft download URL for the en-US, x64 SqlLocalDB.msi
+  // installer — kept in sync with src-tauri/src/commands/sql_server.rs.
+  const SQL_LOCALDB_DOWNLOAD_URL =
+    "https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SqlLocalDB.msi";
 
   const checkSqlServer = async () => {
     setIsCheckingSqlServer(true);
@@ -97,29 +96,12 @@ export default function SettingsPage() {
     }
   };
 
-  const handleInstallSqlServer = async () => {
-    setIsInstallingSqlServer(true);
-    setInstallLogs([]);
-
-    // Stream step-by-step progress from the Rust command (download started,
-    // bytes downloaded, msiexec launched, etc.) into the log panel below.
-    const unlisten = await listen<string>("sql-install-log", (event) => {
-      setInstallLogs((prev) => [...prev, event.payload]);
-    });
-
+  const handleDownloadSqlServer = async () => {
     try {
-      await invoke("install_sql_server_localdb");
-      setInstallLogs((prev) => [...prev, "Re-checking SQL Server status..."]);
-      // Re-check after install completes
-      await checkSqlServer();
+      await shellOpen(SQL_LOCALDB_DOWNLOAD_URL);
     } catch (err) {
-      setInstallLogs((prev) => [...prev, `ERROR: ${err}`]);
-      alert(
-        "Installation failed. See the log under the install button for full details.",
-      );
-    } finally {
-      unlisten();
-      setIsInstallingSqlServer(false);
+      console.error(err);
+      alert("Failed to open download link: " + err);
     }
   };
 
@@ -180,16 +162,16 @@ export default function SettingsPage() {
   };
 
   const theme = dark
-    ? "bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-    : "bg-white text-slate-900";
+    ? "bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+    : "bg-white text-stone-900";
 
   const card = dark
-    ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-    : "bg-slate-100 border-slate-200";
+    ? "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700"
+    : "bg-stone-100 border-stone-200";
 
   const input = dark
-    ? "bg-slate-100 dark:bg-slate-700 border-slate-600 text-slate-900 dark:text-white"
-    : "bg-white border-slate-300 text-black";
+    ? "bg-stone-100 dark:bg-stone-700 border-stone-600 text-stone-900 dark:text-white"
+    : "bg-white border-stone-300 text-black";
 
   const menuItems = [
     { label: "General", icon: Settings },
@@ -253,7 +235,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition-colors"
           >
             <ChevronLeft size={20} />
           </button>
@@ -269,8 +251,8 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab(item.label)}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   isActive
-                    ? "bg-indigo-500 text-white"
-                    : `hover:bg-slate-200 dark:hover:bg-slate-700 ${dark ? "text-slate-100 hover:text-white" : "text-slate-900"}`
+                    ? "bg-orange-500 text-white"
+                    : `hover:bg-stone-200 dark:hover:bg-stone-700 ${dark ? "text-stone-100 hover:text-white" : "text-stone-900"}`
                 }`}
               >
                 <Icon size={18} />
@@ -399,25 +381,299 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === "Order & payment" && (
+          <div className="space-y-8 max-w-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-light">Order & payment</h2>
+              <a
+                href="#"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
+              >
+                Learn more
+              </a>
+            </div>
+
+            <div className="pt-2">
+              <h3 className="text-xl font-light text-stone-200 mb-4">Orders</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Default order type
+                  </span>
+                  <select
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.defaultOrderType}
+                    onChange={(e) =>
+                      updateSetting("defaultOrderType", e.target.value)
+                    }
+                  >
+                    <option value="Dine in">Dine in</option>
+                    <option value="Takeaway">Takeaway</option>
+                    <option value="Delivery">Delivery</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Ask order type on every sale
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.askOrderTypeOnSale}
+                      onChange={(val) =>
+                        updateSetting("askOrderTypeOnSale", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Confirm before voiding an item
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.confirmBeforeVoidingItem}
+                      onChange={(val) =>
+                        updateSetting("confirmBeforeVoidingItem", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Confirm before canceling a sale
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.confirmBeforeCancelingSale}
+                      onChange={(val) =>
+                        updateSetting("confirmBeforeCancelingSale", val)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-stone-700">
+              <h3 className="text-xl font-light text-stone-200 mb-4 mt-4">
+                Tips & service charge
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Enable tips
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.enableTips}
+                      onChange={(val) => updateSetting("enableTips", val)}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.enableTips ? "opacity-40 pointer-events-none" : ""}`}
+                >
+                  <span className="text-[14px] text-stone-400">
+                    Tip suggestions (%)
+                  </span>
+                  <input
+                    type="text"
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    placeholder="5,10,15,20"
+                    value={settings.tipSuggestions}
+                    onChange={(e) =>
+                      updateSetting("tipSuggestions", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Enable service charge
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.enableServiceCharge}
+                      onChange={(val) =>
+                        updateSetting("enableServiceCharge", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.enableServiceCharge ? "opacity-40 pointer-events-none" : ""}`}
+                >
+                  <span className="text-[14px] text-stone-400">
+                    Service charge name
+                  </span>
+                  <input
+                    type="text"
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.serviceChargeName}
+                    onChange={(e) =>
+                      updateSetting("serviceChargeName", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div
+                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.enableServiceCharge ? "opacity-40 pointer-events-none" : ""}`}
+                >
+                  <span className="text-[14px] text-stone-400">
+                    Service charge rate (%)
+                  </span>
+                  <input
+                    type="number"
+                    onFocus={(e) => e.target.select()}
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.serviceChargeRate}
+                    onChange={(e) =>
+                      updateSetting(
+                        "serviceChargeRate",
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-stone-700">
+              <h3 className="text-xl font-light text-stone-200 mb-4 mt-4">
+                Payment
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Default payment type
+                  </span>
+                  <select
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.defaultPaymentType}
+                    onChange={(e) =>
+                      updateSetting("defaultPaymentType", e.target.value)
+                    }
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Bank transfer">Bank transfer</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Allow split payment
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.allowSplitPayment}
+                      onChange={(val) =>
+                        updateSetting("allowSplitPayment", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Allow partial payment
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.allowPartialPayment}
+                      onChange={(val) =>
+                        updateSetting("allowPartialPayment", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Require customer for credit sales
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.requireCustomerForCreditSale}
+                      onChange={(val) =>
+                        updateSetting("requireCustomerForCreditSale", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Round total amount
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.roundTotalAmount}
+                      onChange={(val) =>
+                        updateSetting("roundTotalAmount", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.roundTotalAmount ? "opacity-40 pointer-events-none" : ""}`}
+                >
+                  <span className="text-[14px] text-stone-400">
+                    Rounding increment
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    onFocus={(e) => e.target.select()}
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.roundingIncrement}
+                    onChange={(e) =>
+                      updateSetting(
+                        "roundingIncrement",
+                        parseFloat(e.target.value) || 0.05,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "Email" && (
           <div className="space-y-6 max-w-4xl">
             <div className="flex items-center gap-3 mb-2">
               <h2 className="text-2xl font-light">Email</h2>
               <a
                 href="#"
-                className="text-sm text-cyan-500 hover:text-cyan-400 mt-1"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
               >
                 Learn more
               </a>
             </div>
 
             {/* Inner Tabs */}
-            <div className="flex border-b border-cyan-700">
+            <div className="flex border-b border-amber-700">
               <button
                 className={`px-6 py-2 text-sm transition-colors ${
                   emailTab === "General"
-                    ? "bg-sky-600 text-white"
-                    : "text-slate-300 hover:text-white"
+                    ? "bg-amber-600 text-white"
+                    : "text-stone-300 hover:text-white"
                 }`}
                 onClick={() => setEmailTab("General")}
               >
@@ -426,8 +682,8 @@ export default function SettingsPage() {
               <button
                 className={`px-6 py-2 text-sm transition-colors ${
                   emailTab === "Reporting"
-                    ? "bg-sky-600 text-white"
-                    : "text-slate-300 hover:text-white"
+                    ? "bg-amber-600 text-white"
+                    : "text-stone-300 hover:text-white"
                 }`}
                 onClick={() => setEmailTab("Reporting")}
               >
@@ -439,10 +695,10 @@ export default function SettingsPage() {
               <div className="space-y-8 pt-4">
                 <div className="space-y-4">
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">Host</span>
+                    <span className="text-[14px] text-stone-300">Host</span>
                     <input
                       type="text"
-                      className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                      className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                       value={settings.smtpServer}
                       onChange={(e) =>
                         updateSetting("smtpServer", e.target.value)
@@ -451,8 +707,8 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">Port</span>
-                    <div className="flex items-center w-32 border border-slate-700 rounded-sm">
+                    <span className="text-[14px] text-stone-300">Port</span>
+                    <div className="flex items-center w-32 border border-stone-700 rounded-sm">
                       <button
                         onClick={() =>
                           updateSetting(
@@ -462,14 +718,14 @@ export default function SettingsPage() {
                             ),
                           )
                         }
-                        className="px-3 py-1 text-slate-400 hover:text-slate-200 border-r border-slate-700"
+                        className="px-3 py-1 text-stone-400 hover:text-stone-200 border-r border-stone-700"
                       >
                         -
                       </button>
                       <input
                         type="number"
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-slate-200 appearance-none"
+                        className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-stone-200 appearance-none"
                         value={settings.smtpPort}
                         onChange={(e) =>
                           updateSetting("smtpPort", e.target.value)
@@ -482,7 +738,7 @@ export default function SettingsPage() {
                             String(parseInt(settings.smtpPort) + 1),
                           )
                         }
-                        className="px-3 py-1 text-slate-400 hover:text-slate-200 border-l border-slate-700"
+                        className="px-3 py-1 text-stone-400 hover:text-stone-200 border-l border-stone-700"
                       >
                         +
                       </button>
@@ -490,7 +746,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">
+                    <span className="text-[14px] text-stone-300">
                       SSL enabled
                     </span>
                     <Toggle
@@ -501,12 +757,12 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4 pt-2">
-                    <span className="text-[14px] text-slate-300">
+                    <span className="text-[14px] text-stone-300">
                       Display name
                     </span>
                     <input
                       type="text"
-                      className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                      className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                       value={settings.emailDisplayName}
                       onChange={(e) =>
                         updateSetting("emailDisplayName", e.target.value)
@@ -515,12 +771,12 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">
+                    <span className="text-[14px] text-stone-300">
                       Email address
                     </span>
                     <input
                       type="email"
-                      className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                      className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                       value={settings.emailAddress}
                       onChange={(e) =>
                         updateSetting("emailAddress", e.target.value)
@@ -529,10 +785,10 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">Username</span>
+                    <span className="text-[14px] text-stone-300">Username</span>
                     <input
                       type="text"
-                      className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                      className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                       value={settings.smtpUser}
                       onChange={(e) =>
                         updateSetting("smtpUser", e.target.value)
@@ -541,10 +797,10 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                    <span className="text-[14px] text-slate-300">Password</span>
+                    <span className="text-[14px] text-stone-300">Password</span>
                     <input
                       type="password"
-                      className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                      className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                       value={settings.smtpPass}
                       onChange={(e) =>
                         updateSetting("smtpPass", e.target.value)
@@ -555,15 +811,15 @@ export default function SettingsPage() {
 
                 {/* Default email message values section */}
                 <div className="pt-6">
-                  <h3 className="text-xl font-light mb-4 text-slate-200">
+                  <h3 className="text-xl font-light mb-4 text-stone-200">
                     Default email message values
                   </h3>
 
-                  <div className="flex items-center gap-4 p-4 border border-cyan-600 mb-6 bg-transparent">
-                    <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-4 p-4 border border-amber-600 mb-6 bg-transparent">
+                    <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
                       <Info className="w-5 h-5 text-white" />
                     </div>
-                    <p className="text-sm text-slate-200">
+                    <p className="text-sm text-stone-200">
                       If you decide to leave these fields blank, automatically
                       generated subject and message for the customer will be
                       used. You can change them before message is sent.
@@ -572,12 +828,12 @@ export default function SettingsPage() {
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                      <span className="text-[14px] text-slate-300">
+                      <span className="text-[14px] text-stone-300">
                         Subject
                       </span>
                       <input
                         type="text"
-                        className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                        className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                         value={settings.emailDefaultSubject}
                         onChange={(e) =>
                           updateSetting("emailDefaultSubject", e.target.value)
@@ -586,11 +842,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-[200px_1fr] items-start gap-4">
-                      <span className="text-[14px] text-slate-300 mt-2">
+                      <span className="text-[14px] text-stone-300 mt-2">
                         Message
                       </span>
                       <textarea
-                        className="w-full h-32 p-2 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200 resize-none"
+                        className="w-full h-32 p-2 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200 resize-none"
                         value={settings.emailDefaultMessage}
                         onChange={(e) =>
                           updateSetting("emailDefaultMessage", e.target.value)
@@ -599,12 +855,12 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                      <span className="text-[14px] text-slate-300">
+                      <span className="text-[14px] text-stone-300">
                         Bcc recipients
                       </span>
                       <input
                         type="text"
-                        className="w-80 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-200"
+                        className="w-80 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-200"
                         value={settings.emailBccRecipients}
                         onChange={(e) =>
                           updateSetting("emailBccRecipients", e.target.value)
@@ -617,7 +873,7 @@ export default function SettingsPage() {
             )}
 
             {emailTab === "Reporting" && (
-              <div className="p-4 text-slate-400">
+              <div className="p-4 text-stone-400">
                 Reporting configurations are not yet configured.
               </div>
             )}
@@ -630,14 +886,14 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-light">Print</h2>
               <a
                 href="#"
-                className="text-sm text-cyan-500 hover:text-cyan-400 mt-1"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
               >
                 Learn more
               </a>
             </div>
 
             {/* Inner Tabs */}
-            <div className="flex border-b border-cyan-700">
+            <div className="flex border-b border-amber-700">
               {[
                 "Printer selection",
                 "Customize receipt",
@@ -648,8 +904,8 @@ export default function SettingsPage() {
                   key={tab}
                   className={`px-4 py-2 text-sm transition-colors ${
                     printTab === tab
-                      ? "bg-sky-600 text-white"
-                      : "text-slate-300 hover:text-white"
+                      ? "bg-amber-600 text-white"
+                      : "text-stone-300 hover:text-white"
                   }`}
                   onClick={() => setPrintTab(tab)}
                 >
@@ -704,12 +960,12 @@ export default function SettingsPage() {
                           )
                         }
                       />
-                      <span className="text-[14px] text-slate-300">
+                      <span className="text-[14px] text-stone-300">
                         {item.label}
                       </span>
                     </div>
                     <select
-                      className="w-64 p-1.5 bg-transparent border border-slate-700 text-sm text-slate-200 focus:outline-none"
+                      className="w-64 p-1.5 bg-transparent border border-stone-700 text-sm text-stone-200 focus:outline-none"
                       value={
                         settings[
                           item.keySelect as keyof typeof settings
@@ -736,7 +992,7 @@ export default function SettingsPage() {
             {printTab === "Customize receipt" && (
               <div className="space-y-6 pt-4">
                 <div className="flex items-center gap-4">
-                  <span className="text-[14px] text-slate-300 w-52">
+                  <span className="text-[14px] text-stone-300 w-52">
                     Use system currency format
                   </span>
                   <Toggle
@@ -748,20 +1004,20 @@ export default function SettingsPage() {
                   />
                   <a
                     href="#"
-                    className="text-sm text-cyan-500 hover:text-cyan-400"
+                    className="text-sm text-amber-500 hover:text-amber-400"
                   >
                     What's this?
                   </a>
                 </div>
 
-                <div className="flex items-center gap-4 p-3 border border-cyan-600 bg-transparent">
-                  <div className="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-4 p-3 border border-amber-600 bg-transparent">
+                  <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
                     <Info className="w-5 h-5 text-white" />
                   </div>
-                  <p className="text-sm text-slate-200">
+                  <p className="text-sm text-stone-200">
                     Your currency symbol is set to "$". Use Windows Control
                     Panel to change currency symbol.{" "}
-                    <a href="#" className="text-cyan-500 hover:text-cyan-400">
+                    <a href="#" className="text-amber-500 hover:text-amber-400">
                       Open regional settings
                     </a>
                   </p>
@@ -793,9 +1049,9 @@ export default function SettingsPage() {
                   ].map((item) => (
                     <div
                       key={item.key}
-                      className={`flex items-center gap-4 ${item.indent ? "pl-6 border-l border-slate-700 ml-1" : ""}`}
+                      className={`flex items-center gap-4 ${item.indent ? "pl-6 border-l border-stone-700 ml-1" : ""}`}
                     >
-                      <span className="text-[14px] text-slate-300 w-48">
+                      <span className="text-[14px] text-stone-300 w-48">
                         {item.label}
                       </span>
                       <Toggle
@@ -811,10 +1067,10 @@ export default function SettingsPage() {
                   ))}
 
                   <div className="flex items-center gap-4">
-                    <span className="text-[14px] text-slate-300 w-48">
+                    <span className="text-[14px] text-stone-300 w-48">
                       Decimal places
                     </span>
-                    <div className="flex items-center w-24 border border-slate-700 rounded-sm">
+                    <div className="flex items-center w-24 border border-stone-700 rounded-sm">
                       <button
                         onClick={() =>
                           updateSetting(
@@ -822,14 +1078,14 @@ export default function SettingsPage() {
                             Math.max(0, settings.decimalPlaces - 1),
                           )
                         }
-                        className="px-2 py-1 text-slate-400 hover:text-slate-200 border-r border-slate-700"
+                        className="px-2 py-1 text-stone-400 hover:text-stone-200 border-r border-stone-700"
                       >
                         -
                       </button>
                       <input
                         type="number"
                         onFocus={(e) => e.target.select()}
-                        className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-slate-200 appearance-none"
+                        className="w-full p-1 bg-transparent text-center focus:outline-none text-sm text-stone-200 appearance-none"
                         value={settings.decimalPlaces}
                         onChange={(e) =>
                           updateSetting(
@@ -845,7 +1101,7 @@ export default function SettingsPage() {
                             settings.decimalPlaces + 1,
                           )
                         }
-                        className="px-2 py-1 text-slate-400 hover:text-slate-200 border-l border-slate-700"
+                        className="px-2 py-1 text-stone-400 hover:text-stone-200 border-l border-stone-700"
                       >
                         +
                       </button>
@@ -853,23 +1109,23 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="flex items-center gap-4 pt-2">
-                    <span className="text-[14px] text-slate-300 w-48">
+                    <span className="text-[14px] text-stone-300 w-48">
                       Receipt counter
                     </span>
                     <a
                       href="#"
-                      className="text-[14px] text-cyan-500 hover:text-cyan-400"
+                      className="text-[14px] text-amber-500 hover:text-amber-400"
                     >
                       11
                     </a>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-700">
-                  <h3 className="text-lg font-light text-slate-200 mb-2">
+                <div className="pt-4 border-t border-stone-700">
+                  <h3 className="text-lg font-light text-stone-200 mb-2">
                     Customer details
                   </h3>
-                  <p className="text-sm text-slate-400 mb-4">
+                  <p className="text-sm text-stone-400 mb-4">
                     Choose what customer details are printed in receipt
                   </p>
                   <div className="flex items-center gap-6">
@@ -880,9 +1136,9 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           updateSetting("customerDetailsName", e.target.checked)
                         }
-                        className="w-4 h-4 rounded border-slate-600 bg-transparent text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-900"
+                        className="w-4 h-4 rounded border-stone-600 bg-transparent text-amber-500 focus:ring-amber-500 focus:ring-offset-stone-900"
                       />
-                      <span className="text-sm text-slate-300">Name</span>
+                      <span className="text-sm text-stone-300">Name</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -891,9 +1147,9 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           updateSetting("customerDetailsCode", e.target.checked)
                         }
-                        className="w-4 h-4 rounded border-slate-600 bg-transparent text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-900"
+                        className="w-4 h-4 rounded border-stone-600 bg-transparent text-amber-500 focus:ring-amber-500 focus:ring-offset-stone-900"
                       />
-                      <span className="text-sm text-slate-300">Code</span>
+                      <span className="text-sm text-stone-300">Code</span>
                     </label>
                   </div>
                 </div>
@@ -903,12 +1159,12 @@ export default function SettingsPage() {
             {/* Print -> Localize receipt text */}
             {printTab === "Localize receipt text" && (
               <div className="space-y-6 pt-4">
-                <div className="flex items-start gap-4 p-4 border border-cyan-600 bg-transparent">
-                  <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                <div className="flex items-start gap-4 p-4 border border-amber-600 bg-transparent">
+                  <div className="w-10 h-10 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
                     <Info className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-slate-200 mb-2">
+                    <p className="text-sm text-stone-200 mb-2">
                       Use this form to translate or modify the labels printed on
                       receipts.
                     </p>
@@ -920,10 +1176,10 @@ export default function SettingsPage() {
                           updateSetting("useCustomLabels", val)
                         }
                       />
-                      <span className="text-sm text-slate-200">
+                      <span className="text-sm text-stone-200">
                         Use custom labels in reports and invoices
                       </span>
-                      <Info className="w-4 h-4 text-sky-500" />
+                      <Info className="w-4 h-4 text-amber-500" />
                     </div>
                   </div>
                 </div>
@@ -951,12 +1207,12 @@ export default function SettingsPage() {
                       key={item.key}
                       className="grid grid-cols-[200px_1fr] items-center gap-4"
                     >
-                      <span className="text-[14px] text-slate-300">
+                      <span className="text-[14px] text-stone-300">
                         {item.label}
                       </span>
                       <input
                         type="text"
-                        className="w-80 p-1 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-400"
+                        className="w-80 p-1 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-400"
                         value={
                           settings[item.key as keyof typeof settings] as string
                         }
@@ -976,11 +1232,11 @@ export default function SettingsPage() {
             {/* Print -> Print templates */}
             {printTab === "Print templates" && (
               <div className="space-y-6 pt-4">
-                <div className="flex items-center gap-4 p-3 border border-cyan-600 bg-transparent">
-                  <div className="w-6 h-6 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-4 p-3 border border-amber-600 bg-transparent">
+                  <div className="w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
                     <Info className="w-4 h-4 text-white" />
                   </div>
-                  <p className="text-sm text-slate-200">
+                  <p className="text-sm text-stone-200">
                     Font selected here will be used in invoice, reports and
                     other print templates. If none is selected, default font
                     will be used.
@@ -988,9 +1244,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                  <span className="text-[14px] text-slate-300">Font</span>
+                  <span className="text-[14px] text-stone-300">Font</span>
                   <select
-                    className="w-64 p-1.5 bg-transparent border border-slate-700 text-sm text-slate-200 focus:outline-none"
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 text-sm text-stone-200 focus:outline-none"
                     value={settings.printTemplateFont}
                     onChange={(e) =>
                       updateSetting("printTemplateFont", e.target.value)
@@ -1003,16 +1259,16 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-2">
-                  <h3 className="text-lg font-light text-slate-200 mb-4 border-b border-slate-700 pb-2">
+                  <h3 className="text-lg font-light text-stone-200 mb-4 border-b border-stone-700 pb-2">
                     Invoice settings
                   </h3>
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-[200px_1fr] items-center gap-4">
-                      <span className="text-[14px] text-slate-300">Title</span>
+                      <span className="text-[14px] text-stone-300">Title</span>
                       <input
                         type="text"
-                        className="w-64 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-400"
+                        className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-400"
                         value={settings.invoiceTitle}
                         onChange={(e) =>
                           updateSetting("invoiceTitle", e.target.value)
@@ -1021,7 +1277,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <span className="text-[14px] text-slate-300 w-[184px]">
+                      <span className="text-[14px] text-stone-300 w-[184px]">
                         Print in A5 size
                       </span>
                       <Toggle
@@ -1032,11 +1288,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="pt-2 space-y-3">
-                      <h4 className="text-[15px] text-slate-300 font-medium">
+                      <h4 className="text-[15px] text-stone-300 font-medium">
                         Columns selection
                       </h4>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Tax column
                         </span>
                         <Toggle
@@ -1048,7 +1304,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Discount column
                         </span>
                         <Toggle
@@ -1062,11 +1318,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="pt-2 space-y-3">
-                      <h4 className="text-[15px] text-slate-300 font-medium">
+                      <h4 className="text-[15px] text-stone-300 font-medium">
                         Customer details
                       </h4>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Tax number
                         </span>
                         <Toggle
@@ -1078,7 +1334,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Code
                         </span>
                         <Toggle
@@ -1090,7 +1346,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Phone number
                         </span>
                         <Toggle
@@ -1102,7 +1358,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Email
                         </span>
                         <Toggle
@@ -1116,11 +1372,11 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="pt-2 space-y-3">
-                      <h4 className="text-[15px] text-slate-300 font-medium">
+                      <h4 className="text-[15px] text-stone-300 font-medium">
                         Other settings
                       </h4>
                       <div className="flex items-center gap-4">
-                        <span className="text-[14px] text-slate-300 w-[184px]">
+                        <span className="text-[14px] text-stone-300 w-[184px]">
                           Payment methods
                         </span>
                         <Toggle
@@ -1147,7 +1403,7 @@ export default function SettingsPage() {
                 <h2 className="text-2xl font-light">Database</h2>
                 <a
                   href="#"
-                  className="text-sm text-cyan-500 hover:text-cyan-400 mt-1"
+                  className="text-sm text-amber-500 hover:text-amber-400 mt-1"
                 >
                   Learn more
                 </a>
@@ -1155,7 +1411,7 @@ export default function SettingsPage() {
 
               <div className="flex flex-wrap gap-4">
                 <button
-                  className="flex items-center gap-3 px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-100 font-medium transition-colors"
+                  className="flex items-center gap-3 px-6 py-3 bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded text-stone-100 font-medium transition-colors"
                   onClick={handleExportDb}
                 >
                   <HardDrive className="w-5 h-5" />
@@ -1164,13 +1420,13 @@ export default function SettingsPage() {
 
                 {/* Import Aronium — gated on SQL Server LocalDB detection */}
                 {isCheckingSqlServer ? (
-                  <div className="flex items-center gap-2 px-4 py-3 text-slate-400 text-sm">
-                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center gap-2 px-4 py-3 text-stone-400 text-sm">
+                    <div className="w-4 h-4 border-2 border-stone-500 border-t-transparent rounded-full animate-spin" />
                     Checking SQL Server...
                   </div>
                 ) : sqlServerStatus?.installed ? (
                   <button
-                    className="flex items-center gap-3 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500 rounded text-white font-medium transition-colors"
+                    className="flex items-center gap-3 px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed border border-orange-500 rounded text-white font-medium transition-colors"
                     onClick={handleImportAroniumDb}
                     disabled={isImportingAronium}
                   >
@@ -1189,42 +1445,23 @@ export default function SettingsPage() {
                       </span>
                     </div>
                     <button
-                      className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-600 rounded text-slate-100 text-sm font-medium transition-colors self-start"
-                      onClick={handleInstallSqlServer}
-                      disabled={isInstallingSqlServer}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-stone-700 hover:bg-stone-600 border border-stone-600 rounded text-stone-100 text-sm font-medium transition-colors self-start"
+                      onClick={handleDownloadSqlServer}
                     >
                       <Database className="w-4 h-4" />
-                      {isInstallingSqlServer
-                        ? "Installing..."
-                        : "Install SQL Server LocalDB"}
+                      Download SQL Server LocalDB
                     </button>
-
-                    {/* Live install log — populated by "sql-install-log"
-                        events from the Rust side. Stays visible after a
-                        failure so the full diagnostic output (including the
-                        msiexec verbose log tail) can be read/scrolled. */}
-                    {installLogs.length > 0 && (
-                      <div className="w-full max-h-44 overflow-y-auto bg-slate-950 border border-slate-700 rounded p-2 font-mono text-[11px] leading-relaxed text-slate-300 whitespace-pre-wrap">
-                        {installLogs.map((line, i) => (
-                          <div
-                            key={i}
-                            className={
-                              line.startsWith("ERROR")
-                                ? "text-red-400"
-                                : undefined
-                            }
-                          >
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <p className="text-xs text-stone-500">
+                      Opens the official Microsoft download page in your
+                      browser. Run the downloaded installer, then come back
+                      here — this page will detect it automatically.
+                    </p>
                   </div>
                 )}
               </div>
 
               <button
-                className="text-sm text-cyan-500 hover:text-cyan-400 mt-4 block"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-4 block"
                 onClick={handleOpenDbLocation}
               >
                 Open database location
@@ -1250,7 +1487,7 @@ export default function SettingsPage() {
                 <div
                   className={`flex items-center justify-between transition-opacity duration-200 ${!settings.enableAutoBackup ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[15px] text-slate-400">
+                  <span className="text-[15px] text-stone-400">
                     Backup database on application start
                   </span>
                   <Toggle
@@ -1263,7 +1500,7 @@ export default function SettingsPage() {
                 <div
                   className={`flex items-center justify-between transition-opacity duration-200 ${!settings.enableAutoBackup ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[15px] text-slate-400">
+                  <span className="text-[15px] text-stone-400">
                     Backup database on application close
                   </span>
                   <Toggle
@@ -1276,7 +1513,7 @@ export default function SettingsPage() {
                 <div
                   className={`flex items-center justify-between transition-opacity duration-200 ${!settings.enableAutoBackup ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[15px] text-slate-400">
+                  <span className="text-[15px] text-stone-400">
                     Backup location
                   </span>
                   <div className="flex items-center">
@@ -1284,11 +1521,11 @@ export default function SettingsPage() {
                       type="text"
                       readOnly
                       value={settings.backupLocation || "---"}
-                      className="w-80 p-2 bg-slate-800 border border-slate-700 text-slate-300 text-sm focus:outline-none"
+                      className="w-80 p-2 bg-stone-800 border border-stone-700 text-stone-300 text-sm focus:outline-none"
                     />
                     <button
                       onClick={handleSelectBackupFolder}
-                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border-y border-r border-slate-700 text-slate-400"
+                      className="px-3 py-2 bg-stone-800 hover:bg-stone-700 border-y border-r border-stone-700 text-stone-400"
                     >
                       ...
                     </button>
@@ -1298,7 +1535,7 @@ export default function SettingsPage() {
                 <div
                   className={`flex items-center justify-between transition-opacity duration-200 ${!settings.enableAutoBackup ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[15px] text-slate-400">
+                  <span className="text-[15px] text-stone-400">
                     Remove old backup files
                   </span>
                   <Toggle
@@ -1311,10 +1548,10 @@ export default function SettingsPage() {
                 <div
                   className={`flex items-center justify-between transition-opacity duration-200 ${!settings.enableAutoBackup || !settings.removeOldBackups ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[15px] text-slate-400">
+                  <span className="text-[15px] text-stone-400">
                     Number of days to keep old backup files
                   </span>
-                  <div className="flex items-center w-32 bg-slate-800 border border-slate-700 rounded-sm">
+                  <div className="flex items-center w-32 bg-stone-800 border border-stone-700 rounded-sm">
                     <button
                       onClick={() =>
                         updateSetting(
@@ -1322,7 +1559,7 @@ export default function SettingsPage() {
                           Math.max(1, settings.keepOldBackupsDays - 1),
                         )
                       }
-                      className="px-3 py-1.5 hover:bg-slate-700 text-slate-400 border-r border-slate-700"
+                      className="px-3 py-1.5 hover:bg-stone-700 text-stone-400 border-r border-stone-700"
                     >
                       -
                     </button>
@@ -1336,7 +1573,7 @@ export default function SettingsPage() {
                           parseInt(e.target.value) || 10,
                         )
                       }
-                      className="w-full p-1.5 bg-transparent text-center text-sm text-slate-300 focus:outline-none appearance-none"
+                      className="w-full p-1.5 bg-transparent text-center text-sm text-stone-300 focus:outline-none appearance-none"
                     />
                     <button
                       onClick={() =>
@@ -1345,7 +1582,7 @@ export default function SettingsPage() {
                           settings.keepOldBackupsDays + 1,
                         )
                       }
-                      className="px-3 py-1.5 hover:bg-slate-700 text-slate-400 border-l border-slate-700"
+                      className="px-3 py-1.5 hover:bg-stone-700 text-stone-400 border-l border-stone-700"
                     >
                       +
                     </button>
@@ -1362,20 +1599,20 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-2xl font-light">LAN Synchronization</h2>
               </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mb-6">
+              <p className="text-sm text-stone-600 dark:text-stone-400 max-w-2xl mb-6">
                 Connect multiple POS terminals together on your local network
                 (LAN) without external backend services. Designate one machine
                 as the central "Store Server" (Admin Host) and others as
                 "Cashier Terminals".
               </p>
 
-              <div className="space-y-6 bg-slate-800/10 p-6 rounded-2xl border border-slate-700/50">
+              <div className="space-y-6 bg-stone-800/10 p-6 rounded-2xl border border-stone-700/50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">
+                    <span className="font-semibold text-[15px] block text-stone-800 dark:text-stone-100">
                       Enable LAN Sync
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-stone-500">
                       Allows synchronization of sales, inventory, and product
                       changes.
                     </span>
@@ -1387,12 +1624,12 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between border-t border-slate-700/30 pt-4">
+                <div className="flex items-center justify-between border-t border-stone-700/30 pt-4">
                   <div>
-                    <span className="font-semibold text-[15px] block text-slate-800 dark:text-slate-100">
+                    <span className="font-semibold text-[15px] block text-stone-800 dark:text-stone-100">
                       Run as Store Server (Host)
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-stone-500">
                       Host the central database and allow cashier terminals to
                       connect.
                     </span>
@@ -1449,9 +1686,9 @@ export default function SettingsPage() {
                   </Field>
                 </div>
 
-                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-3">
+                <div className="p-4 bg-stone-900/60 border border-stone-800 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-400">
+                    <span className="text-sm text-stone-400">
                       Server Status:
                     </span>
                     <span
@@ -1461,9 +1698,9 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   {serverRunning && (
-                    <div className="flex items-center justify-between text-xs text-slate-300">
+                    <div className="flex items-center justify-between text-xs text-stone-300">
                       <span>Server URL:</span>
-                      <span className="font-mono text-cyan-400">
+                      <span className="font-mono text-amber-400">
                         http://{serverStats.ip}:{serverStats.port}
                       </span>
                     </div>
@@ -1472,14 +1709,14 @@ export default function SettingsPage() {
                     {!serverRunning ? (
                       <button
                         onClick={startServer}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-stone-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                       >
                         Start Server
                       </button>
                     ) : (
                       <button
                         onClick={stopServer}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-slate-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-stone-900 dark:text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                       >
                         Stop Server
                       </button>
@@ -1521,13 +1758,13 @@ export default function SettingsPage() {
                 {settings.syncEnabled && (
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-400">
+                      <span className="text-sm font-semibold text-stone-400">
                         Discovered Store Servers
                       </span>
                       <button
                         onClick={discoverServers}
                         disabled={isSearching}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded text-slate-300 cursor-pointer disabled:opacity-50 transition-colors"
+                        className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-xs rounded text-stone-300 cursor-pointer disabled:opacity-50 transition-colors"
                       >
                         {isSearching ? "Searching..." : "Scan network"}
                       </button>
@@ -1535,7 +1772,7 @@ export default function SettingsPage() {
 
                     <div className="space-y-2">
                       {discoveredServers.length === 0 ? (
-                        <div className="p-4 border border-dashed border-slate-700/60 rounded-xl text-center text-xs text-slate-500">
+                        <div className="p-4 border border-dashed border-stone-700/60 rounded-xl text-center text-xs text-stone-500">
                           {isSearching
                             ? "Scanning local network for servers..."
                             : "No servers discovered. Try scanning or enter URL manually."}
@@ -1555,13 +1792,13 @@ export default function SettingsPage() {
                           return (
                             <div
                               key={idx}
-                              className="flex items-center justify-between p-3 bg-slate-800/20 border border-slate-700/50 rounded-xl"
+                              className="flex items-center justify-between p-3 bg-stone-800/20 border border-stone-700/50 rounded-xl"
                             >
                               <div>
-                                <span className="font-semibold text-sm text-slate-200 block">
+                                <span className="font-semibold text-sm text-stone-200 block">
                                   {srv.storeName}
                                 </span>
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-stone-500">
                                   Host: {srv.name} | {srv.ip}:{srv.port}
                                 </span>
                               </div>
@@ -1573,7 +1810,7 @@ export default function SettingsPage() {
                                     ? "bg-emerald-600 cursor-default"
                                     : isConnecting
                                       ? "bg-amber-600 cursor-wait"
-                                      : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                                      : "bg-orange-600 hover:bg-orange-700 cursor-pointer"
                                 }`}
                               >
                                 {isConnected
@@ -1600,7 +1837,7 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-light">Products</h2>
               <a
                 href="#"
-                className="text-sm text-cyan-500 hover:text-cyan-400 mt-1"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
               >
                 Learn more
               </a>
@@ -1608,7 +1845,7 @@ export default function SettingsPage() {
 
             <div className="space-y-4">
               <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                <span className="text-[14px] text-slate-200">
+                <span className="text-[14px] text-stone-200">
                   Display and print items with tax included
                 </span>
                 <div>
@@ -1621,11 +1858,11 @@ export default function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                <span className="text-[14px] text-slate-200">
+                <span className="text-[14px] text-stone-200">
                   Discount apply rule
                 </span>
                 <select
-                  className="w-64 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-300"
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
                   value={settings.discountApplyRule}
                   onChange={(e) =>
                     updateSetting("discountApplyRule", e.target.value)
@@ -1637,9 +1874,9 @@ export default function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                <span className="text-[14px] text-slate-200">Sorting</span>
+                <span className="text-[14px] text-stone-200">Sorting</span>
                 <select
-                  className="w-64 p-1.5 bg-transparent border border-slate-700 focus:outline-none text-sm text-slate-300"
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
                   value={settings.productSorting}
                   onChange={(e) =>
                     updateSetting("productSorting", e.target.value)
@@ -1652,7 +1889,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                <span className="text-[14px] text-slate-200">
+                <span className="text-[14px] text-stone-200">
                   Allow negative price
                 </span>
                 <div>
@@ -1666,13 +1903,13 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-2">
-              <h3 className="text-xl font-light text-slate-200 mb-4">
+              <h3 className="text-xl font-light text-stone-200 mb-4">
                 Product defaults
               </h3>
 
               <div className="space-y-6">
                 <div className="grid grid-cols-[280px_1fr] items-start gap-4">
-                  <span className="text-[14px] text-slate-200">
+                  <span className="text-[14px] text-stone-200">
                     Default tax rate
                   </span>
                   <div className="space-y-2">
@@ -1698,15 +1935,15 @@ export default function SettingsPage() {
                               ]);
                             }
                           }}
-                          className="w-4 h-4 rounded-sm border-slate-600 bg-transparent text-sky-500 focus:ring-sky-500 focus:ring-offset-slate-900"
+                          className="w-4 h-4 rounded-sm border-stone-600 bg-transparent text-amber-500 focus:ring-amber-500 focus:ring-offset-stone-900"
                         />
-                        <span className="text-[14px] text-slate-300 group-hover:text-slate-200">
+                        <span className="text-[14px] text-stone-300 group-hover:text-stone-200">
                           {tax.name} ({tax.rate}%)
                         </span>
                       </label>
                     ))}
                     {(!taxes || taxes.length === 0) && (
-                      <span className="text-[14px] text-slate-500 italic">
+                      <span className="text-[14px] text-stone-500 italic">
                         No taxes found in database
                       </span>
                     )}
@@ -1714,7 +1951,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                  <span className="text-[14px] text-slate-200">
+                  <span className="text-[14px] text-stone-200">
                     Cost price based markup
                   </span>
                   <div>
@@ -1729,7 +1966,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                  <span className="text-[14px] text-slate-200">
+                  <span className="text-[14px] text-stone-200">
                     Automatically update cost price on purchase
                   </span>
                   <div>
@@ -1744,9 +1981,9 @@ export default function SettingsPage() {
                 </div>
 
                 <div
-                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-slate-700 ml-1 transition-opacity ${!settings.autoUpdateCostPrice ? "opacity-40 pointer-events-none" : ""}`}
+                  className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.autoUpdateCostPrice ? "opacity-40 pointer-events-none" : ""}`}
                 >
-                  <span className="text-[14px] text-slate-400">
+                  <span className="text-[14px] text-stone-400">
                     Update sale price based on markup
                   </span>
                   <div>
@@ -1763,12 +2000,12 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-2">
-              <h3 className="text-xl font-light text-slate-200 mb-4">
+              <h3 className="text-xl font-light text-stone-200 mb-4">
                 Moving average price
               </h3>
 
               <div className="grid grid-cols-[280px_1fr] items-center gap-4">
-                <span className="text-[14px] text-slate-200">
+                <span className="text-[14px] text-stone-200">
                   Enable moving average price
                 </span>
                 <div className="flex items-center gap-3">
@@ -1781,7 +2018,7 @@ export default function SettingsPage() {
                   />
                   <a
                     href="#"
-                    className="text-sm text-cyan-500 hover:text-cyan-400"
+                    className="text-sm text-amber-500 hover:text-amber-400"
                   >
                     What's this?
                   </a>
@@ -1791,10 +2028,446 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === "Documents" && (
+          <div className="space-y-8 max-w-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-light">Documents</h2>
+              <a
+                href="#"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
+              >
+                Learn more
+              </a>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                <span className="text-[14px] text-stone-200">
+                  Default document type
+                </span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.defaultDocumentType}
+                  onChange={(e) =>
+                    updateSetting("defaultDocumentType", e.target.value)
+                  }
+                >
+                  <option value="Receipt">Receipt</option>
+                  <option value="Invoice">Invoice</option>
+                  <option value="Order">Order</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                <span className="text-[14px] text-stone-200">
+                  Automatically print on save
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.autoPrintOnSave}
+                    onChange={(val) => updateSetting("autoPrintOnSave", val)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                <span className="text-[14px] text-stone-200">
+                  Automatically email on save
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.autoEmailOnSave}
+                    onChange={(val) => updateSetting("autoEmailOnSave", val)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-stone-700">
+              <h3 className="text-xl font-light text-stone-200 mb-4 mt-4">
+                Numbering
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Document number prefix
+                  </span>
+                  <input
+                    type="text"
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    placeholder="e.g. INV-"
+                    value={settings.documentNumberPrefix}
+                    onChange={(e) =>
+                      updateSetting("documentNumberPrefix", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Number of digits
+                  </span>
+                  <input
+                    type="number"
+                    onFocus={(e) => e.target.select()}
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.documentNumberPadding}
+                    onChange={(e) =>
+                      updateSetting(
+                        "documentNumberPadding",
+                        parseInt(e.target.value) || 6,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Reset document number every year
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.resetDocumentNumberYearly}
+                      onChange={(val) =>
+                        updateSetting("resetDocumentNumberYearly", val)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-stone-700">
+              <h3 className="text-xl font-light text-stone-200 mb-4 mt-4">
+                Behavior
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Allow editing closed documents
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.allowEditingClosedDocuments}
+                      onChange={(val) =>
+                        updateSetting("allowEditingClosedDocuments", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Require approval for refunds
+                  </span>
+                  <div>
+                    <Toggle
+                      label=""
+                      enabled={settings.requireApprovalForRefunds}
+                      onChange={(val) =>
+                        updateSetting("requireApprovalForRefunds", val)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                  <span className="text-[14px] text-stone-200">
+                    Default invoice due days
+                  </span>
+                  <input
+                    type="number"
+                    onFocus={(e) => e.target.select()}
+                    className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                    value={settings.defaultInvoiceDueDays}
+                    onChange={(e) =>
+                      updateSetting(
+                        "defaultInvoiceDueDays",
+                        parseInt(e.target.value) || 14,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Weighing scale" && (
+          <div className="space-y-8 max-w-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-light">Weighing scale</h2>
+              <a
+                href="#"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
+              >
+                Learn more
+              </a>
+            </div>
+
+            <div className="flex items-center gap-4 p-3 border border-amber-600 bg-transparent">
+              <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
+                <Scale className="w-5 h-5 text-white" />
+              </div>
+              <p className="text-sm text-stone-200">
+                Connect a serial or USB weighing scale to automatically read
+                item weight when selling weighed products.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                <span className="text-[14px] text-stone-200">
+                  Enable weighing scale
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.weighingScaleEnabled}
+                    onChange={(val) =>
+                      updateSetting("weighingScaleEnabled", val)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.weighingScaleEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">Port</span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.weighingScalePort}
+                  onChange={(e) =>
+                    updateSetting("weighingScalePort", e.target.value)
+                  }
+                >
+                  <option value="">Select port...</option>
+                  <option value="COM1">COM1</option>
+                  <option value="COM2">COM2</option>
+                  <option value="COM3">COM3</option>
+                  <option value="COM4">COM4</option>
+                </select>
+                {!settings.weighingScalePort && (
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                )}
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.weighingScaleEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">Baud rate</span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.weighingScaleBaudRate}
+                  onChange={(e) =>
+                    updateSetting("weighingScaleBaudRate", e.target.value)
+                  }
+                >
+                  <option value="1200">1200</option>
+                  <option value="2400">2400</option>
+                  <option value="4800">4800</option>
+                  <option value="9600">9600</option>
+                  <option value="19200">19200</option>
+                </select>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.weighingScaleEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">Protocol</span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.weighingScaleProtocol}
+                  onChange={(e) =>
+                    updateSetting("weighingScaleProtocol", e.target.value)
+                  }
+                >
+                  <option value="Generic">Generic</option>
+                  <option value="Dibal">Dibal</option>
+                  <option value="CAS">CAS</option>
+                  <option value="Toledo">Toledo</option>
+                </select>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.weighingScaleEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">Unit</span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.weighingScaleUnit}
+                  onChange={(e) =>
+                    updateSetting("weighingScaleUnit", e.target.value)
+                  }
+                >
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="g">Grams (g)</option>
+                  <option value="lb">Pounds (lb)</option>
+                </select>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.weighingScaleEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">
+                  Automatically read weight
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.weighingScaleAutoRead}
+                    onChange={(val) =>
+                      updateSetting("weighingScaleAutoRead", val)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Customer display" && (
+          <div className="space-y-8 max-w-2xl">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-light">Customer display</h2>
+              <a
+                href="#"
+                className="text-sm text-amber-500 hover:text-amber-400 mt-1"
+              >
+                Learn more
+              </a>
+            </div>
+
+            <div className="flex items-center gap-4 p-3 border border-amber-600 bg-transparent">
+              <div className="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center shrink-0">
+                <Monitor className="w-5 h-5 text-white" />
+              </div>
+              <p className="text-sm text-stone-200">
+                Show running totals and a welcome message to customers on a
+                secondary monitor or pole display.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-[280px_1fr] items-center gap-4">
+                <span className="text-[14px] text-stone-200">
+                  Enable customer display
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.customerDisplayEnabled}
+                    onChange={(val) =>
+                      updateSetting("customerDisplayEnabled", val)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.customerDisplayEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">
+                  Display type
+                </span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.customerDisplayType}
+                  onChange={(e) =>
+                    updateSetting("customerDisplayType", e.target.value)
+                  }
+                >
+                  <option value="Secondary monitor">Secondary monitor</option>
+                  <option value="Serial pole display">
+                    Serial pole display
+                  </option>
+                </select>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.customerDisplayEnabled || settings.customerDisplayType !== "Serial pole display" ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">Port</span>
+                <select
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.customerDisplayPort}
+                  onChange={(e) =>
+                    updateSetting("customerDisplayPort", e.target.value)
+                  }
+                >
+                  <option value="">Select port...</option>
+                  <option value="COM1">COM1</option>
+                  <option value="COM2">COM2</option>
+                  <option value="COM3">COM3</option>
+                  <option value="COM4">COM4</option>
+                </select>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.customerDisplayEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">
+                  Welcome message
+                </span>
+                <input
+                  type="text"
+                  className="w-64 p-1.5 bg-transparent border border-stone-700 focus:outline-none text-sm text-stone-300"
+                  value={settings.customerDisplayWelcomeMessage}
+                  onChange={(e) =>
+                    updateSetting(
+                      "customerDisplayWelcomeMessage",
+                      e.target.value,
+                    )
+                  }
+                />
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.customerDisplayEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">
+                  Show line items
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.customerDisplayShowLineItems}
+                    onChange={(val) =>
+                      updateSetting("customerDisplayShowLineItems", val)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`grid grid-cols-[280px_1fr] items-center gap-4 pl-4 border-l-2 border-stone-700 ml-1 transition-opacity ${!settings.customerDisplayEnabled ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <span className="text-[14px] text-stone-400">
+                  Show store logo
+                </span>
+                <div>
+                  <Toggle
+                    label=""
+                    enabled={settings.customerDisplayShowLogo}
+                    onChange={(val) =>
+                      updateSetting("customerDisplayShowLogo", val)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex justify-end gap-4 mt-6">
           <button
-            className="px-6 py-2 rounded-lg bg-green-600 text-slate-900 dark:text-white hover:bg-green-700 transition-colors"
+            className="px-6 py-2 rounded-lg bg-green-600 text-stone-900 dark:text-white hover:bg-green-700 transition-colors"
             onClick={() => {
               saveSettings();
               navigate(-1);
@@ -1803,7 +2476,7 @@ export default function SettingsPage() {
             Save
           </button>
           <button
-            className="px-6 py-2 rounded-lg bg-red-600 text-slate-900 dark:text-white hover:bg-red-700 transition-colors"
+            className="px-6 py-2 rounded-lg bg-red-600 text-stone-900 dark:text-white hover:bg-red-700 transition-colors"
             onClick={() => navigate(-1)}
           >
             Cancel
@@ -1858,7 +2531,7 @@ function Toggle({
       <button
         onClick={() => onChange(!enabled)}
         className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-          enabled ? "bg-green-500" : "bg-slate-500"
+          enabled ? "bg-green-500" : "bg-stone-500"
         }`}
       >
         <div

@@ -292,8 +292,8 @@ function DateRangeModal({
   const [draft, setDraft] = useState<{ from?: Date; to?: Date }>(range);
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-3xl p-6 shadow-xl">
-        <h3 className="text-sm font-semibold mb-4 text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-full max-w-3xl p-6 shadow-xl">
+        <h3 className="text-sm font-semibold mb-4 text-stone-900 dark:text-stone-100">
           Select date range
         </h3>
         <div className="grid grid-cols-12 gap-5">
@@ -303,7 +303,7 @@ function DateRangeModal({
                 key={p.label}
                 variant="outline"
                 size="sm"
-                className="justify-start bg-transparent hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white text-slate-700 dark:text-slate-300 text-xs"
+                className="justify-start bg-transparent hover:bg-stone-200 dark:hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:hover:text-stone-900 dark:text-white text-stone-700 dark:text-stone-300 text-xs"
                 onClick={() => setDraft(p.range())}
               >
                 {p.label}
@@ -318,7 +318,7 @@ function DateRangeModal({
               onSelect={setDraft as any}
               numberOfMonths={2}
               pagedNavigation
-              className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+              className="rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
             />
           </div>
         </div>
@@ -367,14 +367,14 @@ function ConfirmModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
         <div className="flex items-start gap-3 mb-5">
           <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${iconColor}`} />
           <div>
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
               {title}
             </p>
-            <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+            <div className="text-xs text-stone-600 dark:text-stone-400 mt-1">
               {body}
             </div>
           </div>
@@ -382,14 +382,14 @@ function ConfirmModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs border border-slate-400 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white rounded transition-colors"
+            className="px-3 py-1.5 text-xs border border-stone-400 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-900 dark:text-white rounded transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isPending}
-            className={`px-3 py-1.5 text-xs text-slate-900 dark:text-white rounded disabled:opacity-40 transition-colors ${confirmClass}`}
+            className={`px-3 py-1.5 text-xs text-stone-900 dark:text-white rounded disabled:opacity-40 transition-colors ${confirmClass}`}
           >
             {isPending ? "Working…" : confirmLabel}
           </button>
@@ -423,7 +423,7 @@ function CustomerPicker({
       <button
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border transition-colors
-          ${value ? "border-sky-500 text-sky-300 bg-sky-600/10" : "border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:border-slate-500"}`}
+          ${value ? "border-amber-500 text-amber-300 bg-amber-600/10" : "border-stone-600 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white hover:border-stone-500"}`}
       >
         <User className="w-3.5 h-3.5" />
         {name ?? "Customer"}
@@ -433,7 +433,7 @@ function CustomerPicker({
               e.stopPropagation();
               onChange(null);
             }}
-            className="ml-1 text-slate-500 hover:text-red-400"
+            className="ml-1 text-stone-500 hover:text-red-400"
           >
             <X className="w-3 h-3" />
           </span>
@@ -441,19 +441,19 @@ function CustomerPicker({
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-30 w-60 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-slate-300 dark:border-slate-700">
+        <div className="absolute top-full mt-1 left-0 z-30 w-60 bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-stone-300 dark:border-stone-700">
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
-              className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500 dark:placeholder:text-slate-500"
+              className="w-full bg-stone-50 dark:bg-stone-700 border border-stone-300 dark:border-stone-600 text-stone-900 dark:text-stone-100 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-amber-500 placeholder:text-stone-500 dark:placeholder:text-stone-500"
             />
           </div>
           <div className="max-h-52 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-500 px-3 py-4 text-center">
+              <p className="text-xs text-stone-500 dark:text-stone-500 px-3 py-4 text-center">
                 No customers found
               </p>
             ) : (
@@ -466,7 +466,7 @@ function CustomerPicker({
                     setSearch("");
                   }}
                   className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors
-                    ${value === c.id ? "bg-sky-600/20 text-sky-300" : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-700"}`}
+                    ${value === c.id ? "bg-amber-600/20 text-amber-300" : "text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-100 dark:bg-stone-700"}`}
                 >
                   {c.name}
                   {value === c.id && <Check className="w-3 h-3" />}
@@ -513,7 +513,7 @@ function StatusBadge({ status }: { status: DocumentRow["status"] }) {
   if (!status) return null;
   const map = {
     posted: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    draft: "bg-slate-500/15 text-slate-500 dark:text-slate-400 border-slate-500/30",
+    draft: "bg-stone-500/15 text-stone-500 dark:text-stone-400 border-stone-500/30",
     cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
   } as const;
   return (
@@ -757,7 +757,7 @@ export default function SalesHistory() {
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <div className="h-screen w-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200 flex flex-col overflow-hidden">
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       {dateModalOpen && (
         <DateRangeModal
@@ -773,7 +773,7 @@ export default function SalesHistory() {
           title="Delete document?"
           body={
             <>
-              <span className="font-mono text-slate-900 dark:text-slate-200">
+              <span className="font-mono text-stone-900 dark:text-stone-200">
                 {selectedDoc.number}
               </span>{" "}
               will be permanently removed. This cannot be undone.
@@ -794,11 +794,11 @@ export default function SalesHistory() {
           body={
             <>
               A refund document will be created for{" "}
-              <span className="font-mono text-slate-900 dark:text-slate-200">
+              <span className="font-mono text-stone-900 dark:text-stone-200">
                 {selectedDoc.number}
               </span>{" "}
               totalling{" "}
-              <span className="text-slate-800 dark:text-slate-200">
+              <span className="text-stone-800 dark:text-stone-200">
                 −{(selectedDoc.total ?? 0).toFixed(2)}
               </span>
               .
@@ -815,29 +815,29 @@ export default function SalesHistory() {
       <ToastStack toasts={toasts} />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-300 dark:border-slate-800 shrink-0">
-        <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-300 dark:border-stone-800 shrink-0">
+        <h1 className="text-base font-semibold text-stone-900 dark:text-stone-100">
           Sales history
         </h1>
         <button
           onClick={() => navigate(-1)}
-          className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white transition-colors"
+          className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-900 dark:text-white transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-slate-800/40 shrink-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-stone-300 dark:border-stone-800 bg-white/50 dark:bg-stone-800/40 shrink-0">
         {/* Number prefix */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-600 dark:text-slate-400">
+          <span className="text-xs text-stone-600 dark:text-stone-400">
             Number
           </span>
           <select
             value={numberPrefix}
             onChange={(e) => setNumberPrefix(e.target.value)}
-            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500"
+            className="bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-500"
           >
             {NUMBER_PREFIXES.map((p) => (
               <option key={p} value={p}>
@@ -850,7 +850,7 @@ export default function SalesHistory() {
         {/* Date */}
         <button
           onClick={() => setDateModalOpen(true)}
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs border border-slate-400 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white hover:border-slate-500 dark:hover:border-slate-500 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs border border-stone-400 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-900 dark:text-white hover:border-stone-500 dark:hover:border-stone-500 transition-colors"
         >
           <Calendar className="w-3.5 h-3.5" />
           {dateLabel}
@@ -859,7 +859,7 @@ export default function SalesHistory() {
         {/* Customer */}
         <CustomerPicker value={customerId} onChange={setCustomerId} />
 
-        <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1" />
+        <div className="w-px h-5 bg-stone-300 dark:bg-stone-700 mx-1" />
 
         {/* Action buttons */}
         {toolbarButtons.map(
@@ -871,7 +871,7 @@ export default function SalesHistory() {
               title={label}
               className={`flex flex-col items-center gap-0.5 transition-colors
               disabled:opacity-25 disabled:cursor-not-allowed
-              ${danger ? "text-red-400 hover:text-red-300" : "text-slate-500 dark:text-slate-400 hover:text-sky-400"}`}
+              ${danger ? "text-red-400 hover:text-red-300" : "text-stone-500 dark:text-stone-400 hover:text-amber-400"}`}
             >
               <Icon className="w-4 h-4" />
               <span className="text-[10px]">{label}</span>
@@ -883,13 +883,13 @@ export default function SalesHistory() {
       {/* ── Body ───────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Documents table */}
-        <div className="flex-[3] flex flex-col border-b border-slate-300 dark:border-slate-800 overflow-hidden">
-          <div className="px-4 py-1.5 text-xs text-slate-500 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-800/30 shrink-0">
+        <div className="flex-[3] flex flex-col border-b border-stone-300 dark:border-stone-800 overflow-hidden">
+          <div className="px-4 py-1.5 text-xs text-stone-500 border-b border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-800/30 shrink-0">
             Documents
           </div>
           <div className="flex-1 overflow-auto">
             <table className="w-full text-xs border-collapse min-w-max">
-              <thead className="sticky top-0 bg-white dark:bg-slate-800 z-10">
+              <thead className="sticky top-0 bg-white dark:bg-stone-800 z-10">
                 <tr>
                   {[
                     "Number",
@@ -903,7 +903,7 @@ export default function SalesHistory() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-3 py-2 text-left font-medium border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                      className="px-3 py-2 text-left font-medium border-b border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -915,7 +915,7 @@ export default function SalesHistory() {
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-3 py-10 text-center text-slate-500"
+                      className="px-3 py-10 text-center text-stone-500"
                     >
                       <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />
                       Loading…
@@ -925,7 +925,7 @@ export default function SalesHistory() {
                   <tr>
                     <td
                       colSpan={8}
-                      className="px-3 py-10 text-center text-slate-500"
+                      className="px-3 py-10 text-center text-stone-500"
                     >
                       No documents for the selected filters
                     </td>
@@ -939,16 +939,16 @@ export default function SalesHistory() {
                           selectedDocId === doc.id ? null : doc.id,
                         )
                       }
-                      className={`border-b border-slate-300 dark:border-slate-800/60 cursor-pointer transition-colors ${
+                      className={`border-b border-stone-300 dark:border-stone-800/60 cursor-pointer transition-colors ${
                         selectedDocId === doc.id
-                          ? "bg-sky-600/20 text-sky-100"
-                          : "hover:bg-white dark:bg-slate-800/50"
+                          ? "bg-amber-600/20 text-amber-100"
+                          : "hover:bg-white dark:bg-stone-800/50"
                       }`}
                     >
                       <td className="px-3 py-2 font-mono whitespace-nowrap">
                         {doc.number}
                         {doc.externalNumber && (
-                          <span className="ml-1 text-slate-500">
+                          <span className="ml-1 text-stone-500">
                             / {doc.externalNumber}
                           </span>
                         )}
@@ -956,25 +956,25 @@ export default function SalesHistory() {
                       <td className="px-3 py-2">
                         <StatusBadge status={doc.status} />
                       </td>
-                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[160px] truncate">
+                      <td className="px-3 py-2 text-stone-700 dark:text-stone-300 max-w-[160px] truncate">
                         {doc.customerName ?? (
-                          <span className="text-slate-600">—</span>
+                          <span className="text-stone-600">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-2 whitespace-nowrap text-stone-500 dark:text-stone-400">
                         {format(new Date(doc.date), "dd/MM/yyyy HH:mm")}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {doc.paid ? (
                           <Check className="w-3.5 h-3.5 text-emerald-400 inline" />
                         ) : (
-                          <span className="text-slate-600">—</span>
+                          <span className="text-stone-600">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      <td className="px-3 py-2 text-right tabular-nums text-stone-700 dark:text-stone-300">
                         {(doc.totalBeforeTax ?? 0).toFixed(2)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400">
                         {(doc.taxTotal ?? 0).toFixed(2)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
@@ -990,17 +990,17 @@ export default function SalesHistory() {
 
         {/* Items table */}
         <div className="flex-[2] flex flex-col overflow-hidden">
-          <div className="px-4 py-1.5 text-xs text-slate-500 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-800/30 shrink-0 flex items-center justify-between">
+          <div className="px-4 py-1.5 text-xs text-stone-500 border-b border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-800/30 shrink-0 flex items-center justify-between">
             <span>Document items</span>
             {selectedDoc && (
-              <span className="text-slate-600 font-mono">
+              <span className="text-stone-600 font-mono">
                 {selectedDoc.number}
               </span>
             )}
           </div>
           <div className="flex-1 overflow-auto">
             <table className="w-full text-xs border-collapse min-w-max">
-              <thead className="sticky top-0 bg-white dark:bg-slate-800 z-10">
+              <thead className="sticky top-0 bg-white dark:bg-stone-800 z-10">
                 <tr>
                   {[
                     "Name",
@@ -1013,7 +1013,7 @@ export default function SalesHistory() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-3 py-2 text-left font-medium border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 whitespace-nowrap"
+                      className="px-3 py-2 text-left font-medium border-b border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -1025,7 +1025,7 @@ export default function SalesHistory() {
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-3 py-8 text-center text-slate-600"
+                      className="px-3 py-8 text-center text-stone-600"
                     >
                       Select a document above to view its items
                     </td>
@@ -1034,7 +1034,7 @@ export default function SalesHistory() {
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-3 py-8 text-center text-slate-500"
+                      className="px-3 py-8 text-center text-stone-500"
                     >
                       <RefreshCw className="w-3.5 h-3.5 animate-spin inline mr-2" />
                       Loading…
@@ -1044,7 +1044,7 @@ export default function SalesHistory() {
                   <tr>
                     <td
                       colSpan={7}
-                      className="px-3 py-8 text-center text-slate-500"
+                      className="px-3 py-8 text-center text-stone-500"
                     >
                       No items on this document
                     </td>
@@ -1053,24 +1053,24 @@ export default function SalesHistory() {
                   items.map((item, i) => (
                     <tr
                       key={item.id}
-                      className={`border-b border-slate-300 dark:border-slate-800/50 ${i % 2 === 0 ? "" : "bg-white dark:bg-slate-800/20"}`}
+                      className={`border-b border-stone-300 dark:border-stone-800/50 ${i % 2 === 0 ? "" : "bg-white dark:bg-stone-800/20"}`}
                     >
-                      <td className="px-3 py-2 text-slate-800 dark:text-slate-200 max-w-[220px] truncate">
+                      <td className="px-3 py-2 text-stone-800 dark:text-stone-200 max-w-[220px] truncate">
                         {item.name}
                       </td>
-                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-2 text-stone-500 dark:text-stone-400">
                         {item.unit ?? "—"}
                       </td>
                       <td className="px-3 py-2 tabular-nums">
                         {item.quantity}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      <td className="px-3 py-2 text-right tabular-nums text-stone-700 dark:text-stone-300">
                         {item.priceBeforeTax.toFixed(2)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400">
                         {item.taxRate != null ? `${item.taxRate}%` : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400">
                         {item.discount ? item.discount.toFixed(2) : "—"}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium">
@@ -1086,17 +1086,17 @@ export default function SalesHistory() {
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-        <div className="flex items-center gap-6 text-xs text-slate-600 dark:text-slate-400">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-900 shrink-0">
+        <div className="flex items-center gap-6 text-xs text-stone-600 dark:text-stone-400">
           <span>
             Documents:{" "}
-            <span className="text-slate-900 dark:text-slate-200 font-medium tabular-nums">
+            <span className="text-stone-900 dark:text-stone-200 font-medium tabular-nums">
               {summary.count}
             </span>
           </span>
           <span>
             Total:{" "}
-            <span className="text-slate-800 dark:text-slate-200 font-medium tabular-nums">
+            <span className="text-stone-800 dark:text-stone-200 font-medium tabular-nums">
               {summary.total.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -1104,7 +1104,7 @@ export default function SalesHistory() {
             </span>
           </span>
           {selectedDoc && (
-            <span className="text-slate-600">
+            <span className="text-stone-600">
               Selected: <span className="font-mono">{selectedDoc.number}</span>{" "}
               — {(selectedDoc.total ?? 0).toFixed(2)}
             </span>
@@ -1112,7 +1112,7 @@ export default function SalesHistory() {
         </div>
         <button
           onClick={() => navigate(-1)}
-          className="bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white text-xs px-5 py-1.5 rounded transition-colors"
+          className="bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white text-xs px-5 py-1.5 rounded transition-colors"
         >
           Close
         </button>

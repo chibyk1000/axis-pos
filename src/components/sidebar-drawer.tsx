@@ -38,16 +38,16 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
     <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DrawerContent
         data-vaul-drawer-direction="right"
-        className="h-screen w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-0"
+        className="h-screen w-72 bg-white dark:bg-stone-800 border-r border-stone-200 dark:border-stone-700 p-0"
       >
         {/* Header */}
-        <DrawerHeader className="border-b border-slate-200 dark:border-slate-700 px-4 py-4 flex flex-row items-center justify-between">
-          <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+        <DrawerHeader className="border-b border-stone-200 dark:border-stone-700 px-4 py-4 flex flex-row items-center justify-between">
+          <span className="text-sm font-medium text-stone-800 dark:text-stone-200">
             POS – {user?.username}
           </span>
 
           <DrawerClose asChild>
-            <button className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white p-1">
+            <button className="text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white p-1">
               <ChevronRight className="w-5 h-5" />
             </button>
           </DrawerClose>
@@ -56,10 +56,10 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto flex flex-col">
           {/* Management */}
-          <div className="border-b border-slate-200 dark:border-slate-700">
+          <div className="border-b border-stone-200 dark:border-stone-700">
             <Link
               to="/dashboard"
-              className="px-4 py-4 flex items-center gap-3 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/60"
+              className="px-4 py-4 flex items-center gap-3 text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:bg-stone-700/60"
             >
               <Settings2 className="w-5 h-5" />
               <span className="text-sm font-medium">Management</span>
@@ -78,7 +78,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
                     navigate(item.link)
                   }}
                   key={item.label}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700/60 text-sm"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700/60 text-sm"
                 >
                   <span className="w-5 flex justify-center">{item.icon}</span>
                   <span>{item.label}</span>
@@ -88,8 +88,8 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
           </div>
 
           {/* User */}
-          <div className="border-b border-slate-200 dark:border-slate-700">
-            <div className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="border-b border-stone-200 dark:border-stone-700">
+            <div className="px-4 py-3 text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               User
             </div>
 
@@ -102,7 +102,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
               <div
                 key={item.label}
                 onClick={item.action}
-                className="px-4 py-3 flex items-center gap-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700/60 cursor-pointer text-sm"
+                className="px-4 py-3 flex items-center gap-3 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700/60 cursor-pointer text-sm"
               >
                 <span className="w-5 text-center">{item.icon}</span>
                 <span>{item.label}</span>
@@ -115,8 +115,8 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
         </div>
 
         {/* Footer */}
-        <DrawerFooter className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0">
-          <div className="px-4 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+        <DrawerFooter className="border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-0">
+          <div className="px-4 py-3 text-center text-xs text-stone-500 dark:text-stone-400">
             {today}
           </div>
 
@@ -124,7 +124,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
             <Link
               to="/settings"
               onClick={() => onClose()}
-              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+              className="p-2 rounded text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white hover:bg-stone-100 dark:bg-stone-700"
             >
               <Settings className="w-5 h-5" />
             </Link>
@@ -136,7 +136,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
                   document.exitFullscreen();
                 }
               }}
-              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700"
+              className="p-2 rounded text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white hover:bg-stone-100 dark:bg-stone-700"
             >
               <Maximize2 className="w-5 h-5" />
             </button>
@@ -145,7 +145,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
                 logout();
                 onClose();
               }}
-              className="p-2 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="p-2 rounded text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
               title="Logout"
             >
               <Power className="w-5 h-5" />

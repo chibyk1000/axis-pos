@@ -86,7 +86,7 @@ export default function PaymentTypesClient() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
       <PaymentTypeDrawer
         open={drawerOpen}
         setOpen={setDrawerOpen}
@@ -95,14 +95,14 @@ export default function PaymentTypesClient() {
       />
 
       {/* Toolbar */}
-      <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-50 dark:bg-slate-900">
+      <div className="border-b border-stone-300 dark:border-stone-800 px-6 py-4 flex items-center gap-2 bg-stone-50 dark:bg-stone-900">
         <button
           onClick={() => refetch()}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            text-slate-500 dark:text-slate-400
-            hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100
-            active:bg-slate-100 dark:bg-slate-700
+            text-stone-500 dark:text-stone-400
+            hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-stone-100
+            active:bg-stone-100 dark:bg-stone-700
             transition-colors
           "
         >
@@ -116,9 +116,9 @@ export default function PaymentTypesClient() {
           onClick={handleNew}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            text-slate-500 dark:text-slate-400
-            hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100
-            active:bg-slate-100 dark:bg-slate-700
+            text-stone-500 dark:text-stone-400
+            hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-stone-100
+            active:bg-stone-100 dark:bg-stone-700
             transition-colors
           "
         >
@@ -131,9 +131,9 @@ export default function PaymentTypesClient() {
           onClick={() => setDrawerOpen(true)}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            text-slate-500 dark:text-slate-400
-            hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100
-            active:bg-slate-100 dark:bg-slate-700
+            text-stone-500 dark:text-stone-400
+            hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-stone-100
+            active:bg-stone-100 dark:bg-stone-700
             transition-colors
             disabled:opacity-40 disabled:cursor-not-allowed
           "
@@ -147,9 +147,9 @@ export default function PaymentTypesClient() {
           onClick={handleDelete}
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            text-slate-500 dark:text-slate-400
-            hover:bg-white dark:bg-slate-800 hover:text-red-400
-            active:bg-slate-100 dark:bg-slate-700
+            text-stone-500 dark:text-stone-400
+            hover:bg-white dark:bg-stone-800 hover:text-red-400
+            active:bg-stone-100 dark:bg-stone-700
             transition-colors
             disabled:opacity-40 disabled:cursor-not-allowed
           "
@@ -163,9 +163,9 @@ export default function PaymentTypesClient() {
         <button
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
-            text-slate-500 dark:text-slate-400
-            hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100
-            active:bg-slate-100 dark:bg-slate-700
+            text-stone-500 dark:text-stone-400
+            hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-stone-100
+            active:bg-stone-100 dark:bg-stone-700
             transition-colors
           "
         >
@@ -176,14 +176,14 @@ export default function PaymentTypesClient() {
 
       {/* Table */}
       <div className="flex-1 overflow-hidden px-6 py-6">
-        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-slate-300 dark:border-slate-800">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-stone-300 dark:border-stone-800">
           {isLoading ? (
             <PageLoading label="Loading payment types" />
           ) : (
           <div className="flex-1 overflow-auto p-4">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+              <tr className="border-b border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
                 {[
                   "Name",
                   "Position",
@@ -197,7 +197,7 @@ export default function PaymentTypesClient() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 text-left"
+                    className="px-4 py-3 text-xs font-semibold text-stone-500 dark:text-stone-400 text-left"
                   >
                     {h}
                   </th>
@@ -210,7 +210,7 @@ export default function PaymentTypesClient() {
                 <tr>
                   <td
                     colSpan={9}
-                    className="px-4 py-8 text-center text-xs text-slate-500"
+                    className="px-4 py-8 text-center text-xs text-stone-500"
                   >
                     No payment types yet. Click "New payment type" to add one.
                   </td>
@@ -223,19 +223,19 @@ export default function PaymentTypesClient() {
                       setActiveRow(activeRow === type.id ? null : type.id)
                     }
                     className={`cursor-pointer transition-colors
-                      ${activeRow === type.id ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-white dark:bg-slate-800/50"}
-                      ${index === arr.length - 1 ? "" : "border-b border-slate-200 dark:border-slate-700"}`}
+                      ${activeRow === type.id ? "bg-stone-100 dark:bg-stone-700" : "hover:bg-white dark:bg-stone-800/50"}
+                      ${index === arr.length - 1 ? "" : "border-b border-stone-200 dark:border-stone-700"}`}
                   >
                     <td className="px-4 py-2.5 text-sm">
                       {activeRow === type.id && (
-                        <span className="inline-block w-1 h-3 bg-sky-500 rounded mr-2 align-middle" />
+                        <span className="inline-block w-1 h-3 bg-amber-500 rounded mr-2 align-middle" />
                       )}
                       {type.name}
                     </td>
                     <td className="px-4 py-2.5 text-sm tabular-nums">
                       {type.position}
                     </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-500 dark:text-slate-400">
+                    <td className="px-4 py-2.5 text-sm text-stone-500 dark:text-stone-400">
                       {type.code || "—"}
                     </td>
                     {[
@@ -250,7 +250,7 @@ export default function PaymentTypesClient() {
                         {v ? (
                           <Check className="w-4 h-4 mx-auto text-emerald-400" />
                         ) : (
-                          <X className="w-4 h-4 mx-auto text-slate-600" />
+                          <X className="w-4 h-4 mx-auto text-stone-600" />
                         )}
                       </td>
                     ))}

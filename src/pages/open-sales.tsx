@@ -38,7 +38,7 @@ export default function ViewOpenSales() {
       <div className="flex items-center justify-between px-4 py-2 bg-[#252525] border-b border-[#333]">
         <h1 className="text-sm font-medium">View open sales</h1>
         <button
-          className="text-slate-400 hover:text-white transition-colors"
+          className="text-stone-400 hover:text-white transition-colors"
           onClick={() => navigate(-1)}
         >
           <X className="w-5 h-5" />
@@ -48,18 +48,18 @@ export default function ViewOpenSales() {
       {/* Content */}
       <div className="flex-1 p-6 overflow-auto bg-[#1a1a1a]">
         {openSales.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-stone-500">
             <span className="text-sm italic">No open sales</span>
           </div>
         ) : (
           Object.entries(groupedSales).map(([groupName, group]) => (
             <div key={groupName} className="mb-8">
               <div className="flex items-center gap-4 mb-5">
-                <h2 className="text-sm font-bold whitespace-nowrap text-slate-100">
+                <h2 className="text-sm font-bold whitespace-nowrap text-stone-100">
                   {groupName}
                 </h2>
                 <div className="h-[1px] flex-1 bg-[#333]"></div>
-                <span className="text-sm font-bold tabular-nums text-slate-100">
+                <span className="text-sm font-bold tabular-nums text-stone-100">
                   {group.total.toLocaleString("en-NG", {
                     minimumFractionDigits: 2,
                   })}
@@ -75,10 +75,10 @@ export default function ViewOpenSales() {
                       // Logic to restore sale could go here
                     }}
                   >
-                    <span className="text-sm font-bold text-slate-100 group-hover:text-[#38bdf8] text-center break-words w-full">
+                    <span className="text-sm font-bold text-stone-100 group-hover:text-[#38bdf8] text-center break-words w-full">
                       {sale.customer?.name || "Walk-in"}
                     </span>
-                    <span className="text-[11px] text-slate-400 tabular-nums">
+                    <span className="text-[11px] text-stone-400 tabular-nums">
                       {sale.total?.toLocaleString("en-NG", {
                         minimumFractionDigits: 2,
                       })}
@@ -104,7 +104,7 @@ export default function ViewOpenSales() {
 
         <button
           onClick={() => navigate(-1)}
-          className="px-10 py-2 border border-[#444] bg-[#262626] hover:bg-[#333] text-xs font-medium text-slate-300 transition-colors"
+          className="px-10 py-2 border border-[#444] bg-[#262626] hover:bg-[#333] text-xs font-medium text-stone-300 transition-colors"
         >
           Close
         </button>

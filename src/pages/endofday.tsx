@@ -31,7 +31,7 @@ function SummaryCard({
   icon: Icon,
   label,
   value,
-  color = "text-slate-800 dark:text-slate-200",
+  color = "text-stone-800 dark:text-stone-200",
 }: {
   icon: React.ElementType;
   label: string;
@@ -39,10 +39,10 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-sm px-4 py-3 flex items-center gap-3">
-      <Icon className="w-5 h-5 text-slate-500 shrink-0" />
+    <div className="bg-white dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-sm px-4 py-3 flex items-center gap-3">
+      <Icon className="w-5 h-5 text-stone-500 shrink-0" />
       <div>
-        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-xs text-stone-500">{label}</p>
         <p className={`text-sm font-mono font-medium ${color}`}>{value}</p>
       </div>
     </div>
@@ -79,22 +79,22 @@ export default function EndOfDayModal() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 w-screen flex p-4 font-sans text-slate-900 dark:text-slate-200">
-      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-sm overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 w-screen flex p-4 font-sans text-stone-900 dark:text-stone-200">
+      <div className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 shadow-2xl rounded-sm overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-300 dark:border-slate-700">
-          <h2 className="text-base font-medium text-slate-900 dark:text-slate-100">
+        <div className="flex items-center justify-between px-4 py-3 bg-stone-100/50 dark:bg-stone-800/50 border-b border-stone-300 dark:border-stone-700">
+          <h2 className="text-base font-medium text-stone-900 dark:text-stone-100">
             End of day
           </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => refetch()}
-              className="text-slate-600 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-700 dark:text-slate-300 transition-colors"
+              className="text-stone-600 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-700 dark:text-stone-300 transition-colors"
             >
               <RefreshCw size={15} />
             </button>
             <button
-              className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors"
+              className="text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white transition-colors"
               onClick={() => navigate(-1)}
             >
               <X size={18} />
@@ -103,26 +103,26 @@ export default function EndOfDayModal() {
         </div>
 
         {/* Alert bar */}
-        <div className="bg-red-500/90 text-slate-900 dark:text-white px-4 py-2 flex items-center gap-3 text-xs shrink-0">
+        <div className="bg-red-500/90 text-stone-900 dark:text-white px-4 py-2 flex items-center gap-3 text-xs shrink-0">
           <AlertCircle size={15} className="shrink-0" />
           Printer is disabled or not selected. Reports may not be printed.
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 shrink-0">
+        <div className="flex border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/30 shrink-0">
           {(["end-of-day", "history"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-3 text-sm font-medium transition-colors relative capitalize ${
                 activeTab === tab
-                  ? "text-sky-400 bg-white dark:bg-slate-800/50"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-white dark:bg-slate-800/30"
+                  ? "text-amber-400 bg-white dark:bg-stone-800/50"
+                  : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 hover:bg-white dark:bg-stone-800/30"
               }`}
             >
               {tab === "end-of-day" ? "End of day" : "History"}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-sky-400" />
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-400" />
               )}
             </button>
           ))}
@@ -134,12 +134,12 @@ export default function EndOfDayModal() {
             <div className="p-5 flex flex-col gap-5">
               {/* Today's summary */}
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">
                   Today's summary — {format(new Date(), "dd MMM yyyy")}
                 </p>
 
                 {isLoading ? (
-                  <div className="flex items-center gap-2 text-slate-500 text-sm py-4">
+                  <div className="flex items-center gap-2 text-stone-500 text-sm py-4">
                     <RefreshCw className="w-4 h-4 animate-spin" /> Loading
                     summary…
                   </div>
@@ -168,7 +168,7 @@ export default function EndOfDayModal() {
                       icon={ArrowDown}
                       label="Cash in"
                       value={summary.cashIn.toFixed(2)}
-                      color="text-sky-400"
+                      color="text-orange-400"
                     />
                     <SummaryCard
                       icon={ArrowUp}
@@ -192,7 +192,7 @@ export default function EndOfDayModal() {
 
               {/* Cash-out option selector */}
               <div>
-                <p className="text-sm text-slate-700 dark:text-slate-300 mb-3">
+                <p className="text-sm text-stone-700 dark:text-stone-300 mb-3">
                   Select cash out option
                 </p>
 
@@ -206,8 +206,8 @@ export default function EndOfDayModal() {
                       }}
                       className={`w-32 h-28 border rounded-sm flex flex-col items-center justify-center gap-2 transition-all ${
                         selectedOption === id
-                          ? "bg-sky-500/20 border-sky-500 text-sky-300"
-                          : "bg-white dark:bg-slate-800/50 border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 hover:border-slate-500"
+                          ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                          : "bg-white dark:bg-stone-800/50 border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-white dark:bg-stone-800 hover:border-stone-500"
                       }`}
                     >
                       <Icon size={40} strokeWidth={1.5} />
@@ -225,8 +225,8 @@ export default function EndOfDayModal() {
                     }}
                     className={`w-32 h-28 border rounded-sm flex flex-col items-center justify-center gap-2 transition-all ${
                       selectedOption === "report"
-                        ? "bg-sky-500/20 border-sky-500 text-sky-300"
-                        : "bg-white dark:bg-slate-800/50 border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 hover:border-slate-500"
+                        ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                        : "bg-white dark:bg-stone-800/50 border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-white dark:bg-stone-800 hover:border-stone-500"
                     }`}
                   >
                     <FileText size={40} strokeWidth={1.5} />
@@ -249,7 +249,7 @@ export default function EndOfDayModal() {
                   {selectedOption === "report" && "Report generated."}
                 </div>
               ) : !selectedOption ? (
-                <div className="text-slate-500 text-sm text-center py-4">
+                <div className="text-stone-500 text-sm text-center py-4">
                   <p className="font-medium mb-1">
                     Cash out option not selected
                   </p>
@@ -263,9 +263,9 @@ export default function EndOfDayModal() {
 
           {activeTab === "history" && (
             <div className="p-5">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">End-of-day history</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400 mb-3">End-of-day history</p>
               {/* TODO: persist EOD runs to a table and list them here */}
-              <div className="border border-slate-200 dark:border-slate-700 rounded-sm flex items-center justify-center py-12 text-slate-600 text-sm">
+              <div className="border border-stone-200 dark:border-stone-700 rounded-sm flex items-center justify-center py-12 text-stone-600 text-sm">
                 No history recorded yet
               </div>
             </div>
@@ -273,14 +273,14 @@ export default function EndOfDayModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-white dark:bg-slate-800/50 shrink-0">
+        <div className="px-4 py-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-3 bg-white dark:bg-stone-800/50 shrink-0">
           <button
             disabled={!selectedOption || confirmed}
             onClick={handleContinue}
             className={`px-6 py-2 text-sm rounded-sm flex items-center gap-2 transition-colors ${
               selectedOption && !confirmed
-                ? "bg-sky-600 hover:bg-sky-500 text-slate-900 dark:text-white"
-                : "bg-white dark:bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-200 dark:border-slate-700"
+                ? "bg-amber-600 hover:bg-amber-500 text-stone-900 dark:text-white"
+                : "bg-white dark:bg-stone-800 text-stone-500 cursor-not-allowed border border-stone-200 dark:border-stone-700"
             }`}
           >
             <Check size={15} />
@@ -288,7 +288,7 @@ export default function EndOfDayModal() {
           </button>
           <button
             onClick={() => navigate(-1)}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-slate-900 dark:text-white text-sm rounded-sm transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white text-sm rounded-sm transition-colors flex items-center gap-2"
           >
             <X size={15} />
             Cancel

@@ -72,7 +72,7 @@ export default function TaxRatesTable() {
     allTaxes.find((t) => t.id === selected);
 
   return (
-    <div className="h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4">
+    <div className="h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4">
       <SwitchTaxesDrawer
         open={switchOpen}
         onOpenChange={setSwitchOpen}
@@ -167,27 +167,27 @@ export default function TaxRatesTable() {
       </div>
 
       {/* Table */}
-      <div className="flex h-[calc(100vh-120px)] flex-col overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+      <div className="flex h-[calc(100vh-120px)] flex-col overflow-hidden rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900">
         {isLoading ? (
           <PageLoading label="Loading tax rates" />
         ) : (
           <ScrollArea className="flex-1">
             <Table>
-            <TableHeader className="  bg-slate-100 dark:bg-slate-700 border-b border-slate-100">
+            <TableHeader className="  bg-stone-100 dark:bg-stone-700 border-b border-stone-100">
               <TableRow>
-                <TableHead className="text-slate-800 dark:text-slate-200 w-[40%]">
+                <TableHead className="text-stone-800 dark:text-stone-200 w-[40%]">
                   Name
                 </TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">
+                <TableHead className="text-stone-800 dark:text-stone-200">
                   Rate
                 </TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">
+                <TableHead className="text-stone-800 dark:text-stone-200">
                   Code
                 </TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">
+                <TableHead className="text-stone-800 dark:text-stone-200">
                   Fixed
                 </TableHead>
-                <TableHead className="text-slate-800 dark:text-slate-200">
+                <TableHead className="text-stone-800 dark:text-stone-200">
                   Enabled
                 </TableHead>
               </TableRow>
@@ -200,12 +200,12 @@ export default function TaxRatesTable() {
                   onClick={() => setSelected(tax.id)}
                   className={`
                     cursor-pointer transition-colors
-                    ${selected === tax.id ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-100 dark:bg-slate-700/50"}
+                    ${selected === tax.id ? "bg-stone-100 dark:bg-stone-700" : "hover:bg-stone-100 dark:bg-stone-700/50"}
                   `}
                 >
                   <TableCell>{tax.name}</TableCell>
                   <TableCell>{tax.rate}%</TableCell>
-                  <TableCell className="text-slate-500 dark:text-slate-400">
+                  <TableCell className="text-stone-500 dark:text-stone-400">
                     {tax.code || "—"}
                   </TableCell>
                   <TableCell>
@@ -252,9 +252,9 @@ function ToolbarButton({
       onClick={onClick}
       className="
         flex items-center gap-2
-        text-slate-700 dark:text-slate-300
-        hover:text-slate-900 dark:text-white
-        hover:bg-white dark:bg-slate-800
+        text-stone-700 dark:text-stone-300
+        hover:text-stone-900 dark:text-white
+        hover:bg-white dark:bg-stone-800
         disabled:opacity-40
       "
     >

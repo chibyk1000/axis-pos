@@ -126,29 +126,29 @@ function ConfirmDeleteModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm mx-4 p-6">
+      <div className="bg-white dark:bg-stone-800 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-700 w-full max-w-sm mx-4 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center justify-center w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-500/10">
             <AlertTriangle className="w-5 h-5 text-rose-500" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-white">
               Delete Document
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-stone-500 dark:text-stone-400">
               This action cannot be undone
             </p>
           </div>
         </div>
-        <p className="text-sm text-slate-700 dark:text-slate-300 mb-6">
+        <p className="text-sm text-stone-700 dark:text-stone-300 mb-6">
           Are you sure you want to delete this document? All associated items
           will be permanently removed.
         </p>
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700
-              text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+            className="px-4 py-2 text-sm rounded-lg border border-stone-200 dark:border-stone-700
+              text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition"
           >
             Cancel
           </button>
@@ -420,7 +420,7 @@ export function DocumentsView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
       {/* Fix #4: Confirmation modal */}
       <ConfirmDeleteModal
         open={confirmDeleteOpen}
@@ -439,12 +439,12 @@ export function DocumentsView() {
       />
 
       {/* Header */}
-      <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
+      <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button className="text-slate-500 dark:text-slate-400 hover:text-indigo-400 transition">
+          <button className="text-stone-500 dark:text-stone-400 hover:text-orange-400 transition">
             <ChevronLeftIcon className="w-5 h-5" />
           </button>
-          <span className="text-sm text-slate-700 dark:text-slate-300">
+          <span className="text-sm text-stone-700 dark:text-stone-300">
             Management • Documents
           </span>
         </div>
@@ -452,12 +452,12 @@ export function DocumentsView() {
           {/* Fix #5: Refresh triggers refetch */}
           <button
             onClick={() => refetch()}
-            className="text-slate-500 dark:text-slate-400 hover:text-indigo-400 transition"
+            className="text-stone-500 dark:text-stone-400 hover:text-orange-400 transition"
             title="Refresh documents"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button className="text-slate-500 dark:text-slate-400 hover:text-rose-400 transition">
+          <button className="text-stone-500 dark:text-stone-400 hover:text-rose-400 transition">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -479,14 +479,14 @@ export function DocumentsView() {
       />
 
       {/* Tab bar */}
-      <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex gap-2">
+      <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-3 flex gap-2">
         <button
           onClick={() => setSelectedDocument(null)}
           className={`flex items-center gap-2 ${
-            !selectedDocument ? "bg-white dark:bg-slate-800" : ""
+            !selectedDocument ? "bg-white dark:bg-stone-800" : ""
           } w-40 text-xs px-3 py-2`}
         >
-          <Search className="w-3 h-3 text-slate-500" />
+          <Search className="w-3 h-3 text-stone-500" />
           <span>View Documents</span>
         </button>
 
@@ -500,12 +500,12 @@ export function DocumentsView() {
                   className={`
                     flex items-center justify-between min-w-35 max-w-45
                     px-3 py-2 text-xs rounded-t-md
-                    border border-slate-300 dark:border-slate-800 border-b-0
+                    border border-stone-300 dark:border-stone-800 border-b-0
                     transition cursor-pointer
                     ${
                       isActive
-                        ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                        : "bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-white hover:text-slate-800"
+                        ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-white"
+                        : "bg-stone-50 dark:bg-stone-900 text-stone-500 dark:text-stone-400 hover:bg-white hover:text-stone-800"
                     }
                   `}
                   onClick={() => setSelectedDocument(doc)}
@@ -528,7 +528,7 @@ export function DocumentsView() {
                         setEditingDocument(null);
                       }
                     }}
-                    className="ml-2 text-slate-500 hover:text-rose-400 transition"
+                    className="ml-2 text-stone-500 hover:text-rose-400 transition"
                   >
                     ✕
                   </button>
@@ -567,7 +567,7 @@ export function DocumentsView() {
       {(!documents.length || !selectedDocument) && (
         <>
           {/* Toolbar */}
-          <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center gap-4">
+          <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-3 flex items-center gap-4">
             <ToolbarButton icon={Plus} label="Add" onClick={onAdd} />
             <ToolbarButton icon={Printer} label="Print" onClick={handlePrint} />
             <ToolbarButton
@@ -595,7 +595,7 @@ export function DocumentsView() {
           </div>
 
           {/* Filters */}
-          <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 px-6 py-4 space-y-3">
+          <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-4 space-y-3">
             <div className="grid grid-cols-3 gap-4">
               <FilterSelect
                 label="Product"
@@ -683,8 +683,8 @@ export function DocumentsView() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => refetch()} // Search re-fetches from server
-                className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300 px-3 py-1 rounded
-                  hover:text-indigo-400 hover:bg-indigo-500/10 transition"
+                className="flex items-center gap-1 text-sm text-stone-700 dark:text-stone-300 px-3 py-1 rounded
+                  hover:text-orange-400 hover:bg-orange-500/10 transition"
               >
                 <Search className="w-4 h-4" />
                 Search
@@ -692,7 +692,7 @@ export function DocumentsView() {
               {/* Fix #6: Clear now resets filters AND refetches */}
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300 px-3 py-1 rounded
+                className="flex items-center gap-1 text-sm text-stone-700 dark:text-stone-300 px-3 py-1 rounded
                   hover:text-rose-400 hover:bg-rose-500/10 transition"
               >
                 ⊗ Clear
@@ -704,7 +704,7 @@ export function DocumentsView() {
           <div className="flex-1 overflow-auto px-6 py-4 space-y-6">
             <TableWrapper title={`Documents (${filteredDocuments.length})`}>
               <thead>
-                <tr className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <tr className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                   <th className="px-4 py-2">
                     <input type="checkbox" />
                   </th>
@@ -724,7 +724,7 @@ export function DocumentsView() {
                     <th
                       key={h}
                       className={`px-4 py-2 text-left ${
-                        h === "ID" || h === "Number" ? "text-indigo-400" : ""
+                        h === "ID" || h === "Number" ? "text-orange-400" : ""
                       }`}
                     >
                       {h}
@@ -734,10 +734,10 @@ export function DocumentsView() {
               </thead>
               <tbody>
                 {filteredDocuments.length === 0 ? (
-                  <tr className="bg-slate-50 dark:bg-slate-900">
+                  <tr className="bg-stone-50 dark:bg-stone-900">
                     <td
                       colSpan={12}
-                      className="px-4 py-12 text-center text-slate-500"
+                      className="px-4 py-12 text-center text-stone-500"
                     >
                       No documents found
                     </td>
@@ -754,8 +754,8 @@ export function DocumentsView() {
                         onClick={() => setSelectedSavedDocument(doc)}
                         className={`cursor-pointer transition ${
                           isSelected
-                            ? "bg-indigo-50 dark:bg-indigo-500/10"
-                            : "hover:bg-white dark:hover:bg-slate-800"
+                            ? "bg-orange-50 dark:bg-orange-500/10"
+                            : "hover:bg-white dark:hover:bg-stone-800"
                         }`}
                       >
                         <td className="px-4 py-2">
@@ -799,7 +799,7 @@ export function DocumentsView() {
               title={`Document items (${selectedSavedDocument?.items?.length ?? 0})`}
             >
               <thead>
-                <tr className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <tr className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                   {[
                     "ID",
                     "Code",
@@ -821,10 +821,10 @@ export function DocumentsView() {
               </thead>
               <tbody>
                 {!selectedSavedDocument?.items?.length ? (
-                  <tr className="bg-slate-50 dark:bg-slate-900">
+                  <tr className="bg-stone-50 dark:bg-stone-900">
                     <td
                       colSpan={11}
-                      className="px-4 py-12 text-center text-slate-500"
+                      className="px-4 py-12 text-center text-stone-500"
                     >
                       No items found
                     </td>
@@ -836,7 +836,7 @@ export function DocumentsView() {
                     return (
                       <tr
                         key={item.id}
-                        className="hover:bg-white dark:hover:bg-slate-800"
+                        className="hover:bg-white dark:hover:bg-stone-800"
                       >
                         <td className="px-4 py-2">{item.id.slice(0, 6)}</td>
                         <td className="px-4 py-2">
@@ -885,8 +885,8 @@ function ToolbarButton({
         flex items-center gap-2 text-sm px-3 py-2 rounded transition
         ${
           danger
-            ? "text-slate-700 dark:text-slate-300 hover:text-rose-400 hover:bg-rose-500/10"
-            : "text-slate-700 dark:text-slate-300 hover:text-indigo-400 hover:bg-indigo-500/10"
+            ? "text-stone-700 dark:text-stone-300 hover:text-rose-400 hover:bg-rose-500/10"
+            : "text-stone-700 dark:text-stone-300 hover:text-orange-400 hover:bg-orange-500/10"
         }
       `}
       onClick={onClick}
@@ -910,13 +910,13 @@ function FilterSelect({
 }) {
   return (
     <div className="flex flex-col">
-      <label className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+      <label className="text-xs text-stone-500 dark:text-stone-400 mb-1">
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
+        className="bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"
       >
         {items.map((item) => (
           <option key={item.id} value={item.id}>
@@ -941,14 +941,14 @@ function FilterInput({
 }) {
   return (
     <div className="flex flex-col">
-      <label className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+      <label className="text-xs text-stone-500 dark:text-stone-400 mb-1">
         {label}
       </label>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange?.(e.target.value)}
-        className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
+        className="bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"
       />
     </div>
   );
@@ -964,7 +964,7 @@ function TableWrapper({
   return (
     <div>
       <h3 className="text-sm font-semibold mb-3">{title}</h3>
-      <div className="border border-slate-300 dark:border-slate-800 rounded overflow-hidden">
+      <div className="border border-stone-300 dark:border-stone-800 rounded overflow-hidden">
         <table className="w-full text-sm">{children}</table>
       </div>
     </div>
@@ -982,7 +982,7 @@ function FilterDateRange({
 }) {
   return (
     <div className="flex flex-col">
-      <label className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+      <label className="text-xs text-stone-500 dark:text-stone-400 mb-1">
         {label}
       </label>
       <Popover>
@@ -990,8 +990,8 @@ function FilterDateRange({
           <Button
             variant="outline"
             className={cn(
-              "justify-between bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-white hover:text-slate-900 text-sm px-2 py-1 h-9",
-              !value && "text-slate-500",
+              "justify-between bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:bg-white hover:text-stone-900 text-sm px-2 py-1 h-9",
+              !value && "text-stone-500",
             )}
           >
             {value?.from ? (
@@ -1006,11 +1006,11 @@ function FilterDateRange({
             ) : (
               "Select period"
             )}
-            <CalendarIcon className="ml-2 h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <CalendarIcon className="ml-2 h-4 w-4 text-stone-500 dark:text-stone-400" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto p-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+          className="w-auto p-0 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700"
           align="start"
         >
           <Calendar
@@ -1020,7 +1020,7 @@ function FilterDateRange({
             selected={value}
             onSelect={onChange}
             numberOfMonths={2}
-            className="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200"
+            className="bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200"
           />
         </PopoverContent>
       </Popover>

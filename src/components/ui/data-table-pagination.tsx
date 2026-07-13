@@ -25,7 +25,7 @@ export function DataTablePagination({
 
   return (
     <div
-      className={`flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-400 shrink-0 ${className}`}
+      className={`flex items-center justify-between px-4 py-2 border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs text-stone-600 dark:text-stone-400 shrink-0 ${className}`}
     >
       {/* Row count info */}
       <span className="shrink-0">
@@ -37,14 +37,14 @@ export function DataTablePagination({
         {/* Per-page selector */}
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5">
-            <span className="text-slate-500">Rows</span>
+            <span className="text-stone-500">Rows</span>
             <select
               value={pageSize}
               onChange={(e) => {
                 onPageSizeChange(Number(e.target.value));
                 onPageChange(1);
               }}
-              className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-sky-500"
+              className="bg-stone-100 dark:bg-stone-700 border border-stone-300 dark:border-stone-600 text-stone-800 dark:text-stone-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-amber-500"
             >
               {pageSizeOptions.map((s) => (
                 <option key={s} value={s}>
@@ -112,8 +112,8 @@ function PaginationButton({
       disabled={disabled}
       title={title}
       className="p-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed
-        text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700
-        hover:text-slate-900 dark:hover:text-slate-100"
+        text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700
+        hover:text-stone-900 dark:hover:text-stone-100"
     >
       {children}
     </button>
@@ -152,7 +152,7 @@ function PageChips({
     <div className="flex items-center gap-0.5">
       {pages.map((p, idx) =>
         p === "..." ? (
-          <span key={`ellipsis-${idx}`} className="px-1 text-slate-500">
+          <span key={`ellipsis-${idx}`} className="px-1 text-stone-500">
             ...
           </span>
         ) : (
@@ -161,8 +161,8 @@ function PageChips({
             onClick={() => onPageChange(p)}
             className={`min-w-[24px] h-6 px-1.5 rounded text-xs transition-colors font-medium ${
               p === page
-                ? "bg-sky-600 text-white"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
+                ? "bg-amber-600 text-white"
+                : "text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-stone-100"
             }`}
           >
             {p}

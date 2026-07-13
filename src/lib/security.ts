@@ -53,7 +53,7 @@ export const DEFAULT_SECURITY_SECTIONS: Section[] = [
   {
     id: "general",
     label: "General",
-    color: "bg-sky-600",
+    color: "bg-orange-600",
     items: [
       {
         id: "dashboard",
@@ -129,7 +129,7 @@ export const DEFAULT_SECURITY_SECTIONS: Section[] = [
   {
     id: "dashboard-pages",
     label: "Dashboard pages",
-    color: "bg-violet-600",
+    color: "bg-rose-600",
     items: [
       { id: "documents", label: "Documents", value: 0 },
       { id: "products", label: "Products", value: 0 },

@@ -35,8 +35,8 @@ export default function ReportList({
   );
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900">
-      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">
+    <div className="bg-stone-50 dark:bg-stone-900">
+      <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 mb-3 uppercase tracking-wider">
         Sales
       </h3>
 
@@ -47,16 +47,16 @@ export default function ReportList({
             onClick={() => onSelectReport(report)}
             className="
               w-full flex items-center gap-3 px-3 py-2.5 rounded-md
-              text-sm text-slate-700 dark:text-slate-300 text-left
-              hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-white
+              text-sm text-stone-700 dark:text-stone-300 text-left
+              hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-white
               transition-colors group
             "
           >
             <div
               className="
-                w-4 h-4 rounded border border-slate-600
-                group-hover:border-sky-400
-                group-hover:bg-sky-400/10
+                w-4 h-4 rounded border border-stone-600
+                group-hover:border-amber-400
+                group-hover:bg-amber-400/10
                 transition-colors
               "
             />
@@ -66,7 +66,7 @@ export default function ReportList({
       </div>
 
       {filteredReports.length === 0 && (
-        <div className="px-3 py-6 text-center text-slate-500 dark:text-slate-400 text-sm">
+        <div className="px-3 py-6 text-center text-stone-500 dark:text-stone-400 text-sm">
           No reports found
         </div>
       )}

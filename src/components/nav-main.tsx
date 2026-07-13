@@ -32,17 +32,17 @@ export function NavMain({
               data-active={active}
               className={`
                 py-3 text-xs
-                ${item.disabled ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50" : "text-slate-700 dark:text-slate-300 hover:text-indigo-400 hover:bg-indigo-500/10"}
-                data-[active=true]:bg-indigo-500
-                data-[active=true]:text-slate-900 dark:text-white
+                ${item.disabled ? "text-stone-400 dark:text-stone-600 cursor-not-allowed opacity-50" : "text-stone-700 dark:text-stone-300 hover:text-orange-400 hover:bg-orange-500/10"}
+                data-[active=true]:bg-orange-500
+                data-[active=true]:text-stone-900 dark:text-white
               `}
             >
               {item.icon && (
                 <item.icon
                   className={`
                     size-6
-                    ${item.disabled ? "text-slate-400 dark:text-slate-600" : "text-slate-500 dark:text-slate-400 group-hover:text-indigo-100"}
-                    data-[active=true]:text-slate-900 dark:text-white
+                    ${item.disabled ? "text-stone-400 dark:text-stone-600" : "text-stone-500 dark:text-stone-400 group-hover:text-orange-100"}
+                    data-[active=true]:text-stone-900 dark:text-white
                   `}
                 />
               )}

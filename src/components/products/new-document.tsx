@@ -257,7 +257,7 @@ export default function NewDocument({
   const { data: customers } = useCustomers();
   const isEdit = !!document;
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 p-6">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 p-6">
       <DocumentProductDrawer
         key={selectedDocumentProduct}
         open={openNewDocument}
@@ -310,41 +310,41 @@ export default function NewDocument({
         }}
       />
       {/* Top Section */}
-      <div className="w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 rounded-xl shadow-lg border border-slate-300 dark:border-slate-800">
+      <div className="w-full bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-6 rounded-xl shadow-lg border border-stone-300 dark:border-stone-800">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* LEFT SIDE */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Number
               </Label>
               <Input
                 value={docNumber}
                 onChange={(e) => setDocNumber(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 External document
               </Label>
               <Input
                 value={externalNumber}
                 onChange={(e) => setExternalNumber(e.target.value)}
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Supplier
               </Label>
               <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 w-full">
+                <SelectTrigger className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 w-full">
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+                <SelectContent className="bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100">
                   <SelectItem value="nil" disabled>
                     Select a customer
                   </SelectItem>
@@ -362,7 +362,7 @@ export default function NewDocument({
             {/* Date + Paid */}
             <div className="flex items-end gap-4">
               <div className="space-y-2 flex-1">
-                <Label className="text-slate-500 dark:text-slate-400">
+                <Label className="text-stone-500 dark:text-stone-400">
                   Date
                 </Label>
                 <Popover>
@@ -370,23 +370,23 @@ export default function NewDocument({
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100",
-                        !date && "text-slate-500",
+                        "w-full justify-start text-left font-normal bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                        !date && "text-stone-500",
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, "M/d/yyyy") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                  <PopoverContent className="w-auto p-0 bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700">
                     <Calendar
                       mode="single"
                       selected={date}
                       classNames={{
-                        day_button: "text-sky-200",
+                        day_button: "text-amber-200",
 
-                        today: "bg-sky-500 text-sky-100",
-                        selected: "bg-sky-500",
+                        today: "bg-amber-500 text-amber-100",
+                        selected: "bg-amber-500",
                         day: "data-[selected-single=true]:bg-orange-500",
                       }}
                       onSelect={setDate}
@@ -400,9 +400,9 @@ export default function NewDocument({
                 <Checkbox
                   checked={paid}
                   onCheckedChange={(val) => setPaid(!!val)}
-                  className="border-slate-600 data-[state=checked]:bg-emerald-500"
+                  className="border-stone-600 data-[state=checked]:bg-emerald-500"
                 />
-                <Label className="text-slate-700 dark:text-slate-300">
+                <Label className="text-stone-700 dark:text-stone-300">
                   Paid
                 </Label>
               </div>
@@ -410,7 +410,7 @@ export default function NewDocument({
 
             {/* Due Date */}
             <div className="space-y-2">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Due date
               </Label>
               <Popover>
@@ -418,23 +418,23 @@ export default function NewDocument({
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100",
-                      !dueDate && "text-slate-500",
+                      "w-full justify-start text-left font-normal bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100",
+                      !dueDate && "text-stone-500",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dueDate ? format(dueDate, "M/d/yyyy") : "Pick due date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <PopoverContent className="w-auto p-0 bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700">
                   <Calendar
                     mode="single"
                     selected={dueDate}
                     classNames={{
-                      day_button: "text-sky-200",
+                      day_button: "text-amber-200",
 
-                      today: "bg-sky-500 text-sky-100",
-                      selected: "bg-sky-500",
+                      today: "bg-amber-500 text-amber-100",
+                      selected: "bg-amber-500",
                       day: "data-[selected-single=true]:bg-orange-500",
                     }}
                     onSelect={setDueDate}
@@ -446,7 +446,7 @@ export default function NewDocument({
 
             {/* Stock Date */}
             <div className="space-y-2 pt-2">
-              <Label className="text-slate-500 dark:text-slate-400 text-xs">
+              <Label className="text-stone-500 dark:text-stone-400 text-xs">
                 Stock date
               </Label>
 
@@ -454,24 +454,24 @@ export default function NewDocument({
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start gap-2 text-left bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-normal"
+                    className="w-full justify-start gap-2 text-left bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 font-normal"
                   >
-                    <RotateCcw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-slate-800 dark:text-slate-200 font-medium">
+                    <RotateCcw className="h-4 w-4 text-stone-500 dark:text-stone-400" />
+                    <span className="text-stone-800 dark:text-stone-200 font-medium">
                       {format(stockDate, "M/d/yyyy h:mm a")}
                     </span>
                   </Button>
                 </PopoverTrigger>
 
-                <PopoverContent className="w-auto p-3 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 space-y-3">
+                <PopoverContent className="w-auto p-3 bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 space-y-3">
                   <Calendar
                     mode="single"
                     selected={stockDate}
                     classNames={{
-                      day_button: "text-sky-200",
+                      day_button: "text-amber-200",
 
-                      today: "bg-sky-500 text-sky-100",
-                      selected: "bg-sky-500",
+                      today: "bg-amber-500 text-amber-100",
+                      selected: "bg-amber-500",
                       day: "data-[selected-single=true]:bg-orange-500",
                     }}
                     onSelect={(date) => {
@@ -502,7 +502,7 @@ export default function NewDocument({
                         updated.setMinutes(minutes);
                         setStockDate(updated);
                       }}
-                      className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                      className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100"
                     />
                   </div>
                 </PopoverContent>
@@ -512,14 +512,14 @@ export default function NewDocument({
         </div>
       </div>
 
-      <div className="bg-sla text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-800 rounded-xl p-4 space-y-4">
+      <div className="bg-sla text-stone-900 dark:text-stone-100 border border-stone-300 dark:border-stone-800 rounded-xl p-4 space-y-4">
         <Tabs defaultValue="items" className="w-full">
-          <TabsList className="flex gap-6 border-none border-slate-200 dark:border-slate-700 bg-transparent ">
+          <TabsList className="flex gap-6 border-none border-stone-200 dark:border-stone-700 bg-transparent ">
             <TabsTrigger
               value="items"
-              className="relative pb-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white data-[state=active]:bg-transparent data-[state=active]:text-slate-900 dark:text-white 
+              className="relative pb-2 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white data-[state=active]:bg-transparent data-[state=active]:text-stone-900 dark:text-white 
     after:absolute after:left-0 after:-bottom-[1px] after:h-[2px] after:w-full 
-    after:bg-sky-500 after:scale-x-0 after:transition-transform 
+    after:bg-amber-500 after:scale-x-0 after:transition-transform 
     data-[state=active]:after:scale-x-100"
             >
               Document items
@@ -527,9 +527,9 @@ export default function NewDocument({
 
             <TabsTrigger
               value="payments"
-              className="relative pb-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white data-[state=active]:bg-transparent data-[state=active]:text-slate-900 dark:text-white 
+              className="relative pb-2 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white data-[state=active]:bg-transparent data-[state=active]:text-stone-900 dark:text-white 
     after:absolute after:left-0 after:-bottom-[1px] after:h-[2px] after:w-full 
-    after:bg-sky-500 after:scale-x-0 after:transition-transform 
+    after:bg-amber-500 after:scale-x-0 after:transition-transform 
     data-[state=active]:after:scale-x-100"
             >
               Payments
@@ -544,9 +544,9 @@ export default function NewDocument({
             {/* Changed grid layout from 2/10 to 3/9 for drastically improved breathing room */}
             <div className="grid grid-cols-12 gap-5 items-start">
               {/* LEFT SIDEBAR: Expanded width, optimized text truncation */}
-              <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col min-h-[480px] shadow-sm">
+              <div className="col-span-12 md:col-span-4 lg:col-span-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4 flex flex-col min-h-[480px] shadow-sm">
                 <div className="space-y-1 mb-3">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                     Product Selection
                   </label>
                   <Input
@@ -554,7 +554,7 @@ export default function NewDocument({
                     placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-9 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-sm focus-visible:ring-sky-500"
+                    className="h-9 bg-stone-50 dark:bg-stone-950 border-stone-200 dark:border-stone-800 text-sm focus-visible:ring-amber-500"
                   />
                 </div>
 
@@ -566,10 +566,10 @@ export default function NewDocument({
                         <div
                           key={product.id}
                           className={cn(
-                            "px-3 py-2.5 rounded-lg transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent",
+                            "px-3 py-2.5 rounded-lg transition-all cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-800 border border-transparent",
                             selectedId === product.id
-                              ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-medium shadow-sm"
-                              : "text-slate-600 dark:text-slate-300",
+                              ? "bg-stone-100 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 font-medium shadow-sm"
+                              : "text-stone-600 dark:text-stone-300",
                           )}
                           onClick={() => setSelectedId(product.id)}
                           onDoubleClick={() => {
@@ -578,13 +578,13 @@ export default function NewDocument({
                           }}
                         >
                           <div className="flex items-start gap-2.5">
-                            <FaRegFileAlt className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />
+                            <FaRegFileAlt className="w-4 h-4 text-stone-400 dark:text-stone-500 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs leading-normal font-medium truncate">
                                 {product.title}
                               </p>
                               {product.code && (
-                                <p className="text-[10px] font-mono tracking-tight text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                                <p className="text-[10px] font-mono tracking-tight text-stone-400 dark:text-stone-500 truncate mt-0.5">
                                   {product.code}
                                 </p>
                               )}
@@ -593,7 +593,7 @@ export default function NewDocument({
                         </div>
                       ))}
                       {allProducts.length === 0 && (
-                        <div className="px-3 py-10 text-center text-slate-400 dark:text-slate-500 text-xs">
+                        <div className="px-3 py-10 text-center text-stone-400 dark:text-stone-500 text-xs">
                           No matching products
                         </div>
                       )}
@@ -621,7 +621,7 @@ export default function NewDocument({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs"
+                      className="h-8 border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 text-xs"
                       disabled={selectedItemIndex === null}
                       onClick={() => {
                         if (selectedItemIndex === null) return;
@@ -631,13 +631,13 @@ export default function NewDocument({
                         setOpenNewDocument(true);
                       }}
                     >
-                      <Pencil className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
+                      <Pencil className="h-3.5 w-3.5 mr-1.5 text-stone-400" />
                       Edit
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 dark:text-red-400 text-xs"
+                      className="h-8 border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 dark:text-red-400 text-xs"
                       disabled={selectedItemIndex === null}
                       onClick={async () => {
                         if (selectedItemIndex === null) return;
@@ -656,10 +656,10 @@ export default function NewDocument({
                 </div>
 
                 {/* TABLE: Added native responsive overflow wrap */}
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                <div className="border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-stone-900">
                   <div className="overflow-x-auto w-full scrollbar-thin">
                     <Table>
-                      <TableHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                      <TableHeader className="bg-stone-50 dark:bg-stone-800/50 border-b border-stone-200 dark:border-stone-800">
                         <TableRow>
                           {[
                             "ID",
@@ -676,7 +676,7 @@ export default function NewDocument({
                           ].map((header) => (
                             <TableHead
                               key={header}
-                              className="text-slate-600 dark:text-slate-400 font-semibold text-xs py-3 whitespace-nowrap"
+                              className="text-stone-600 dark:text-stone-400 font-semibold text-xs py-3 whitespace-nowrap"
                             >
                               {header}
                             </TableHead>
@@ -689,7 +689,7 @@ export default function NewDocument({
                           <TableRow>
                             <TableCell
                               colSpan={11}
-                              className="text-center text-slate-400 dark:text-slate-500 h-40 text-xs"
+                              className="text-center text-stone-400 dark:text-stone-500 h-40 text-xs"
                             >
                               No items added to this document
                             </TableCell>
@@ -700,13 +700,13 @@ export default function NewDocument({
                               key={i}
                               onClick={() => setSelectedItemIndex(i)}
                               className={cn(
-                                "cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800/40 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/30",
+                                "cursor-pointer transition-colors border-b border-stone-100 dark:border-stone-800/40 last:border-0 hover:bg-stone-50/60 dark:hover:bg-stone-800/30",
                                 selectedItemIndex === i
-                                  ? "bg-slate-100/80 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  ? "bg-stone-100/80 dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                                   : "",
                               )}
                             >
-                              <TableCell className="py-3 text-xs font-medium text-slate-400">
+                              <TableCell className="py-3 text-xs font-medium text-stone-400">
                                 {i + 1}
                               </TableCell>
                               <TableCell className="py-3 text-xs whitespace-nowrap font-mono text-[11px]">
@@ -715,7 +715,7 @@ export default function NewDocument({
                               <TableCell className="py-3 text-xs font-medium max-w-[180px] truncate">
                                 {item.name}
                               </TableCell>
-                              <TableCell className="py-3 text-xs text-slate-500 whitespace-nowrap">
+                              <TableCell className="py-3 text-xs text-stone-500 whitespace-nowrap">
                                 {item.unit}
                               </TableCell>
                               <TableCell className="py-3 text-xs tabular-nums font-medium">
@@ -724,7 +724,7 @@ export default function NewDocument({
                               <TableCell className="py-3 text-xs tabular-nums">
                                 {item.priceBeforeTax}
                               </TableCell>
-                              <TableCell className="py-3 text-xs text-slate-500 whitespace-nowrap">
+                              <TableCell className="py-3 text-xs text-stone-500 whitespace-nowrap">
                                 {item.taxes?.length
                                   ? item.taxes
                                       .map((t: any) => `${t.rate}%`)
@@ -736,13 +736,13 @@ export default function NewDocument({
                                   2,
                                 )}
                               </TableCell>
-                              <TableCell className="py-3 text-xs text-slate-500 tabular-nums">
+                              <TableCell className="py-3 text-xs text-stone-500 tabular-nums">
                                 {item.discount}
                               </TableCell>
                               <TableCell className="py-3 text-xs tabular-nums">
                                 {item.quantity * item.priceBeforeTax}
                               </TableCell>
-                              <TableCell className="py-3 text-xs font-semibold text-right tabular-nums text-slate-900 dark:text-slate-100">
+                              <TableCell className="py-3 text-xs font-semibold text-right tabular-nums text-stone-900 dark:text-stone-100">
                                 {Number(item.total).toFixed(2)}
                               </TableCell>
                             </TableRow>
@@ -754,13 +754,13 @@ export default function NewDocument({
                 </div>
 
                 {/* DISCOUNT + TOTALS */}
-                <div className="flex flex-col lg:flex-row justify-end items-end lg:items-center gap-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="flex flex-col lg:flex-row justify-end items-end lg:items-center gap-4 pt-3 border-t border-stone-100 dark:border-stone-800/60">
                   <div className="flex flex-wrap items-center gap-2">
                     <Select defaultValue="after">
-                      <SelectTrigger className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 w-44 text-xs">
+                      <SelectTrigger className="h-9 bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 w-44 text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                      <SelectContent className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800">
                         <SelectItem value="after" className="text-xs">
                           Apply discount after tax
                         </SelectItem>
@@ -771,10 +771,10 @@ export default function NewDocument({
                     </Select>
 
                     <Select defaultValue="percent">
-                      <SelectTrigger className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 w-36 text-xs">
+                      <SelectTrigger className="h-9 bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 w-36 text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                      <SelectContent className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800">
                         <SelectItem value="percent" className="text-xs">
                           Discount %
                         </SelectItem>
@@ -787,17 +787,17 @@ export default function NewDocument({
                     <div className="relative flex items-center">
                       <Input
                         defaultValue="0"
-                        className="h-9 w-20 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-right pr-6 text-xs tabular-nums focus-visible:ring-sky-500"
+                        className="h-9 w-20 bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-right pr-6 text-xs tabular-nums focus-visible:ring-amber-500"
                       />
-                      <span className="absolute right-2.5 text-slate-400 text-xs pointer-events-none">
+                      <span className="absolute right-2.5 text-stone-400 text-xs pointer-events-none">
                         %
                       </span>
                     </div>
                   </div>
 
-                  <div className="w-full sm:w-72 text-right space-y-1.5 text-xs p-3.5 rounded-xl bg-slate-100/60 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/40">
+                  <div className="w-full sm:w-72 text-right space-y-1.5 text-xs p-3.5 rounded-xl bg-stone-100/60 dark:bg-stone-900/40 border border-stone-200/60 dark:border-stone-800/40">
                     <div className="flex justify-between gap-10">
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-stone-500 dark:text-stone-400">
                         Total before tax:
                       </span>
                       <span className="font-medium tabular-nums">
@@ -805,16 +805,16 @@ export default function NewDocument({
                       </span>
                     </div>
                     <div className="flex justify-between gap-10">
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-stone-500 dark:text-stone-400">
                         Tax:
                       </span>
                       <span className="font-medium tabular-nums">
                         {totals.taxTotal.toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between gap-10 font-bold text-sm pt-1.5 border-t border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+                    <div className="flex justify-between gap-10 font-bold text-sm pt-1.5 border-t border-stone-200 dark:border-stone-800 text-stone-900 dark:text-stone-100">
                       <span>Total:</span>
-                      <span className="tabular-nums text-sky-600 dark:text-sky-400">
+                      <span className="tabular-nums text-amber-600 dark:text-amber-400">
                         {totals.total.toFixed(2)}
                       </span>
                     </div>
@@ -824,23 +824,23 @@ export default function NewDocument({
                 {/* NOTES */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1.5">
-                    <label className="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                    <label className="text-stone-500 dark:text-stone-400 text-xs font-medium">
                       Internal note
                     </label>
                     <Textarea
                       value={internalNote}
                       onChange={(e) => setInternalNote(e.target.value)}
-                      className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs min-h-[75px] focus-visible:ring-sky-500 focus-visible:ring-1"
+                      className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-xs min-h-[75px] focus-visible:ring-amber-500 focus-visible:ring-1"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                    <label className="text-stone-500 dark:text-stone-400 text-xs font-medium">
                       Note
                     </label>
                     <Textarea
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs min-h-[75px] focus-visible:ring-sky-500 focus-visible:ring-1"
+                      className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-xs min-h-[75px] focus-visible:ring-amber-500 focus-visible:ring-1"
                     />
                   </div>
                 </div>
@@ -849,11 +849,11 @@ export default function NewDocument({
           </TabsContent>
 
           <TabsContent value="payments">
-            <div className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-800 rounded-xl p-4 flex flex-col min-h-125">
+            <div className="bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 border border-stone-300 dark:border-stone-800 rounded-xl p-4 flex flex-col min-h-125">
               {/* ================= TOP TOOLBAR ================= */}
-              <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-700 pb-3">
+              <div className="flex items-center gap-3 border-b border-stone-200 dark:border-stone-700 pb-3">
                 <Button
-                  className="bg-sky-600 hover:bg-sky-700"
+                  className="bg-amber-600 hover:bg-amber-700"
                   onClick={() => {
                     setOpenPayment(true);
                   }}
@@ -864,7 +864,7 @@ export default function NewDocument({
 
                 <Button
                   variant="outline"
-                  className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                  className="border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
                   disabled={selectedPaymentIndex === null}
                   onClick={() => {
                     if (selectedPaymentIndex === null) return;
@@ -879,7 +879,7 @@ export default function NewDocument({
 
                 <Button
                   variant="outline"
-                  className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-red-400"
+                  className="border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-red-400"
                   disabled={selectedPaymentIndex === null}
                   onClick={async () => {
                     if (selectedPaymentIndex === null) return;
@@ -900,23 +900,23 @@ export default function NewDocument({
               </div>
 
               {/* ================= TABLE ================= */}
-              <div className="flex-1 mt-4 border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden">
+              <div className="flex-1 mt-4 border border-stone-200 dark:border-stone-700 rounded-md overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-white dark:bg-slate-800 border-b border-sky-600">
+                  <TableHeader className="bg-white dark:bg-stone-800 border-b border-amber-600">
                     <TableRow>
-                      <TableHead className="text-slate-700 dark:text-slate-300">
+                      <TableHead className="text-stone-700 dark:text-stone-300">
                         ID
                       </TableHead>
-                      <TableHead className="text-slate-700 dark:text-slate-300">
+                      <TableHead className="text-stone-700 dark:text-stone-300">
                         Status
                       </TableHead>
-                      <TableHead className="text-slate-700 dark:text-slate-300">
+                      <TableHead className="text-stone-700 dark:text-stone-300">
                         Payment type
                       </TableHead>
-                      <TableHead className="text-slate-700 dark:text-slate-300">
+                      <TableHead className="text-stone-700 dark:text-stone-300">
                         Date
                       </TableHead>
-                      <TableHead className="text-slate-700 dark:text-slate-300">
+                      <TableHead className="text-stone-700 dark:text-stone-300">
                         Amount
                       </TableHead>
                     </TableRow>
@@ -927,7 +927,7 @@ export default function NewDocument({
                       <TableRow>
                         <TableCell
                           colSpan={5}
-                          className="text-center text-slate-500 h-64"
+                          className="text-center text-stone-500 h-64"
                         >
                           No payments added
                         </TableCell>
@@ -938,9 +938,9 @@ export default function NewDocument({
                           key={payment.id}
                           onClick={() => setSelectedPaymentIndex(i)}
                           className={cn(
-                            "cursor-pointer hover:bg-white dark:bg-slate-800",
+                            "cursor-pointer hover:bg-white dark:bg-stone-800",
                             selectedPaymentIndex === i &&
-                              "bg-slate-100 dark:bg-slate-700",
+                              "bg-stone-100 dark:bg-stone-700",
                           )}
                         >
                           <TableCell>{i + 1}</TableCell>
@@ -980,13 +980,13 @@ export default function NewDocument({
               <div className="flex justify-end mt-4">
                 <div className="text-right space-y-1 text-xs">
                   <div className="flex justify-between gap-20">
-                    <span className="text-slate-500 dark:text-slate-400">
+                    <span className="text-stone-500 dark:text-stone-400">
                       Document total:
                     </span>
                     <span>{totals.total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between gap-20">
-                    <span className="text-slate-500 dark:text-slate-400">
+                    <span className="text-stone-500 dark:text-stone-400">
                       Payments total:
                     </span>
                     <span>{totals.paymentsTotal.toFixed(2)}</span>
@@ -999,10 +999,10 @@ export default function NewDocument({
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-between items-center pt-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex justify-between items-center pt-6 border-t border-stone-200 dark:border-stone-700">
           <Button
             variant="outline"
-            className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-red-400"
+            className="border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-red-400"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
@@ -1011,20 +1011,20 @@ export default function NewDocument({
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
             >
               <FileText className="h-4 w-4 mr-2" />
               Save as PDF
             </Button>
             <Button
               variant="outline"
-              className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+              className="border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"
             >
               <Printer className="h-4 w-4 mr-2" />
               Print preview
             </Button>
             <Button
-              className="bg-sky-600 hover:bg-sky-700"
+              className="bg-amber-600 hover:bg-amber-700"
               onClick={async () => {
                 try {
                   if (!customerId) {

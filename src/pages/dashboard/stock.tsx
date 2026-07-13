@@ -245,7 +245,7 @@ function TreeItem({
         }}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         className={`flex items-center gap-1.5 pr-3 py-1.5 cursor-pointer rounded mx-1 transition-colors text-xs
-          ${isSelected ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
+          ${isSelected ? "bg-amber-600/25 text-amber-400" : "hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"}`}
       >
         <span className="w-3 shrink-0">
           {hasChildren && (
@@ -261,7 +261,7 @@ function TreeItem({
         )}
         <span className="truncate flex-1">{node.displayName || node.name}</span>
         {node.products?.length > 0 && (
-          <span className="text-[10px] text-slate-500 shrink-0">
+          <span className="text-[10px] text-stone-500 shrink-0">
             {node.products.length}
           </span>
         )}
@@ -330,38 +330,38 @@ function StockHistoryDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-180 max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-300 dark:border-slate-800">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-180 max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-300 dark:border-stone-800">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-sky-400" />
-            <span className="font-semibold text-slate-900 dark:text-slate-100">
+            <Clock className="w-4 h-4 text-amber-400" />
+            <span className="font-semibold text-stone-900 dark:text-stone-100">
               Stock History
             </span>
-            <span className="text-xs text-slate-600 dark:text-slate-500 ml-1">
+            <span className="text-xs text-stone-600 dark:text-stone-500 ml-1">
               ({filtered.length} entries)
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
+            className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-400 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-3 border-b border-slate-300 dark:border-slate-800">
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
-            <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+        <div className="px-5 py-3 border-b border-stone-300 dark:border-stone-800">
+          <div className="flex items-center gap-2 bg-white dark:bg-stone-800 rounded-lg px-3 py-2 border border-stone-200 dark:border-stone-700">
+            <Search className="w-3.5 h-3.5 text-stone-500 shrink-0" />
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product or note…"
-              className="flex-1 bg-transparent text-xs outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
+              className="flex-1 bg-transparent text-xs outline-none placeholder-stone-500 text-stone-900 dark:text-stone-100"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="text-slate-500 hover:text-slate-700 dark:text-slate-300"
+                className="text-stone-500 hover:text-stone-700 dark:text-stone-300"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -370,21 +370,21 @@ function StockHistoryDialog({
         </div>
         <div className="flex-1 overflow-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-slate-500 gap-2 text-xs">
+            <div className="flex items-center justify-center h-full text-stone-500 gap-2 text-xs">
               <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-500 text-xs py-16">
+            <div className="flex items-center justify-center h-full text-stone-500 text-xs py-16">
               No stock entries found
             </div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+              <thead className="sticky top-0 bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                 <tr>
                   {["Date", "Product", "Type", "Qty", "Note"].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400"
+                      className="px-4 py-2.5 text-left text-xs font-medium text-stone-500 dark:text-stone-400"
                     >
                       {h}
                     </th>
@@ -397,16 +397,16 @@ function StockHistoryDialog({
                   return (
                     <tr
                       key={entry.id}
-                      className="border-b border-slate-300 dark:border-slate-800/60 hover:bg-white dark:bg-slate-800/40 transition-colors"
+                      className="border-b border-stone-300 dark:border-stone-800/60 hover:bg-white dark:bg-stone-800/40 transition-colors"
                     >
-                      <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-xs text-stone-500 dark:text-stone-400 whitespace-nowrap">
                         {new Date(entry.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        <div className="text-xs font-medium text-stone-800 dark:text-stone-200">
                           {entry.product?.title ?? "—"}
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[10px] text-stone-500">
                           {entry.product?.code}
                         </div>
                       </td>
@@ -422,7 +422,7 @@ function StockHistoryDialog({
                         {entry.quantity > 0 ? "+" : ""}
                         {entry.quantity}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+                      <td className="px-4 py-2.5 text-xs text-stone-500 dark:text-stone-400">
                         {entry.note ?? "—"}
                       </td>
                     </tr>
@@ -432,10 +432,10 @@ function StockHistoryDialog({
             </table>
           )}
         </div>
-        <div className="px-5 py-3 border-t border-slate-300 dark:border-slate-800 flex justify-end">
+        <div className="px-5 py-3 border-t border-stone-300 dark:border-stone-800 flex justify-end">
           <button
             onClick={onClose}
-            className="bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-4 py-1.5 text-xs transition-colors"
+            className="bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-lg px-4 py-1.5 text-xs transition-colors"
           >
             Close
           </button>
@@ -558,12 +558,12 @@ function QuickInventoryDialog({
 
   const btnCls = (v: string) => {
     if (v === "C")
-      return "bg-red-700/70 hover:bg-red-600 text-slate-900 dark:text-white";
+      return "bg-red-700/70 hover:bg-red-600 text-stone-900 dark:text-white";
     if (v === "⌫")
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-amber-400 text-base";
+      return "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-400 text-base";
     if (["+", "-", "×", "÷"].includes(v))
-      return "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold text-lg";
-    return "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-base";
+      return "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-orange-300 font-bold text-lg";
+    return "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100 text-base";
   };
 
   const types = [
@@ -589,23 +589,23 @@ function QuickInventoryDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-90 shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-300 dark:border-slate-800">
+      <div className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-90 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-stone-300 dark:border-stone-800">
           <div>
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
+              <span className="font-semibold text-stone-900 dark:text-stone-100 text-xs">
                 Quick Inventory
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-65">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 truncate max-w-65">
               {product.title}
-              <span className="text-slate-600 ml-2">stock: {currentStock}</span>
+              <span className="text-stone-600 ml-2">stock: {currentStock}</span>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
+            className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -620,7 +620,7 @@ function QuickInventoryDialog({
               className={`flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                 type === key
                   ? active
-                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-700"
+                  : "border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:bg-stone-700"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -630,16 +630,16 @@ function QuickInventoryDialog({
         </div>
 
         {/* Display */}
-        <div className="mx-4 mt-3 bg-slate-950 rounded-xl px-4 py-3 border border-slate-300 dark:border-slate-800">
+        <div className="mx-4 mt-3 bg-stone-950 rounded-xl px-4 py-3 border border-stone-300 dark:border-stone-800">
           {expr && (
-            <div className="text-slate-500 text-xs text-right h-4 truncate">
+            <div className="text-stone-500 text-xs text-right h-4 truncate">
               {expr}
             </div>
           )}
           <div
             className={`text-right font-mono font-semibold tracking-tight leading-none truncate mt-0.5
             ${display.length > 10 ? "text-xl" : display.length > 7 ? "text-2xl" : "text-3xl"}
-            ${display === "Error" ? "text-red-400" : "text-slate-900 dark:text-slate-100"}`}
+            ${display === "Error" ? "text-red-400" : "text-stone-900 dark:text-stone-100"}`}
           >
             {display}
           </div>
@@ -697,7 +697,7 @@ function QuickInventoryDialog({
           ))}
           <button
             onClick={confirm}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold transition-colors flex items-center justify-center"
+            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold transition-colors flex items-center justify-center"
             style={{ gridRow: "span 2", minHeight: "104px" }}
           >
             <CheckCircle2 className="w-7 h-7" />
@@ -719,7 +719,7 @@ function QuickInventoryDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Optional note…"
-            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-500 placeholder-slate-500"
+            className="w-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-900 dark:text-stone-100 outline-none focus:border-amber-500 placeholder-stone-500"
           />
         </div>
       </div>
@@ -752,27 +752,27 @@ function ProductPickerDialog({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-300 dark:border-slate-800">
-          <span className="font-semibold text-slate-900 dark:text-slate-100">
+      <div className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-120 max-h-[70vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-300 dark:border-stone-800">
+          <span className="font-semibold text-stone-900 dark:text-stone-100">
             Select product
           </span>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+            className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="px-5 py-3 border-b border-slate-300 dark:border-slate-800">
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
-            <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+        <div className="px-5 py-3 border-b border-stone-300 dark:border-stone-800">
+          <div className="flex items-center gap-2 bg-white dark:bg-stone-800 rounded-lg px-3 py-2 border border-stone-200 dark:border-stone-700">
+            <Search className="w-3.5 h-3.5 text-stone-500 shrink-0" />
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search product…"
-              className="flex-1 bg-transparent text-xs outline-none placeholder-slate-500 text-slate-900 dark:text-slate-100"
+              className="flex-1 bg-transparent text-xs outline-none placeholder-stone-500 text-stone-900 dark:text-stone-100"
             />
           </div>
         </div>
@@ -783,19 +783,19 @@ function ProductPickerDialog({
               <button
                 key={p.id}
                 onClick={() => onSelect(p)}
-                className="w-full px-4 py-3 text-left hover:bg-white dark:bg-slate-800 border-b border-slate-300 dark:border-slate-800/60 transition-colors"
+                className="w-full px-4 py-3 text-left hover:bg-white dark:bg-stone-800 border-b border-stone-300 dark:border-stone-800/60 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                    <p className="text-xs font-medium text-stone-800 dark:text-stone-200">
                       {p.title}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-stone-500">
                       {p.code} · {p.unit}
                     </p>
                   </div>
                   <span
-                    className={`text-xs font-mono font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-slate-500" : "text-emerald-400"}`}
+                    className={`text-xs font-mono font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-stone-500" : "text-emerald-400"}`}
                   >
                     {stock}
                   </span>
@@ -804,7 +804,7 @@ function ProductPickerDialog({
             );
           })}
           {filtered.length === 0 && (
-            <p className="text-center text-slate-500 text-sm py-8">
+            <p className="text-center text-stone-500 text-sm py-8">
               No products found
             </p>
           )}
@@ -828,11 +828,11 @@ function StatusBadge({
   return (
     <div className="flex items-center gap-2">
       <span
-        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-slate-900 dark:text-white font-bold shrink-0`}
+        className={`w-6 h-6 ${color} rounded flex items-center justify-center text-xs text-stone-900 dark:text-white font-bold shrink-0`}
       >
         {count}
       </span>
-      <span className="text-xs text-slate-700 dark:text-slate-300">
+      <span className="text-xs text-stone-700 dark:text-stone-300">
         {label}
       </span>
     </div>
@@ -848,15 +848,15 @@ function SummaryBlock({
 }) {
   return (
     <div>
-      <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+      <div className="text-[10px] text-stone-500 uppercase tracking-wider mb-1">
         {title}
       </div>
       {rows.map(([label, value]) => (
         <div key={label} className="flex justify-between gap-8">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-xs text-stone-500 dark:text-stone-400">
             {label}
           </span>
-          <span className="text-xs font-medium text-slate-800 dark:text-slate-200 font-mono tabular-nums">
+          <span className="text-xs font-medium text-stone-800 dark:text-stone-200 font-mono tabular-nums">
             {value}
           </span>
         </div>
@@ -1159,12 +1159,12 @@ export default function StockView() {
   };
 
   const tbtn =
-    "flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-700 px-2.5 py-1.5 rounded transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
+    "flex items-center gap-1.5 text-xs text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white hover:bg-stone-100 dark:bg-stone-700 px-2.5 py-1.5 rounded transition-colors whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed";
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 h-full overflow-hidden">
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 h-full overflow-hidden">
       {/* Dialogs */}
       {showHistory && (
         <StockHistoryDialog
@@ -1196,16 +1196,16 @@ export default function StockView() {
       )}
 
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
-            className="p-1 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
+            className="p-1 rounded hover:bg-stone-100 dark:bg-stone-700 transition-colors"
           >
             <ChevronLeftIcon className="w-5 h-5" />
           </button>
           <span className="text-sm">
-            <span className="text-slate-500 dark:text-slate-400">
+            <span className="text-stone-500 dark:text-stone-400">
               Management •
             </span>{" "}
             Stock
@@ -1214,11 +1214,11 @@ export default function StockView() {
         <div className="flex items-center gap-2">
           {/* Price label selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500">Price list:</span>
+            <span className="text-xs text-stone-500">Price list:</span>
             <select
               value={selectedLabel}
               onChange={(e: any) => setSelectedLabel(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-700 border border-slate-600 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500"
+              className="bg-stone-100 dark:bg-stone-700 border border-stone-600 text-stone-900 dark:text-stone-100 text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-500"
             >
               {PRICE_LABELS.map((l) => (
                 <option key={l} value={l}>
@@ -1233,7 +1233,7 @@ export default function StockView() {
               nodesQuery.refetch();
               stockLevelsQuery.refetch();
             }}
-            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
+            className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 transition-colors"
           >
             <RefreshCw
               className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
@@ -1241,7 +1241,7 @@ export default function StockView() {
           </button>
           <button
             onClick={() => navigate(-1)}
-            className="p-1.5 rounded hover:bg-slate-100 dark:bg-slate-700 transition-colors"
+            className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1249,7 +1249,7 @@ export default function StockView() {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-3 py-2 flex items-center gap-0.5 overflow-x-auto shrink-0">
+      <div className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 px-3 py-2 flex items-center gap-0.5 overflow-x-auto shrink-0">
         <button
           onClick={() => {
             productsQuery.refetch();
@@ -1271,11 +1271,11 @@ export default function StockView() {
           />{" "}
           Refresh
         </button>
-        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-stone-100 dark:bg-stone-700 mx-1.5 shrink-0" />
         <button onClick={() => setShowHistory(true)} className={tbtn}>
           <Clock className="w-3.5 h-3.5" /> Stock history
         </button>
-        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-stone-100 dark:bg-stone-700 mx-1.5 shrink-0" />
         <button onClick={handlePrint} className={tbtn}>
           <Printer className="w-3.5 h-3.5" /> Print
         </button>
@@ -1291,7 +1291,7 @@ export default function StockView() {
           <Sheet className="w-3.5 h-3.5" />
           {savingExcel ? "Saving…" : "Excel"}
         </button>
-        <div className="w-px h-5 bg-slate-100 dark:bg-slate-700 mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-stone-100 dark:bg-stone-700 mx-1.5 shrink-0" />
         <button className={tbtn}>
           <ClipboardList className="w-3.5 h-3.5" /> Inventory count report
         </button>
@@ -1305,9 +1305,9 @@ export default function StockView() {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <div className="w-56 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden shrink-0">
-          <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 shrink-0">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <div className="w-56 bg-white dark:bg-stone-800 border-r border-stone-200 dark:border-stone-700 flex flex-col overflow-hidden shrink-0">
+          <div className="px-3 py-2.5 border-b border-stone-200 dark:border-stone-700 shrink-0">
+            <span className="text-[11px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Product Groups
             </span>
           </div>
@@ -1315,19 +1315,19 @@ export default function StockView() {
             <div
               onClick={() => setSelectedNodeId(null)}
               className={`flex items-center gap-1.5 px-3 py-1.5 mx-1 cursor-pointer rounded transition-colors text-xs
-                ${selectedNodeId === null ? "bg-sky-600/25 text-sky-400" : "hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"}`}
+                ${selectedNodeId === null ? "bg-amber-600/25 text-amber-400" : "hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"}`}
             >
               <span className="w-3 shrink-0" />
-              <Folder className="w-3.5 h-3.5 shrink-0 text-sky-400/70" />
+              <Folder className="w-3.5 h-3.5 shrink-0 text-amber-400/70" />
               <span className="flex-1">All products</span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-stone-500">
                 {allProducts.length}
               </span>
             </div>
             {nodesQuery.isLoading ? (
-              <div className="px-4 py-3 text-xs text-slate-500">Loading…</div>
+              <div className="px-4 py-3 text-xs text-stone-500">Loading…</div>
             ) : rootNodes.length === 0 ? (
-              <div className="px-4 py-3 text-xs text-slate-500">No groups</div>
+              <div className="px-4 py-3 text-xs text-stone-500">No groups</div>
             ) : (
               rootNodes.map((node) => (
                 <TreeItem
@@ -1345,7 +1345,7 @@ export default function StockView() {
         {/* Main */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Filter bar */}
-          <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-3 space-y-2.5 shrink-0">
+          <div className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 px-5 py-3 space-y-2.5 shrink-0">
             <div className="flex items-center gap-5 flex-wrap">
               <StatusBadge
                 color="bg-red-500"
@@ -1353,7 +1353,7 @@ export default function StockView() {
                 count={negativeCount}
               />
               <StatusBadge
-                color="bg-sky-500"
+                color="bg-amber-500"
                 label="Non zero quantity"
                 count={nonZeroCount}
               />
@@ -1363,23 +1363,23 @@ export default function StockView() {
                 count={zeroCount}
               />
             </div>
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded px-3 py-2 border border-slate-200 dark:border-slate-700">
-              <Search className="w-4 h-4 text-slate-500 shrink-0" />
+            <div className="flex items-center gap-2 bg-stone-50 dark:bg-stone-900 rounded px-3 py-2 border border-stone-200 dark:border-stone-700">
+              <Search className="w-4 h-4 text-stone-500 shrink-0" />
               <input
                 type="text"
                 placeholder="Search by name or code…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-sm outline-none placeholder-slate-500 min-w-0"
+                className="flex-1 bg-transparent text-sm outline-none placeholder-stone-500 min-w-0"
               />
-              <span className="text-xs text-slate-500 shrink-0">
+              <span className="text-xs text-stone-500 shrink-0">
                 {visibleProducts.length} product
                 {visibleProducts.length !== 1 ? "s" : ""}
               </span>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors shrink-0"
+                  className="text-stone-500 hover:text-stone-700 dark:text-stone-300 transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1390,7 +1390,7 @@ export default function StockView() {
           {/* Table */}
           <div className="flex-1 min-h-0 overflow-auto">
             {productsQuery.isLoading ? (
-              <div className="flex items-center justify-center h-full text-slate-500 text-sm gap-2">
+              <div className="flex items-center justify-center h-full text-stone-500 text-sm gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" /> Loading products…
               </div>
             ) : productsQuery.isError ? (
@@ -1404,12 +1404,12 @@ export default function StockView() {
                 </button>
               </div>
             ) : visibleProducts.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+              <div className="flex items-center justify-center h-full text-stone-500 text-sm">
                 No products found
               </div>
             ) : (
               <table className="w-full text-sm border-collapse">
-                <thead className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <thead className="sticky top-0 z-10 bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                   <tr>
                     {[
                       "Code",
@@ -1423,7 +1423,7 @@ export default function StockView() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 dark:text-slate-400"
+                        className="px-4 py-2.5 text-left text-xs font-medium text-stone-500 dark:text-stone-400"
                       >
                         {h}
                       </th>
@@ -1436,43 +1436,43 @@ export default function StockView() {
                     return (
                       <tr
                         key={p.id}
-                        className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:bg-slate-700/30 transition-colors group"
+                        className="border-b border-stone-200 dark:border-stone-700/50 hover:bg-stone-100 dark:bg-stone-700/30 transition-colors group"
                       >
-                        <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        <td className="px-4 py-2.5 text-xs text-stone-500 dark:text-stone-400 font-mono">
                           {p.code}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                          <span className="font-medium text-stone-800 dark:text-stone-200">
                             {p.title}
                           </span>
                           {!p.active && (
-                            <span className="ml-2 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded px-1.5 py-0.5 align-middle">
+                            <span className="ml-2 text-[10px] bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 rounded px-1.5 py-0.5 align-middle">
                               inactive
                             </span>
                           )}
                         </td>
                         <td
-                          className={`px-4 py-2.5 text-right font-mono tabular-nums font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-slate-500" : "text-emerald-400"}`}
+                          className={`px-4 py-2.5 text-right font-mono tabular-nums font-semibold ${stock < 0 ? "text-red-400" : stock === 0 ? "text-stone-500" : "text-emerald-400"}`}
                         >
                           {stock}
                         </td>
-                        <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-2.5 text-xs text-stone-500 dark:text-stone-400">
                           {p.unit}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-stone-700 dark:text-stone-300">
                           ₦{p.cost.toFixed(2)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-stone-700 dark:text-stone-300">
                           ₦{(stock * p.cost).toFixed(2)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-stone-700 dark:text-stone-300">
                           ₦{p.salePrice.toFixed(2)}
                         </td>
                         <td className="px-4 py-2.5 w-12">
                           <button
                             onClick={() => setQuickInventoryProduct(p)}
                             title="Quick inventory"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-600 text-amber-400"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-stone-600 text-amber-400"
                           >
                             <Zap className="w-3.5 h-3.5" />
                           </button>
@@ -1486,7 +1486,7 @@ export default function StockView() {
           </div>
 
           {/* Footer */}
-          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 px-6 py-3 shrink-0">
+          <div className="bg-white dark:bg-stone-800 border-t border-stone-200 dark:border-stone-700 px-6 py-3 shrink-0">
             <div className="flex justify-end gap-12">
               <SummaryBlock
                 title="Cost"

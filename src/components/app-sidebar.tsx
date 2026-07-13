@@ -151,7 +151,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
   return (
     <Sidebar collapsible="icon" {...props} className="bg-black">
-      <SidebarHeader className="bg-white dark:bg-slate-950">
+      <SidebarHeader className="bg-white dark:bg-stone-950">
         <Button
           size={"icon"}
           variant={"secondary"}
@@ -163,7 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <ArrowLeft />
         </Button>
       </SidebarHeader>
-      <SidebarContent className="bg-white dark:bg-slate-950">
+      <SidebarContent className="bg-white dark:bg-stone-950">
         <NavMain items={data.navMain} />
       </SidebarContent>
 

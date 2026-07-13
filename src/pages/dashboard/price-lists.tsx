@@ -36,8 +36,8 @@ import { BsStar } from "react-icons/bs";
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const toolbarBtnCls =
-  "flex items-center gap-2 px-3 py-2 rounded-md text-slate-500 dark:text-slate-400 " +
-  "hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:text-slate-100 active:bg-slate-100 dark:bg-slate-700 transition-colors " +
+  "flex items-center gap-2 px-3 py-2 rounded-md text-stone-500 dark:text-stone-400 " +
+  "hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:text-stone-100 active:bg-stone-100 dark:bg-stone-700 transition-colors " +
   "disabled:opacity-40 disabled:cursor-not-allowed text-sm";
 
 function TBtn({
@@ -71,14 +71,14 @@ function FieldInput({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500 dark:text-slate-400">
+      <label className="text-xs text-stone-500 dark:text-stone-400">
         {label}
       </label>
       <input
         {...props}
-        className={`bg-slate-100 dark:bg-slate-700 border text-slate-900 dark:text-slate-100 text-sm rounded px-3 py-1.5 focus:outline-none
-          ${error ? "border-red-500 focus:border-red-400" : "border-slate-600 focus:border-sky-500"}
-          placeholder:text-slate-500`}
+        className={`bg-stone-100 dark:bg-stone-700 border text-stone-900 dark:text-stone-100 text-sm rounded px-3 py-1.5 focus:outline-none
+          ${error ? "border-red-500 focus:border-red-400" : "border-stone-600 focus:border-amber-500"}
+          placeholder:text-stone-500`}
       />
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
@@ -118,7 +118,7 @@ function EditableCell({
     return (
       <span
         onClick={startEdit}
-        className={`cursor-pointer tabular-nums hover:text-sky-400 hover:underline decoration-dotted underline-offset-2 transition-colors select-none ${className}`}
+        className={`cursor-pointer tabular-nums hover:text-amber-400 hover:underline decoration-dotted underline-offset-2 transition-colors select-none ${className}`}
         title="Click to edit"
       >
         {value.toFixed(2)}
@@ -137,7 +137,7 @@ function EditableCell({
         if (e.key === "Enter") commit();
         if (e.key === "Escape") setEditing(false);
       }}
-      className="w-24 bg-slate-100 dark:bg-slate-700 border border-sky-500 text-slate-900 dark:text-slate-100 text-xs rounded px-2 py-0.5 text-right focus:outline-none"
+      className="w-24 bg-stone-100 dark:bg-stone-700 border border-amber-500 text-stone-900 dark:text-stone-100 text-xs rounded px-2 py-0.5 text-right focus:outline-none"
     />
   );
 }
@@ -180,17 +180,17 @@ function BulkAdjustModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
+      <div className="bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl w-full max-w-sm p-6 shadow-xl">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-semibold">Bulk adjust — {label}</h3>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:text-slate-300"
+            className="text-stone-500 hover:text-stone-700 dark:text-stone-300"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-stone-500 mb-4">
           Applies to all {productCount} items in the "{label}" price list
         </p>
         <div className="flex flex-col gap-2 mb-4">
@@ -202,9 +202,9 @@ function BulkAdjustModal({
                 value={m}
                 checked={mode === m}
                 onChange={() => setMode(m)}
-                className="mt-0.5 accent-sky-500"
+                className="mt-0.5 accent-amber-500"
               />
-              <span className="text-xs text-slate-700 dark:text-slate-300">
+              <span className="text-xs text-stone-700 dark:text-stone-300">
                 {modeLabels[m]}
               </span>
             </label>
@@ -232,14 +232,14 @@ function BulkAdjustModal({
         <div className="flex justify-end gap-2 mt-5">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs border border-slate-600 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white rounded"
+            className="px-3 py-1.5 text-xs border border-stone-600 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white rounded"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-slate-900 dark:text-white rounded"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-stone-900 dark:text-white rounded"
           >
             <Percent className="w-3.5 h-3.5" />
             {isSaving ? "Applying…" : "Apply"}
@@ -293,7 +293,7 @@ function NodeTree({
           }}
           style={{ paddingLeft: `${8 + depth * 12}px` }}
           className={`w-full flex items-center gap-1.5 py-1 pr-2 text-xs rounded transition-colors
-            ${isSelected ? "text-sky-400 bg-sky-600/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/40"}`}
+            ${isSelected ? "text-amber-400 bg-amber-600/10" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:bg-stone-700/40"}`}
         >
           {children.length > 0 ? (
             isOpen ? (
@@ -319,7 +319,7 @@ function NodeTree({
       <button
         onClick={() => onSelect(null)}
         className={`text-left px-2 py-1 text-xs rounded transition-colors
-          ${selectedNodeId === null ? "text-sky-400 bg-sky-600/10" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-slate-700/40"}`}
+          ${selectedNodeId === null ? "text-amber-400 bg-amber-600/10" : "text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:bg-stone-700/40"}`}
       >
         All groups
       </button>
@@ -335,7 +335,7 @@ function NodeTree({
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 const labelStyle: Record<PriceLabel, string> = {
-  Retail: "bg-sky-600/20 text-sky-300 border border-sky-600/30",
+  Retail: "bg-orange-600/20 text-orange-300 border border-orange-600/30",
   Wholesale: "bg-amber-500/15 text-amber-300 border border-amber-500/25",
 };
 
@@ -504,7 +504,7 @@ export function PriceListsView() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
       {bulkModalOpen && (
         <BulkAdjustModal
           label={selectedLabel as PriceLabel}
@@ -516,7 +516,7 @@ export function PriceListsView() {
       )}
 
       {/* Toolbar */}
-      <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-4 flex items-center gap-2 bg-slate-50 dark:bg-slate-900 shrink-0">
+      <div className="border-b border-stone-300 dark:border-stone-800 px-6 py-4 flex items-center gap-2 bg-stone-50 dark:bg-stone-900 shrink-0">
         <TBtn
           icon={RefreshCw}
           label="Refresh"
@@ -534,9 +534,9 @@ export function PriceListsView() {
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-56 border-r border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden">
-          <div className="p-3 border-b border-slate-300 dark:border-slate-800">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="w-56 border-r border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 flex flex-col shrink-0 overflow-hidden">
+          <div className="p-3 border-b border-stone-300 dark:border-stone-800">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
               Price lists
             </p>
             <div className="space-y-0.5">
@@ -548,12 +548,12 @@ export function PriceListsView() {
                     key={label}
                     onClick={() => setSelectedLabel(label)}
                     className={`w-full text-left px-2 py-2 rounded text-xs transition-colors flex items-center justify-between gap-1
-                      ${isActive ? labelStyle[label] : "text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800 hover:text-slate-800 dark:text-slate-200"}`}
+                      ${isActive ? labelStyle[label] : "text-stone-500 dark:text-stone-400 hover:bg-white dark:bg-stone-800 hover:text-stone-800 dark:text-stone-200"}`}
                   >
                     <span className="truncate">{label}</span>
                     <span
                       className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full
-                      ${isActive ? "bg-white/10" : "bg-white dark:bg-slate-800 text-slate-500"}`}
+                      ${isActive ? "bg-white/10" : "bg-white dark:bg-stone-800 text-stone-500"}`}
                     >
                       {count}
                     </span>
@@ -564,7 +564,7 @@ export function PriceListsView() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-auto p-3">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
               Product groups
             </p>
             <NodeTree
@@ -578,17 +578,17 @@ export function PriceListsView() {
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Search bar */}
-          <div className="border-b border-slate-300 dark:border-slate-800 px-6 py-3 flex items-center gap-3 bg-slate-50 dark:bg-slate-900 shrink-0">
+          <div className="border-b border-stone-300 dark:border-stone-800 px-6 py-3 flex items-center gap-3 bg-stone-50 dark:bg-stone-900 shrink-0">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500" />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search product…"
-                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs rounded pl-8 pr-3 py-1.5 focus:outline-none focus:border-sky-500 placeholder:text-slate-500"
+                className="w-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 text-xs rounded pl-8 pr-3 py-1.5 focus:outline-none focus:border-amber-500 placeholder:text-stone-500"
               />
             </div>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-stone-500">
               {enrichedProducts.length} product
               {enrichedProducts.length !== 1 ? "s" : ""}
             </span>
@@ -597,17 +597,17 @@ export function PriceListsView() {
             >
               {selectedLabel}
             </span>
-            <span className="text-xs text-slate-600 ml-auto">
+            <span className="text-xs text-stone-600 ml-auto">
               Click any price field to edit
             </span>
           </div>
 
           {/* Table */}
           <div className="flex-1 min-h-0 overflow-auto px-6 py-4">
-            <div className="border border-slate-300 dark:border-slate-800 rounded-lg overflow-hidden">
+            <div className="border border-stone-300 dark:border-stone-800 rounded-lg overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+                  <tr className="border-b border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
                     {[
                       { label: "Code", cls: "w-20 text-left" },
                       { label: "Product", cls: "text-left" },
@@ -620,7 +620,7 @@ export function PriceListsView() {
                     ].map(({ label, cls }) => (
                       <th
                         key={label}
-                        className={`px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 ${cls}`}
+                        className={`px-4 py-3 text-xs font-semibold text-stone-500 dark:text-stone-400 ${cls}`}
                       >
                         {label}
                       </th>
@@ -632,7 +632,7 @@ export function PriceListsView() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-4 py-12 text-center text-slate-600"
+                        className="px-4 py-12 text-center text-stone-600"
                       >
                         Loading…
                       </td>
@@ -641,7 +641,7 @@ export function PriceListsView() {
                     <tr>
                       <td
                         colSpan={7}
-                        className="px-4 py-12 text-center text-slate-600"
+                        className="px-4 py-12 text-center text-stone-600"
                       >
                         No products match the current filter.
                       </td>
@@ -651,40 +651,40 @@ export function PriceListsView() {
                       <tr
                         key={p.id}
                         className={`transition-colors
-                          ${p.hasPriceRow ? "hover:bg-sky-900/10" : "hover:bg-white dark:bg-slate-800/40 opacity-70"}
-                          ${index === arr.length - 1 ? "" : "border-b border-slate-300 dark:border-slate-800"}`}
+                          ${p.hasPriceRow ? "hover:bg-amber-900/10" : "hover:bg-white dark:bg-stone-800/40 opacity-70"}
+                          ${index === arr.length - 1 ? "" : "border-b border-stone-300 dark:border-stone-800"}`}
                       >
-                        <td className="px-4 py-2.5 font-mono text-slate-500">
+                        <td className="px-4 py-2.5 font-mono text-stone-500">
                           {p.code}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-800 dark:text-slate-200">
+                        <td className="px-4 py-2.5 text-stone-800 dark:text-stone-200">
                           {p.title}
                           {!p.hasPriceRow && (
-                            <span className="ml-1.5 text-[10px] text-slate-600 bg-white dark:bg-slate-800 px-1 py-0.5 rounded">
+                            <span className="ml-1.5 text-[10px] text-stone-600 bg-white dark:bg-stone-800 px-1 py-0.5 rounded">
                               no price
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-stone-500 dark:text-stone-400">
                           <EditableCell
                             value={p.cost}
                             onSave={(v) => handleFieldSave(p.id, "cost", v)}
                           />
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
+                        <td className="px-4 py-2.5 text-right tabular-nums text-stone-500 dark:text-stone-400">
                           <EditableCell
                             value={p.markup}
                             onSave={(v) => handleFieldSave(p.id, "markup", v)}
                             suffix="%"
                           />
                         </td>
-                        <td className="px-4 py-2.5 text-right font-medium text-slate-900 dark:text-slate-100">
+                        <td className="px-4 py-2.5 text-right font-medium text-stone-900 dark:text-stone-100">
                           <EditableCell
                             value={p.salePrice}
                             onSave={(v) =>
                               handleFieldSave(p.id, "salePrice", v)
                             }
-                            className="text-slate-900 dark:text-slate-100"
+                            className="text-stone-900 dark:text-stone-100"
                           />
                         </td>
                         <td className="px-4 py-2.5 text-center">
@@ -699,7 +699,7 @@ export function PriceListsView() {
                               ${
                                 p.priceAfterTax
                                   ? "text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20"
-                                  : "text-slate-600 hover:text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800"
+                                  : "text-stone-600 hover:text-stone-500 dark:text-stone-400 hover:bg-white dark:bg-stone-800"
                               }`}
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -718,8 +718,8 @@ export function PriceListsView() {
                             className={`inline-flex items-center justify-center w-6 h-6 rounded transition-colors
                               ${
                                 p.priceChangeAllowed
-                                  ? "text-sky-400 bg-sky-400/10 hover:bg-sky-400/20"
-                                  : "text-slate-600 hover:text-slate-500 dark:text-slate-400 hover:bg-white dark:bg-slate-800"
+                                  ? "text-amber-400 bg-amber-400/10 hover:bg-amber-400/20"
+                                  : "text-stone-600 hover:text-stone-500 dark:text-stone-400 hover:bg-white dark:bg-stone-800"
                               }`}
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -743,8 +743,8 @@ export function PriceListsView() {
         p.isDefault
           ? "text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
           : p.hasPriceRow
-            ? "text-slate-600 hover:text-yellow-500 hover:bg-white dark:bg-slate-800"
-            : "text-slate-800 cursor-not-allowed"
+            ? "text-stone-600 hover:text-yellow-500 hover:bg-white dark:bg-stone-800"
+            : "text-stone-800 cursor-not-allowed"
       }`}
                           >
                             <BsStar
@@ -761,7 +761,7 @@ export function PriceListsView() {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-3 border-t border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs text-slate-500 shrink-0">
+          <div className="px-6 py-3 border-t border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 flex items-center justify-between text-xs text-stone-500 shrink-0">
             <span>
               {pricedCount} / {enrichedProducts.length} products priced
             </span>

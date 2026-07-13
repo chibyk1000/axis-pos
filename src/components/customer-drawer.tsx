@@ -62,7 +62,7 @@ function DraggableFolder({
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()} // 🔑 CRITICAL
-        className="absolute left-0 top-1/2 -translate-y-1/2 cursor-grab text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+        className="absolute left-0 top-1/2 -translate-y-1/2 cursor-grab text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
       >
         <GripVertical className="size-4" />
       </div>
@@ -139,10 +139,10 @@ function DiscountDropZone({
   return (
     <div
       ref={setNodeRef}
-      className={`border border-slate-300 dark:border-slate-700 rounded-md p-4 transition ${
+      className={`border border-stone-300 dark:border-stone-700 rounded-md p-4 transition ${
         isOver
-          ? "bg-slate-200/40 dark:bg-slate-700/40"
-          : "bg-white dark:bg-slate-800"
+          ? "bg-stone-200/40 dark:bg-stone-700/40"
+          : "bg-white dark:bg-stone-800"
       }`}
     >
       {children}
@@ -446,22 +446,22 @@ export default function CustomerSupplierDrawer({
       direction="right"
       handleOnly={true}
     >
-      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-4xl bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
+      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-4xl bg-stone-50 dark:bg-stone-900 border-l border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-4">
         <DrawerHeader>
-          <DrawerTitle className="text-slate-900 dark:text-white">
+          <DrawerTitle className="text-stone-900 dark:text-white">
             New Customer / Supplier
           </DrawerTitle>
         </DrawerHeader>
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700 ">
+        <div className="flex gap-1 border-b border-stone-200 dark:border-stone-700 ">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 text-sm rounded-t-md transition ${
                 activeTab === tab
-                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+                  ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-white"
+                  : "text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
               }`}
             >
               {tab}
@@ -473,7 +473,7 @@ export default function CustomerSupplierDrawer({
           {/* Tab Content */}
           {activeTab === "General" && (
             <div className="max-w-3xl mb-6">
-              <h2 className="text-lg font-medium mb-4 text-slate-900 dark:text-white">
+              <h2 className="text-lg font-medium mb-4 text-stone-900 dark:text-white">
                 General Info
               </h2>
               <div className="grid grid-cols-1 gap-4">
@@ -622,7 +622,7 @@ export default function CustomerSupplierDrawer({
                     >
                       <div className="grid grid-cols-[360px_1fr] gap-4 min-h-[60dvh]">
                         {/* LEFT */}
-                        <div className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md p-2">
+                        <div className="border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 rounded-md p-2">
                           <Tree elements={treeElements}>
                             <RenderTree elements={treeElements} />
                           </Tree>
@@ -631,7 +631,7 @@ export default function CustomerSupplierDrawer({
                         {/* RIGHT */}
                         <DiscountDropZone onDrop={() => {}}>
                           {values.discounts.length === 0 ? (
-                            <div className="text-slate-500 dark:text-slate-400 text-center">
+                            <div className="text-stone-500 dark:text-stone-400 text-center">
                               Drag products here
                             </div>
                           ) : (
@@ -639,16 +639,16 @@ export default function CustomerSupplierDrawer({
                               {values.discounts.map((d, i) => (
                                 <div
                                   key={d.id}
-                                  className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded"
+                                  className="flex justify-between items-center bg-stone-100 dark:bg-stone-700 px-3 py-2 rounded"
                                 >
-                                  <span className="text-xs text-slate-900 dark:text-white">
+                                  <span className="text-xs text-stone-900 dark:text-white">
                                     {d.label}
                                   </span>
                                   <div className="flex items-center gap-3">
                                     <input
                                       type="number"
                                       onFocus={(e) => e.target.select()}
-                                      className="w-16 bg-white dark:bg-slate-800 border border-slate-50 pl-2 text-slate-900 dark:text-white rounded"
+                                      className="w-16 bg-white dark:bg-stone-800 border border-stone-50 pl-2 text-stone-900 dark:text-white rounded"
                                       value={d.value}
                                       onChange={(e) =>
                                         setFieldValue(
@@ -680,7 +680,7 @@ export default function CustomerSupplierDrawer({
 
           {activeTab === "Loyalty cards" && (
             <div className="mb-6">
-              <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
+              <p className="text-sm text-stone-700 dark:text-stone-300 mb-4">
                 Enter customer loyalty cards
               </p>
 
@@ -689,12 +689,12 @@ export default function CustomerSupplierDrawer({
                   value={cardInput}
                   onChange={(e) => setCardInput(e.target.value)}
                   placeholder="Card number"
-                  className="w-64 bg-white dark:bg-slate-800 border border-slate-600 px-3 py-2 text-sm rounded outline-none focus:ring-2 focus:ring-slate-500"
+                  className="w-64 bg-white dark:bg-stone-800 border border-stone-600 px-3 py-2 text-sm rounded outline-none focus:ring-2 focus:ring-stone-500"
                 />
 
                 <button
                   onClick={addCard}
-                  className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:text-white"
+                  className="flex items-center gap-1 text-sm text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white"
                 >
                   <span className="text-lg">＋</span> Add card
                 </button>
@@ -702,27 +702,27 @@ export default function CustomerSupplierDrawer({
                 <button
                   onClick={deleteCard}
                   disabled={!selectedCardId}
-                  className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:text-slate-900 dark:text-white"
+                  className="flex items-center gap-1 text-sm text-stone-500 dark:text-stone-400 disabled:opacity-40 hover:text-stone-900 dark:text-white"
                 >
                   <span className="text-lg">🗑</span> Delete
                 </button>
               </div>
 
-              <div className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md h-90 overflow-auto">
+              <div className="border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 rounded-md h-90 overflow-auto">
                 {cards.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
+                  <div className="h-full flex items-center justify-center text-stone-500 dark:text-stone-400">
                     No loyalty cards
                   </div>
                 ) : (
-                  <ul className="divide-y divide-slate-700">
+                  <ul className="divide-y divide-stone-700">
                     {cards.map((card) => (
                       <li
                         key={card.id}
                         onClick={() => setSelectedCardId(card.id)}
                         className={`px-4 py-2 cursor-pointer text-sm ${
                           selectedCardId === card.id
-                            ? "bg-slate-600 text-slate-900 dark:text-white"
-                            : "hover:bg-slate-100 dark:bg-slate-700"
+                            ? "bg-stone-600 text-stone-900 dark:text-white"
+                            : "hover:bg-stone-100 dark:bg-stone-700"
                         }`}
                       >
                         {card.number}
@@ -735,12 +735,12 @@ export default function CustomerSupplierDrawer({
           )}
 
           {activeTab === "Payment terms" && (
-            <div className="text-slate-700 dark:text-slate-300 mb-6 space-y-6">
-              <Alert className="flex items-center gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-none">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-sky-500/20 text-sky-400">
+            <div className="text-stone-700 dark:text-stone-300 mb-6 space-y-6">
+              <Alert className="flex items-center gap-3 bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 rounded-none">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-amber-500/20 text-amber-400">
                   <Info className="h-4 w-4" />
                 </div>
-                <AlertDescription className="text-sm text-sky-300 flex items-center">
+                <AlertDescription className="text-sm text-amber-300 flex items-center">
                   Use due date period to set number of days before transaction
                   must be paid for each unpaid sale assigned to this customer
                 </AlertDescription>
@@ -800,13 +800,13 @@ export default function CustomerSupplierDrawer({
         </ScrollArea>
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-6">
-          <button className="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-600">
+          <button className="px-6 py-2 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 rounded hover:bg-stone-600">
             Cancel
           </button>
           <button
             disabled={createCustomer.isPending || updateCustomer.isPending}
             onClick={handleSave}
-            className="px-6 py-2 bg-slate-600 rounded hover:bg-slate-500 text-slate-900 dark:text-white"
+            className="px-6 py-2 bg-stone-600 rounded hover:bg-stone-500 text-stone-900 dark:text-white"
           >
             {initialData ? "Update" : "Save"}
           </button>
@@ -830,14 +830,14 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm text-slate-700 dark:text-slate-300 mb-1">
+      <label className="block text-sm text-stone-700 dark:text-stone-300 mb-1">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <input
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500"
+        className="w-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-500"
       />
     </div>
   );

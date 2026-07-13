@@ -31,12 +31,12 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 max-w-md">
+      <DialogContent className="bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <DialogTitle className="text-lg font-semibold text-stone-900 dark:text-stone-100">
             {title}
           </DialogTitle>
-          <DialogDescription className="text-slate-500 dark:text-slate-400 mt-2">
+          <DialogDescription className="text-stone-500 dark:text-stone-400 mt-2">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -44,7 +44,7 @@ export function ConfirmDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+            className="border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700"
           >
             {cancelText}
           </Button>
@@ -54,7 +54,7 @@ export function ConfirmDialog({
               onConfirm();
               onOpenChange(false);
             }}
-            className={variant === "default" ? "bg-indigo-600 hover:bg-indigo-500 text-white" : ""}
+            className={variant === "default" ? "bg-orange-600 hover:bg-orange-500 text-white" : ""}
           >
             {confirmText}
           </Button>

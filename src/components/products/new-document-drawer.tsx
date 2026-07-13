@@ -143,9 +143,9 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
   };
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="right">
-      <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-        <DrawerHeader className="border-b border-slate-200 dark:border-slate-700">
-          <DrawerTitle className="text-lg font-medium text-slate-900 dark:text-slate-100">
+      <DrawerContent className="ml-auto h-full w-95 rounded-none border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
+        <DrawerHeader className="border-b border-stone-200 dark:border-stone-700">
+          <DrawerTitle className="text-lg font-medium text-stone-900 dark:text-stone-100">
             {product?.title}
           </DrawerTitle>
         </DrawerHeader>
@@ -153,11 +153,11 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
         <div className="space-y-5 p-4">
           {/* Quantity */}
           <div className="space-y-1">
-            <Label className="text-slate-500 dark:text-slate-400">
+            <Label className="text-stone-500 dark:text-stone-400">
               Quantity
             </Label>
             <Input
-              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+              className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
               type="number"
               onFocus={(e) => e.target.select()}
               value={quantity}
@@ -167,11 +167,11 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Price */}
           <div className="space-y-1">
-            <Label className="text-slate-500 dark:text-slate-400">
+            <Label className="text-stone-500 dark:text-stone-400">
               Price before tax
             </Label>
             <Input
-              className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+              className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
               type="number"
               onFocus={(e) => e.target.select()}
               value={priceBeforeTax}
@@ -188,7 +188,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
             {selectedTaxes.map((tax) => (
               <div
                 key={tax.id}
-                className="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded"
+                className="flex items-center justify-between bg-white dark:bg-stone-800 px-3 py-2 rounded"
               >
                 <span>
                   {tax.name} ({tax.rate}%)
@@ -208,18 +208,18 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                 variant="ghost"
                 disabled={taxOptions.length < 1}
                 onClick={() => setIsAddingTax(true)}
-                className="flex items-center gap-2 text-sm bg-sky-500"
+                className="flex items-center gap-2 text-sm bg-amber-500"
               >
                 <Plus size={16} />
                 Add tax
               </Button>
             )}
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Price
               </Label>
               <Input
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
                 type="number"
                 value={price}
                 onFocus={(e) => e.target.select()}
@@ -239,7 +239,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                     control: (base) => ({
                       ...base,
                       backgroundColor: "#1e293b",
-                      borderColor: "#334155",
+                      borderColor: "#44403c",
                       color: "white",
                     }),
                     menu: (base) => ({
@@ -264,7 +264,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                 <button
                   onClick={addTax}
                   disabled={!selectedTaxId}
-                  className="p-2 bg-slate-100 dark:bg-slate-700 rounded"
+                  className="p-2 bg-stone-100 dark:bg-stone-700 rounded"
                 >
                   <Plus size={16} />
                 </button>
@@ -274,7 +274,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                     setIsAddingTax(false);
                     setSelectedTaxId(null);
                   }}
-                  className="p-2 text-slate-500 dark:text-slate-400"
+                  className="p-2 text-stone-500 dark:text-stone-400"
                 >
                   <Minus size={16} />
                 </button>
@@ -284,7 +284,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           {/* Discount */}
           <div className="space-y-2">
-            <Label className="text-slate-500 dark:text-slate-400">
+            <Label className="text-stone-500 dark:text-stone-400">
               Discount
             </Label>
 
@@ -293,11 +293,11 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                 value={discountType}
                 onValueChange={(v) => setDiscountType(v)}
               >
-                <SelectTrigger className="w-40 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white">
                   <SelectValue />
                 </SelectTrigger>
 
-                <SelectContent className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
+                <SelectContent className="bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white">
                   <SelectItem value="percent">Discount percent</SelectItem>
                   <SelectItem value="fixed">Fixed amount</SelectItem>
                 </SelectContent>
@@ -307,12 +307,12 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
                 type="number"
                 value={discount}
                 onFocus={(e) => e.target.select()}
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
                 onChange={(e) => setDiscount(Number(e.target.value))}
               />
 
               {discountType === "percent" && (
-                <div className="flex items-center text-slate-500 dark:text-slate-400">
+                <div className="flex items-center text-stone-500 dark:text-stone-400">
                   %
                 </div>
               )}
@@ -320,34 +320,34 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
           </div>
 
           {/* Totals */}
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
+          <div className="border-t border-stone-200 dark:border-stone-700 pt-4 space-y-4">
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Total before tax
               </Label>
               <Input
                 disabled
                 value={totalBeforeTax.toFixed(2)}
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-slate-500 dark:text-slate-400">
+              <Label className="text-stone-500 dark:text-stone-400">
                 Total
               </Label>
               <Input
                 disabled
                 value={total.toFixed(2)}
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white"
               />
             </div>
           </div>
         </div>
 
-        <DrawerFooter className="flex-row gap-3 border-t border-slate-200 dark:border-slate-700 p-4">
+        <DrawerFooter className="flex-row gap-3 border-t border-stone-200 dark:border-stone-700 p-4">
           <Button
-            className="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-600"
+            className="flex-1 bg-stone-100 dark:bg-stone-700 hover:bg-stone-600"
             onClick={handleAddItem}
             disabled={!product}
           >
@@ -356,7 +356,7 @@ const totalTaxRate = selectedTaxes.reduce((sum, tax) => sum + tax.rate, 0);
 
           <Button
             variant="outline"
-            className="flex-1 border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800"
+            className="flex-1 border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-white dark:bg-stone-800"
             onClick={() => setOpen(false)}
           >
             Cancel

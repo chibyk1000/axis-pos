@@ -31,7 +31,7 @@ export function ContextMenuContent({
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         className={cn(
-          "z-50 min-w-[180px] overflow-hidden rounded-md border bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 shadow-md",
+          "z-50 min-w-[180px] overflow-hidden rounded-md border bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 shadow-md",
           "animate-in fade-in-0 zoom-in-95",
           className,
         )}
@@ -54,7 +54,7 @@ export function ContextMenuItem({
     <ContextMenuPrimitive.Item
       className={cn(
         "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-        "focus:bg-indigo-500/20 focus:text-indigo-300",
+        "focus:bg-orange-500/20 focus:text-orange-300",
         inset && "pl-8",
         className,
       )}
@@ -76,7 +76,7 @@ export function ContextMenuCheckboxItem({
       checked={checked}
       className={cn(
         "relative flex items-center rounded-sm py-1.5 pl-2 pr-8 text-sm",
-        "focus:bg-indigo-500/20",
+        "focus:bg-orange-500/20",
         className,
       )}
       {...props}
@@ -108,7 +108,7 @@ export function ContextMenuRadioItem({
     <ContextMenuPrimitive.RadioItem
       className={cn(
         "relative flex items-center rounded-sm py-1.5 pl-2 pr-8 text-sm",
-        "focus:bg-indigo-500/20",
+        "focus:bg-orange-500/20",
         className,
       )}
       {...props}
@@ -140,7 +140,7 @@ export function ContextMenuSubTrigger({
     <ContextMenuPrimitive.SubTrigger
       className={cn(
         "flex items-center rounded-sm px-2 py-1.5 text-sm",
-        "focus:bg-indigo-500/20",
+        "focus:bg-orange-500/20",
         className,
       )}
       {...props}
@@ -158,7 +158,7 @@ export function ContextMenuSubContent({
   return (
     <ContextMenuPrimitive.SubContent
       className={cn(
-        "z-50 min-w-[180px] rounded-md border bg-slate-50 dark:bg-slate-900 shadow-md",
+        "z-50 min-w-[180px] rounded-md border bg-stone-50 dark:bg-stone-900 shadow-md",
         className,
       )}
       {...props}
@@ -173,7 +173,7 @@ export function ContextMenuSeparator(
 ) {
   return (
     <ContextMenuPrimitive.Separator
-      className="my-1 h-px bg-slate-100 dark:bg-slate-700"
+      className="my-1 h-px bg-stone-100 dark:bg-stone-700"
       {...props}
     />
   );

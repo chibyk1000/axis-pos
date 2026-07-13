@@ -144,38 +144,38 @@ function SplitPaymentScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-      <div className="w-1/3 border-r border-slate-300 dark:border-slate-700 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
+      <div className="w-1/3 border-r border-stone-300 dark:border-stone-700 flex flex-col">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Continue Payment
             </p>
-            <p className="text-xs text-cyan-400 mt-0.5">{document.number}</p>
+            <p className="text-xs text-amber-400 mt-0.5">{document.number}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
             Items
           </p>
           {document.items?.map((item: any) => (
             <div
               key={item.id}
-              className="flex justify-between text-sm border-b border-slate-300 dark:border-slate-800 pb-2"
+              className="flex justify-between text-sm border-b border-stone-300 dark:border-stone-800 pb-2"
             >
-              <span className="text-slate-700 dark:text-slate-300 truncate max-w-[65%]">
+              <span className="text-stone-700 dark:text-stone-300 truncate max-w-[65%]">
                 {item.quantity !== 1 && (
-                  <span className="text-slate-500 mr-1">{item.quantity}×</span>
+                  <span className="text-stone-500 mr-1">{item.quantity}×</span>
                 )}
                 {item.name}
               </span>
-              <span className="tabular-nums text-slate-800 dark:text-slate-200">
+              <span className="tabular-nums text-stone-800 dark:text-stone-200">
                 ₦
                 {itemTotal(item).toLocaleString("en-NG", {
                   minimumFractionDigits: 2,
@@ -184,8 +184,8 @@ function SplitPaymentScreen({
             </div>
           ))}
         </div>
-        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 space-y-1.5 text-sm">
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+        <div className="px-5 py-4 border-t border-stone-200 dark:border-stone-700 space-y-1.5 text-sm">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Subtotal</span>
             <span>
               ₦
@@ -194,7 +194,7 @@ function SplitPaymentScreen({
               })}
             </span>
           </div>
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-stone-500 dark:text-stone-400">
             <span>Tax</span>
             <span>
               ₦
@@ -203,7 +203,7 @@ function SplitPaymentScreen({
               })}
             </span>
           </div>
-          <div className="flex justify-between font-bold text-lg text-cyan-400 pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between font-bold text-lg text-amber-400 pt-2 border-t border-stone-200 dark:border-stone-700">
             <span>Total</span>
             <span>₦{formatPrice(document.total)}</span>
           </div>
@@ -219,9 +219,9 @@ function SplitPaymentScreen({
       </div>
 
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Payment Methods
             </p>
           </div>
@@ -230,8 +230,8 @@ function SplitPaymentScreen({
         <div className="flex-1 overflow-auto p-5">
           <div className="space-y-4">
             {/* Payment Type Selection */}
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-              <label className="text-xs text-slate-500 mb-2 block">
+            <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Payment Type
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -241,8 +241,8 @@ function SplitPaymentScreen({
                     onClick={() => setSelectedTypeId(pt.id)}
                     className={`py-2 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors border ${
                       selectedTypeId === pt.id
-                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "bg-amber-900 border-amber-500 text-amber-200"
+                        : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}
                   >
                     {pt.name.toLowerCase().includes("card") ? (
@@ -260,7 +260,7 @@ function SplitPaymentScreen({
             <div className="flex-1 flex flex-col justify-between min-h-0">
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Amount</p>
+                  <p className="text-xs text-stone-500 mb-0.5">Amount</p>
                   <input
                     type="text"
                     value={paidInput}
@@ -268,12 +268,12 @@ function SplitPaymentScreen({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleSave();
                     }}
-                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-2xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-2xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Remaining</p>
+                  <p className="text-xs text-stone-500 mb-0.5">Remaining</p>
                   <p className="text-xl font-bold tabular-nums text-red-400">
                     ₦{formatPrice(remaining)}
                     {remaining > 0 && (
@@ -295,12 +295,12 @@ function SplitPaymentScreen({
                       onClick={() => handleKey(key)}
                       className={`py-4 rounded text-base font-medium transition-colors ${
                         isBackspace
-                          ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                          ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
                           : isEnter
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
                             : isDash
-                              ? "bg-slate-100 dark:bg-slate-700 hover:bg-slate-600 text-cyan-300 text-xs"
-                              : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                              ? "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-300 text-xs"
+                              : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                       }`}
                       title={isDash ? "Set to exact total" : undefined}
                     >
@@ -313,7 +313,7 @@ function SplitPaymentScreen({
               <button
                 onClick={handleSave}
                 disabled={!selectedType || paidAmount <= 0}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-base font-bold rounded transition-colors"
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-base font-bold rounded transition-colors"
               >
                 Save · ₦
                 {paidAmount.toLocaleString("en-NG", {
@@ -354,17 +354,17 @@ function TaxManagementScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Tax Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -374,13 +374,13 @@ function TaxManagementScreen({
           <div className="space-y-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400" />
               <input
                 type="text"
                 placeholder="Search taxes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
@@ -392,24 +392,24 @@ function TaxManagementScreen({
                   onClick={() => handleTaxClick(tax)}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                     selectedTaxId === tax.id
-                      ? "border-cyan-500 bg-cyan-950/20"
-                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "border-amber-500 bg-amber-950/20"
+                      : "border-stone-300 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                      <p className="font-medium text-stone-900 dark:text-stone-100">
                         {tax.name}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-stone-500">
                         {tax.description || "No description"}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-bold text-cyan-600">
+                      <p className="text-base font-bold text-amber-600">
                         {tax.rate}%
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-stone-500">
                         {tax.compound ? "Compound" : "Standard"}
                       </p>
                     </div>
@@ -509,17 +509,17 @@ function DiscountManagementScreen({
       : `₦${discountValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Discount Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -528,8 +528,8 @@ function DiscountManagementScreen({
         <div className="flex-1 overflow-auto p-5">
           <div className="space-y-6">
             {/* Discount Type Selection */}
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-              <label className="text-xs text-slate-500 mb-2 block">
+            <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Discount Type
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -537,8 +537,8 @@ function DiscountManagementScreen({
                   onClick={() => setDiscountType("percent")}
                   className={`py-2 rounded text-sm font-medium transition-colors border ${
                     discountType === "percent"
-                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      ? "bg-amber-900 border-amber-500 text-amber-200"
+                      : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                   }`}
                 >
                   <Percent className="w-4 h-4 inline mr-1" />
@@ -548,8 +548,8 @@ function DiscountManagementScreen({
                   onClick={() => setDiscountType("amount")}
                   className={`py-2 rounded text-sm font-medium transition-colors border ${
                     discountType === "amount"
-                      ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                      ? "bg-amber-900 border-amber-500 text-amber-200"
+                      : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                   }`}
                 >
                   <Banknote className="w-4 h-4 inline mr-1" />
@@ -560,7 +560,7 @@ function DiscountManagementScreen({
 
             {/* Preset Discounts */}
             <div>
-              <label className="text-xs text-slate-500 mb-2 block">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Quick Presets
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -570,8 +570,8 @@ function DiscountManagementScreen({
                     onClick={() => handlePresetClick(preset)}
                     className={`py-2 rounded text-sm font-medium transition-colors border ${
                       selectedPreset === preset.id
-                        ? "bg-cyan-900 border-cyan-500 text-cyan-200"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                        ? "bg-amber-900 border-amber-500 text-amber-200"
+                        : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
                     }`}
                   >
                     {preset.label}
@@ -582,7 +582,7 @@ function DiscountManagementScreen({
 
             {/* Custom Amount Input */}
             <div>
-              <label className="text-xs text-slate-500 mb-2 block">
+              <label className="text-xs text-stone-500 mb-2 block">
                 Custom Amount
               </label>
               <div className="space-y-3">
@@ -594,7 +594,7 @@ function DiscountManagementScreen({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleApply();
                     }}
-                    className="w-full bg-transparent border-b-2 border-cyan-500 pb-1 text-3xl text-cyan-300 font-mono tabular-nums text-right outline-none focus:border-cyan-400 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-3xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
                     placeholder="0"
                   />
                 </div>
@@ -618,10 +618,10 @@ function DiscountManagementScreen({
                     onClick={() => handleKey(key)}
                     className={`py-4 rounded text-lg font-medium transition-colors ${
                       isBackspace
-                        ? "bg-red-700 hover:bg-red-600 text-slate-900 dark:text-white"
+                        ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
                         : isEnter
-                          ? "bg-emerald-600 hover:bg-emerald-500 text-slate-900 dark:text-white font-bold"
-                          : "bg-white dark:bg-slate-800 hover:bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                          ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
+                          : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
                     }`}
                   >
                     {key}
@@ -634,7 +634,7 @@ function DiscountManagementScreen({
             <button
               onClick={handleApply}
               disabled={discountValue <= 0}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 dark:text-white text-lg font-bold rounded transition-colors"
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-lg font-bold rounded transition-colors"
             >
               Apply Discount · {displayValue}
             </button>
@@ -705,17 +705,17 @@ function CustomerManagementScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
       <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 dark:text-slate-500 uppercase tracking-widest font-semibold">
+            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Customer Management
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"
+            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -726,18 +726,18 @@ function CustomerManagementScreen({
             {/* Search and Add */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400" />
                 <input
                   type="text"
                   placeholder="Search customers..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full pl-10 pr-4 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Customer
@@ -746,8 +746,8 @@ function CustomerManagementScreen({
 
             {/* Add Customer Form */}
             {showAddForm && (
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
+              <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
+                <h3 className="text-sm font-medium text-stone-900 dark:text-stone-100 mb-3">
                   Add New Customer
                 </h3>
                 <div className="space-y-3">
@@ -758,7 +758,7 @@ function CustomerManagementScreen({
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, name: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <input
                     type="email"
@@ -767,7 +767,7 @@ function CustomerManagementScreen({
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, email: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <input
                     type="tel"
@@ -776,7 +776,7 @@ function CustomerManagementScreen({
                     onChange={(e) =>
                       setNewCustomer({ ...newCustomer, phone: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <div className="flex gap-2">
                     <button
@@ -791,7 +791,7 @@ function CustomerManagementScreen({
                         setShowAddForm(false);
                         setNewCustomer({ name: "", email: "", phone: "" });
                       }}
-                      className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+                      className="flex-1 py-2 bg-stone-600 hover:bg-stone-500 text-white text-sm font-medium rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -807,8 +807,8 @@ function CustomerManagementScreen({
                   key={customer.id}
                   className={`p-4 border rounded-lg cursor-pointer transition-colors group ${
                     selectedCustomerId === customer.id
-                      ? "border-cyan-500 bg-cyan-950/20"
-                      : "border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      ? "border-amber-500 bg-amber-950/20"
+                      : "border-stone-300 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -816,16 +816,16 @@ function CustomerManagementScreen({
                       className="flex-1"
                       onClick={() => handleCustomerClick(customer)}
                     >
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                      <p className="font-medium text-stone-900 dark:text-stone-100">
                         {customer.name}
                       </p>
                       {customer.email && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-stone-500">
                           {customer.email}
                         </p>
                       )}
                       {customer.phoneNumber && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-stone-500">
                           {customer.phoneNumber}
                         </p>
                       )}
@@ -1006,15 +1006,15 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
   return (
     <div
       id="print-receipt"
-      className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 text-slate-950 font-sans"
+      className="hidden print:block fixed inset-0 bg-white z-[9999] p-10 text-stone-950 font-sans"
     >
       <div className="max-w-[400px] mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold m-0">Axis POS</h1>
-          <p className="text-sm text-slate-600 m-1">Receipt / Tax Invoice</p>
+          <p className="text-sm text-stone-600 m-1">Receipt / Tax Invoice</p>
         </div>
 
-        <div className="border-y border-slate-200 py-3 mb-5 text-[13px] flex flex-col gap-1">
+        <div className="border-y border-stone-200 py-3 mb-5 text-[13px] flex flex-col gap-1">
           <div className="flex justify-between">
             <span>Document #</span> <span>{doc.number}</span>
           </div>
@@ -1028,17 +1028,17 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
 
         <table className="w-full border-collapse mb-5">
           <thead>
-            <tr className="text-[12px] text-slate-500 text-left border-b border-slate-100">
+            <tr className="text-[12px] text-stone-500 text-left border-b border-stone-100">
               <th className="pb-2 font-semibold">Item</th>
               <th className="pb-2 font-semibold text-right">Total</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.id} className="border-b border-slate-50">
+              <tr key={item.id} className="border-b border-stone-50">
                 <td className="py-2">
                   <div className="font-medium text-sm">{item.name}</div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-stone-500">
                     {Math.abs(item.quantity)} x {fmt(item.priceBeforeTax)}
                   </div>
                 </td>
@@ -1048,7 +1048,7 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
           </tbody>
         </table>
 
-        <div className="border-t-2 border-slate-900 pt-3 flex flex-col gap-1">
+        <div className="border-t-2 border-stone-900 pt-3 flex flex-col gap-1">
           <div className="flex justify-between text-sm">
             <span>Subtotal</span> <span>{fmt(doc.totalBeforeTax)}</span>
           </div>
@@ -1079,7 +1079,7 @@ function PrintReceipt({ doc }: { doc: Document | null }) {
           ))}
         </div>
 
-        <div className="text-center mt-10 text-xs text-slate-400">
+        <div className="text-center mt-10 text-xs text-stone-400">
           <p>Thank you for your business!</p>
           <p>{new Date().toLocaleString()}</p>
         </div>
@@ -1104,21 +1104,21 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-widest font-semibold text-slate-600 dark:text-slate-500">
+        <span className="text-[11px] uppercase tracking-widest font-semibold text-stone-600 dark:text-stone-500">
           {label}
         </span>
-        <div className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-          <Icon className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+        <div className="w-7 h-7 rounded-lg bg-stone-200 dark:bg-stone-800 flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400" />
         </div>
       </div>
       <div
-        className={`text-2xl font-semibold tabular-nums ${accent ?? "text-slate-900 dark:text-slate-100"}`}
+        className={`text-2xl font-semibold tabular-nums ${accent ?? "text-stone-900 dark:text-stone-100"}`}
       >
         {value}
       </div>
-      <div className="text-xs text-slate-500">{sub}</div>
+      <div className="text-xs text-stone-500">{sub}</div>
     </div>
   );
 }
@@ -1145,17 +1145,17 @@ function ConfirmModal({
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-80 p-6 shadow-2xl">
-        <p className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-80 p-6 shadow-2xl">
+        <p className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-2">
           {title}
         </p>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+        <p className="text-sm text-stone-600 dark:text-stone-400 mb-6">
           {message}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl py-2.5 text-sm text-slate-700 dark:text-slate-400 transition-colors"
+            className="flex-1 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 dark:hover:bg-stone-700 rounded-xl py-2.5 text-sm text-stone-700 dark:text-stone-400 transition-colors"
           >
             Cancel
           </button>
@@ -1164,7 +1164,7 @@ function ConfirmModal({
               onConfirm();
               onClose();
             }}
-            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-slate-900 dark:text-white transition-colors ${confirmCls}`}
+            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-stone-900 dark:text-white transition-colors ${confirmCls}`}
           >
             {confirmLabel}
           </button>
@@ -1218,21 +1218,21 @@ function SidePanel({
   };
 
   return (
-    <div className="flex flex-col h-full w-75 shrink-0 border-l border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
+    <div className="flex flex-col h-full w-75 shrink-0 border-l border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-900">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800 flex items-start justify-between gap-2">
+      <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-800 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <StatusBadge status={doc.status} paid={doc.paid} />
           </div>
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
             {doc.customer?.name ?? "Walk-in"}
           </p>
-          <p className="text-xs font-mono text-cyan-400 mt-0.5">{doc.number}</p>
+          <p className="text-xs font-mono text-amber-400 mt-0.5">{doc.number}</p>
         </div>
         <button
           onClick={onClose}
-          className="text-slate-500 hover:text-slate-700 dark:text-slate-300 mt-0.5 shrink-0 transition-colors"
+          className="text-stone-500 hover:text-stone-700 dark:text-stone-300 mt-0.5 shrink-0 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -1241,27 +1241,27 @@ function SidePanel({
       {/* Body */}
       <div className="flex-1 overflow-auto">
         {/* Details */}
-        <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
+        <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-800">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-stone-600 mb-2">
             Details
           </p>
           <div className="space-y-1.5 text-[13px]">
             <div className="flex justify-between">
-              <span className="text-slate-500">Date</span>
-              <span className="text-slate-700 dark:text-slate-300">
+              <span className="text-stone-500">Date</span>
+              <span className="text-stone-700 dark:text-stone-300">
                 {fmtDateTime(doc.date)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Type</span>
-              <span className="text-slate-700 dark:text-slate-300">
+              <span className="text-stone-500">Type</span>
+              <span className="text-stone-700 dark:text-stone-300">
                 {doc.externalNumber ?? "—"}
               </span>
             </div>
             {doc.customer && (
               <div className="flex justify-between">
-                <span className="text-slate-500">Customer</span>
-                <span className="text-slate-700 dark:text-slate-300 truncate max-w-40 text-right">
+                <span className="text-stone-500">Customer</span>
+                <span className="text-stone-700 dark:text-stone-300 truncate max-w-40 text-right">
                   {doc.customer.name}
                 </span>
               </div>
@@ -1271,8 +1271,8 @@ function SidePanel({
 
         {/* Items */}
         {items.length > 0 && (
-          <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
-            <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
+          <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-800">
+            <p className="text-[10px] uppercase tracking-widest font-semibold text-stone-600 mb-2">
               Items ({items.length})
             </p>
             <div className="space-y-2">
@@ -1282,10 +1282,10 @@ function SidePanel({
                   className="flex items-start justify-between gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-[13px] text-slate-700 dark:text-slate-300 truncate">
+                    <p className="text-[13px] text-stone-700 dark:text-stone-300 truncate">
                       {item.name}
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-stone-500">
                       {Math.abs(item.quantity)} × {fmt(item.priceBeforeTax)}
                       {item.discount > 0 && (
                         <span className="text-amber-500 ml-1">
@@ -1295,7 +1295,7 @@ function SidePanel({
                     </p>
                   </div>
                   <span
-                    className={`text-[13px] tabular-nums shrink-0 ${item.quantity < 0 ? "text-red-400" : "text-cyan-400"}`}
+                    className={`text-[13px] tabular-nums shrink-0 ${item.quantity < 0 ? "text-red-400" : "text-amber-400"}`}
                   >
                     {fmt(item.total)}
                   </span>
@@ -1307,8 +1307,8 @@ function SidePanel({
 
         {/* Payments */}
         {payments.length > 0 && (
-          <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-800">
-            <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
+          <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-800">
+            <p className="text-[10px] uppercase tracking-widest font-semibold text-stone-600 mb-2">
               Payments
             </p>
             <div className="space-y-1.5">
@@ -1317,11 +1317,11 @@ function SidePanel({
                   key={p.id}
                   className="flex items-center justify-between text-[13px]"
                 >
-                  <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5 text-stone-500 dark:text-stone-400">
                     {paymentIcon(p.paymentType)}
                     <span>{p.paymentType}</span>
                   </div>
-                  <span className="text-slate-700 dark:text-slate-300 tabular-nums">
+                  <span className="text-stone-700 dark:text-stone-300 tabular-nums">
                     {fmt(p.amount)}
                   </span>
                 </div>
@@ -1332,39 +1332,39 @@ function SidePanel({
 
         {/* Totals */}
         <div className="px-4 py-3">
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-600 mb-2">
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-stone-600 mb-2">
             Totals
           </p>
           <div className="space-y-1.5 text-[13px]">
             <div className="flex justify-between">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="text-slate-700 dark:text-slate-300 tabular-nums">
+              <span className="text-stone-500">Subtotal</span>
+              <span className="text-stone-700 dark:text-stone-300 tabular-nums">
                 {fmt(doc.totalBeforeTax)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Tax</span>
-              <span className="text-slate-700 dark:text-slate-300 tabular-nums">
+              <span className="text-stone-500">Tax</span>
+              <span className="text-stone-700 dark:text-stone-300 tabular-nums">
                 {fmt(doc.taxTotal)}
               </span>
             </div>
-            <div className="flex justify-between pt-2 border-t border-slate-300 dark:border-slate-800 font-semibold text-base">
-              <span className="text-slate-800 dark:text-slate-200">Total</span>
+            <div className="flex justify-between pt-2 border-t border-stone-300 dark:border-stone-800 font-semibold text-base">
+              <span className="text-stone-800 dark:text-stone-200">Total</span>
               <span
-                className={`tabular-nums ${doc.total < 0 ? "text-red-400" : "text-cyan-400"}`}
+                className={`tabular-nums ${doc.total < 0 ? "text-red-400" : "text-amber-400"}`}
               >
                 {fmt(doc.total)}
               </span>
             </div>
             <div className="flex justify-between pt-1">
-              <span className="text-slate-500">Paid</span>
+              <span className="text-stone-500">Paid</span>
               <span className="text-emerald-400 tabular-nums font-medium">
                 {fmt(doc.totalPaid)}
               </span>
             </div>
             {doc.outstandingBalance > 0 && (
               <div className="flex justify-between">
-                <span className="text-slate-500">Outstanding</span>
+                <span className="text-stone-500">Outstanding</span>
                 <span className="text-red-400 tabular-nums font-medium">
                   {fmt(doc.outstandingBalance)}
                 </span>
@@ -1372,7 +1372,7 @@ function SidePanel({
             )}
             {doc.totalPaid > doc.total && (
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Overpayment</span>
+                <span className="text-stone-500">Overpayment</span>
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-amber-400 font-medium">
                     OVERPAY
@@ -1388,17 +1388,17 @@ function SidePanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="px-4 py-3 border-t border-slate-300 dark:border-slate-800 grid grid-cols-2 gap-2">
+      <div className="px-4 py-3 border-t border-stone-300 dark:border-stone-800 grid grid-cols-2 gap-2">
         <button
           onClick={() => onPrint(doc)}
-          className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg py-2 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-lg py-2 text-xs text-stone-700 dark:text-stone-300 transition-colors"
         >
           <Printer className="w-3.5 h-3.5" />
           Print
         </button>
         <button
           onClick={() => onDuplicate(doc)}
-          className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg py-2 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+          className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-lg py-2 text-xs text-stone-700 dark:text-stone-300 transition-colors"
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
@@ -1406,7 +1406,7 @@ function SidePanel({
         {doc.status === "posted" && !isRefunded && (
           <button
             onClick={() => onRefund(doc)}
-            className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-amber-800 rounded-lg py-2 text-xs text-amber-400 transition-colors"
+            className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-amber-800 rounded-lg py-2 text-xs text-amber-400 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Refund
@@ -1415,7 +1415,7 @@ function SidePanel({
         {doc.status === "posted" && isRefunded && (
           <button
             disabled
-            className="flex items-center justify-center gap-1.5 bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600 rounded-lg py-2 text-xs text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 transition-colors"
+            className="flex items-center justify-center gap-1.5 bg-stone-200 dark:bg-stone-700 border border-stone-400 dark:border-stone-600 rounded-lg py-2 text-xs text-stone-400 dark:text-stone-500 cursor-not-allowed opacity-60 transition-colors"
             title="Refund already processed"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -1434,7 +1434,7 @@ function SidePanel({
         {(doc.status === "posted" || doc.status === "draft") && (
           <button
             onClick={() => onVoid(doc)}
-            className="flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-red-950 border border-red-900 rounded-lg py-2 text-xs text-red-400 transition-colors"
+            className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-red-950 border border-red-900 rounded-lg py-2 text-xs text-red-400 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Void
@@ -2010,7 +2010,7 @@ export default function DocumentsPage() {
   );
 
   return (
-    <div className="h-dvh w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden">
+    <div className="h-dvh w-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col overflow-hidden">
       {/* ── Confirm modals ── */}
       {confirmModal?.type === "void" && confirmModal.doc && (
         <ConfirmModal
@@ -2035,24 +2035,24 @@ export default function DocumentsPage() {
 
       {/* ── Header ── */}
       <PrintReceipt doc={selectedDoc as any} />
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 print:hidden">
+      <header className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-4 py-3 flex items-center gap-3 flex-wrap shrink-0 print:hidden">
         {/* Brand + back */}
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-cyan-400 text-black flex items-center justify-center text-xs font-bold">
+          <div className="w-6 h-6 rounded-full bg-amber-400 text-black flex items-center justify-center text-xs font-bold">
             A
           </div>
-          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+          <span className="text-sm font-medium text-stone-900 dark:text-stone-100">
             Axis Lite
           </span>
-          <span className="text-slate-500 dark:text-slate-400">/</span>
-          <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+          <span className="text-stone-500 dark:text-stone-400">/</span>
+          <span className="text-sm text-stone-500 dark:text-stone-400 font-medium">
             Documents
           </span>
         </div>
 
         {/* Search */}
         <div className="flex-1 min-w-48 max-w-xs relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
           <input
             value={search}
             onChange={(e) => {
@@ -2060,12 +2060,12 @@ export default function DocumentsPage() {
               setPage(1);
             }}
             placeholder="Search number or customer…"
-            className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-cyan-600 placeholder:text-slate-500 dark:placeholder:text-slate-600 transition-colors"
+            className="w-full bg-stone-100 dark:bg-stone-950 border border-stone-300 dark:border-stone-700 rounded-lg pl-9 pr-3 py-1.5 text-sm text-stone-900 dark:text-stone-100 outline-none focus:border-amber-600 placeholder:text-stone-500 dark:placeholder:text-stone-600 transition-colors"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-300"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-700 dark:text-stone-300"
             >
               <X className="w-3 h-3" />
             </button>
@@ -2075,28 +2075,28 @@ export default function DocumentsPage() {
         <div className="flex items-center gap-2 ml-auto">
           {/* User info */}
           {user && (
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
               <span>Welcome,</span>
-              <span className="font-medium text-slate-900 dark:text-slate-100">
+              <span className="font-medium text-stone-900 dark:text-stone-100">
                 {user.username}
               </span>
             </div>
           )}
           {selectedIds.size > 0 && (
-            <span className="text-xs text-cyan-400 font-medium">
+            <span className="text-xs text-amber-400 font-medium">
               {selectedIds.size} selected
             </span>
           )}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+            className="flex items-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-1.5 text-xs text-stone-700 dark:text-stone-300 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             Export CSV
           </button>
           <button
             onClick={() => router("/pos")}
-            className="flex items-center gap-1.5 bg-cyan-700 hover:bg-cyan-600 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-600 rounded-lg px-3 py-1.5 text-xs text-stone-900 dark:text-white font-medium transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             New Sale
@@ -2115,7 +2115,7 @@ export default function DocumentsPage() {
                 label="Today's sales"
                 value={fmt(stats.todaySales)}
                 sub={`${docs.filter((d) => isToday(d.date) && d.status === "posted").length} transactions`}
-                accent="text-cyan-400"
+                accent="text-amber-400"
               />
               <StatCard
                 icon={TrendingUp}
@@ -2136,13 +2136,13 @@ export default function DocumentsPage() {
                 label="Drafts pending"
                 value={String(stats.drafts)}
                 sub="unpaid open orders"
-                accent="text-blue-400"
+                accent="text-orange-400"
               />
             </div>
 
             {/* Filters + date range */}
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg p-1">
+              <div className="flex items-center gap-1 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 rounded-lg p-1">
                 {statusFilters.map((f) => (
                   <button
                     key={f.key}
@@ -2152,13 +2152,13 @@ export default function DocumentsPage() {
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                       filterStatus === f.key
-                        ? "bg-cyan-900 text-cyan-300 border border-cyan-700"
-                        : "text-slate-500 hover:text-slate-700 dark:text-slate-300"
+                        ? "bg-amber-900 text-amber-300 border border-amber-700"
+                        : "text-stone-500 hover:text-stone-700 dark:text-stone-300"
                     }`}
                   >
                     {f.label}
                     <span
-                      className={`text-[10px] tabular-nums ${filterStatus === f.key ? "text-cyan-400" : "text-slate-600"}`}
+                      className={`text-[10px] tabular-nums ${filterStatus === f.key ? "text-amber-400" : "text-stone-600"}`}
                     >
                       {statusCounts[f.key]}
                     </span>
@@ -2167,14 +2167,14 @@ export default function DocumentsPage() {
               </div>
 
               <div className="flex items-center gap-1.5 ml-auto">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                <Calendar className="w-3.5 h-3.5 text-stone-500" />
                 <select
                   value={dateRange}
                   onChange={(e) => {
                     setDateRange(e.target.value as DateRange);
                     setPage(1);
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-cyan-600 cursor-pointer"
+                  className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 rounded-lg px-3 py-1.5 text-xs text-stone-700 dark:text-stone-300 outline-none focus:border-amber-600 cursor-pointer"
                 >
                   <option value="all">All time</option>
                   <option value="today">Today</option>
@@ -2185,9 +2185,9 @@ export default function DocumentsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-slate-100 dark:bg-slate-950 border-b border-slate-300 dark:border-slate-800">
+              <div className="grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-2.5 bg-stone-100 dark:bg-stone-950 border-b border-stone-300 dark:border-stone-800">
                 {[
                   <input
                     key="chk"
@@ -2197,7 +2197,7 @@ export default function DocumentsPage() {
                       paginated.length > 0
                     }
                     onChange={toggleSelectAll}
-                    className="w-3.5 h-3.5 accent-cyan-500 cursor-pointer"
+                    className="w-3.5 h-3.5 accent-amber-500 cursor-pointer"
                   />,
                   "Document",
                   "Customer",
@@ -2212,7 +2212,7 @@ export default function DocumentsPage() {
                 ].map((h, i) => (
                   <div
                     key={i}
-                    className={`text-[10px] uppercase tracking-widest font-semibold text-slate-500 flex items-center ${
+                    className={`text-[10px] uppercase tracking-widest font-semibold text-stone-500 flex items-center ${
                       [4, 5, 6, 7, 8].includes(i) ? "justify-end" : ""
                     }`}
                   >
@@ -2223,11 +2223,11 @@ export default function DocumentsPage() {
 
               {/* Rows */}
               {documentsQuery.isLoading ? (
-                <div className="flex items-center justify-center py-16 text-slate-500 text-sm">
+                <div className="flex items-center justify-center py-16 text-stone-500 text-sm">
                   Loading documents…
                 </div>
               ) : paginated.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
+                <div className="flex flex-col items-center justify-center py-16 text-stone-500 gap-2">
                   <FileText className="w-8 h-8 opacity-30" />
                   <span className="text-sm">No documents found</span>
                   {(search || filterStatus !== "all") && (
@@ -2236,7 +2236,7 @@ export default function DocumentsPage() {
                         setSearch("");
                         setFilterStatus("all");
                       }}
-                      className="text-xs text-cyan-500 hover:text-cyan-400 mt-1"
+                      className="text-xs text-amber-500 hover:text-amber-400 mt-1"
                     >
                       Clear filters
                     </button>
@@ -2251,10 +2251,10 @@ export default function DocumentsPage() {
                         prev?.id === doc.id ? null : doc,
                       )
                     }
-                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-slate-300 dark:border-slate-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
+                    className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-stone-300 dark:border-stone-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
                       selectedDoc?.id === doc.id
-                        ? "bg-cyan-950/40 border-l-2 border-l-cyan-500"
-                        : "hover:bg-white dark:bg-slate-800/40"
+                        ? "bg-amber-950/40 border-l-2 border-l-amber-500"
+                        : "hover:bg-white dark:bg-stone-800/40"
                     }`}
                   >
                     {/* Checkbox */}
@@ -2269,20 +2269,20 @@ export default function DocumentsPage() {
                         type="checkbox"
                         checked={selectedIds.has(doc.id)}
                         onChange={() => toggleSelect(doc.id)}
-                        className="w-3.5 h-3.5 accent-cyan-500 cursor-pointer"
+                        className="w-3.5 h-3.5 accent-amber-500 cursor-pointer"
                       />
                     </div>
                     {/* Number */}
                     <div className="flex items-center">
-                      <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                      <span className="text-xs font-mono text-stone-500 dark:text-stone-400">
                         {doc.number}
                       </span>
                     </div>
                     {/* Customer */}
                     <div className="flex items-center min-w-0">
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                      <span className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate">
                         {doc.customer?.name ?? (
-                          <span className="text-slate-500 font-normal">
+                          <span className="text-stone-500 font-normal">
                             Walk-in
                           </span>
                         )}
@@ -2290,13 +2290,13 @@ export default function DocumentsPage() {
                     </div>
                     {/* Date */}
                     <div className="flex items-center">
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-stone-500">
                         {fmtDateTime(doc.date)}
                       </span>
                     </div>
                     {/* Items */}
                     <div className="flex items-center justify-end">
-                      <span className="text-xs text-slate-500 tabular-nums">
+                      <span className="text-xs text-stone-500 tabular-nums">
                         {doc.items?.length ?? 0}
                       </span>
                     </div>
@@ -2307,8 +2307,8 @@ export default function DocumentsPage() {
                           doc.total < 0
                             ? "text-red-400"
                             : doc.status === "void"
-                              ? "text-slate-600"
-                              : "text-slate-800 dark:text-slate-200"
+                              ? "text-stone-600"
+                              : "text-stone-800 dark:text-stone-200"
                         }`}
                       >
                         {doc.status === "void" ? "—" : fmt(doc.total)}
@@ -2320,7 +2320,7 @@ export default function DocumentsPage() {
                         className={`text-sm font-medium tabular-nums ${
                           doc.totalPaid > 0
                             ? "text-emerald-400"
-                            : "text-slate-500"
+                            : "text-stone-500"
                         }`}
                       >
                         {fmt(doc.totalPaid)}
@@ -2328,7 +2328,7 @@ export default function DocumentsPage() {
                     </div>
                     {/* Payment Type */}
                     <div className="flex items-center justify-end">
-                      <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-full">
+                      <span className="text-xs text-stone-600 dark:text-stone-400 truncate max-w-full">
                         {doc.payments && doc.payments.length > 0
                           ? doc.payments.map((p) => p.paymentType).join(", ")
                           : "-"}
@@ -2355,7 +2355,7 @@ export default function DocumentsPage() {
                                 ? "text-red-400"
                                 : doc.outstandingBalance < 0
                                   ? "text-amber-400"
-                                  : "text-slate-500"
+                                  : "text-stone-500"
                             }`}
                           >
                             {fmt(doc.outstandingBalance)}
@@ -2375,14 +2375,14 @@ export default function DocumentsPage() {
                       <button
                         onClick={() => onPrint(doc)}
                         title="Print"
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700 transition-colors"
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setSelectedDoc(doc)}
                         title="View"
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-700 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-stone-500 hover:text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -2402,7 +2402,7 @@ export default function DocumentsPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center justify-between text-xs text-stone-500">
               <span>
                 {filtered.length === 0
                   ? "No results"
@@ -2412,7 +2412,7 @@ export default function DocumentsPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-300 dark:border-stone-800 text-stone-500 hover:text-stone-700 dark:text-stone-300 hover:bg-white dark:bg-stone-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -2424,8 +2424,8 @@ export default function DocumentsPage() {
                       onClick={() => setPage(p)}
                       className={`w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors ${
                         page === p
-                          ? "bg-cyan-700 text-slate-900 dark:text-white border border-cyan-600"
-                          : "border border-slate-300 dark:border-slate-800 text-slate-500 hover:bg-white dark:bg-slate-800 hover:text-slate-700 dark:text-slate-300"
+                          ? "bg-amber-700 text-stone-900 dark:text-white border border-amber-600"
+                          : "border border-stone-300 dark:border-stone-800 text-stone-500 hover:bg-white dark:bg-stone-800 hover:text-stone-700 dark:text-stone-300"
                       }`}
                     >
                       {p}
@@ -2435,7 +2435,7 @@ export default function DocumentsPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="w-7 h-7 flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-white dark:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-md border border-stone-300 dark:border-stone-800 text-stone-500 hover:text-stone-700 dark:text-stone-300 hover:bg-white dark:bg-stone-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>

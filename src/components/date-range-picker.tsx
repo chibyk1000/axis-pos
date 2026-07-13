@@ -94,11 +94,11 @@ export function DateRangeModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
       <div
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl
+        className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl
                       w-full max-w-4xl p-6 shadow-xl"
       >
         {/* Header */}
-        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+        <h3 className="text-lg font-semibold mb-4 text-stone-900 dark:text-stone-100">
           {title}
         </h3>
 
@@ -110,7 +110,7 @@ export function DateRangeModal({
               <Button
                 key={item.label}
                 variant="outline"
-                className="justify-start bg-transparent hover:bg-slate-200 dark:hover:bg-white dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-white"
+                className="justify-start bg-transparent hover:bg-stone-200 dark:hover:bg-white dark:bg-stone-800 hover:text-stone-900 dark:hover:text-stone-900 dark:text-white"
                 onClick={() => onChange(item.range())}
               >
                 {item.label}
@@ -126,7 +126,7 @@ export function DateRangeModal({
               onSelect={onChange}
               numberOfMonths={2}
               pagedNavigation
-              className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+              className="rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900"
             />
           </div>
         </div>

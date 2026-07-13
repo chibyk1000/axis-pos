@@ -31,7 +31,7 @@ export default function MovingAveragePrice() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen w-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6">
+    <div className="min-h-screen w-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-white p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -51,21 +51,21 @@ export default function MovingAveragePrice() {
             Moving average price is disabled. Enable moving average price to
             start tracking cost prices automatically.
           </p>
-          <button className="text-blue-400 text-sm mt-1">
+          <button className="text-amber-400 text-sm mt-1">
             Click here to enable moving average price
           </button>
         </div>
       </div>
 
       {/* Info Banner */}
-      <div className="flex items-start gap-3 bg-sky-50 border border-sky-300 p-4 mb-6 dark:bg-slate-950 dark:border-sky-600">
-        <span className="text-sky-600 dark:text-sky-300 text-xl">ℹ</span>
+      <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 p-4 mb-6 dark:bg-stone-950 dark:border-amber-600">
+        <span className="text-amber-600 dark:text-amber-300 text-xl">ℹ</span>
         <p className="text-sm">
           Select products or product groups you wish to recalculate moving
           average price for. Moving average price will be calculated and will
           update all documents in selected period. This operation may take some
           time, depending on number of products and selected time period.
-          <span className="text-blue-400 ml-1 cursor-pointer">Learn more</span>
+          <span className="text-amber-400 ml-1 cursor-pointer">Learn more</span>
         </p>
       </div>
 
@@ -112,29 +112,29 @@ export default function MovingAveragePrice() {
 
           <div className="flex gap-6 mb-6">
             {/* Calendar */}
-            <div className="border border-slate-600 bg-white dark:bg-slate-800 p-4 rounded-lg">
+            <div className="border border-stone-600 bg-white dark:bg-stone-800 p-4 rounded-lg">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={setDate}
                 weekStartsOn={1}
-                className="slate-calendar text-slate-900 dark:text-white"
+                className="slate-calendar text-stone-900 dark:text-white"
                 classNames={{
                   months: "flex flex-col",
                   month: "space-y-4",
                   caption:
-                    "flex justify-center relative items-center text-slate-800 dark:text-slate-200",
+                    "flex justify-center relative items-center text-stone-800 dark:text-stone-200",
                   caption_label: "text-sm font-medium",
                   nav_button:
-                    "h-7 w-7 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-600 rounded-md",
+                    "h-7 w-7 bg-stone-100 dark:bg-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-600 rounded-md",
                   table: "w-full border-collapse",
-                  head_cell: "text-slate-500 dark:text-slate-400 text-xs",
+                  head_cell: "text-stone-500 dark:text-stone-400 text-xs",
                   cell: "h-9 w-9 text-center text-sm",
-                  day: "hover:bg-slate-100 dark:bg-slate-700 rounded-md transition",
+                  day: "hover:bg-stone-100 dark:bg-stone-700 rounded-md transition",
                   day_selected:
-                    "bg-sky-500 text-slate-900 dark:text-white hover:bg-sky-500",
-                  day_today: "border border-sky-400",
-                  day_outside: "text-slate-500 opacity-50",
+                    "bg-amber-500 text-stone-900 dark:text-white hover:bg-amber-500",
+                  day_today: "border border-amber-400",
+                  day_outside: "text-stone-500 opacity-50",
                 }}
               />
             </div>
@@ -154,7 +154,7 @@ export default function MovingAveragePrice() {
                 <button
                   key={label}
                   onClick={() => setDate(presets[label]())}
-                  className="border border-slate-600 rounded-md px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                  className="border border-stone-600 rounded-md px-4 py-2 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 transition"
                 >
                   {label}
                 </button>

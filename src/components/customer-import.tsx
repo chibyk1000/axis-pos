@@ -1,33 +1,40 @@
 import { nanoid } from "nanoid";
-import { useCreateProduct, useNextProductCode } from "@/hooks/controllers/products";
-import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
-import { useCreateBarcode } from "@/hooks/controllers/barcodes";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCreateCustomer, useNextCustomerCode } from "@/hooks/controllers/customers";
+import type { NewCustomer } from "@/db/schema";
 
-export default function ImportModal({ onClose }: { onClose?: () => void }) {
-  const [tab, setTab] = useState("csv");
+export default function CustomerImportModal({
+  onClose,
+}: {
+  onClose?: () => void;
+}) {
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>(
     {},
   );
+  const [defaultType, setDefaultType] = useState<"customer" | "supplier">(
+    "customer",
+  );
   const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    failed: number;
+  } | null>(null);
 
-  const createProduct = useCreateProduct();
-  const upsertPrice = useUpsertProductPrice();
-  const createBarcode = useCreateBarcode();
+  const createCustomer = useCreateCustomer();
   const queryClient = useQueryClient();
-  const { data: nextCodeBase } = useNextProductCode();
+  const { data: nextCodeBase } = useNextCustomerCode();
 
   const fields = [
     { key: "code", label: "Code" },
-    { key: "title", label: "Name" },
-    { key: "cost", label: "Cost" },
-    { key: "salePrice", label: "Sale Price" },
-    { key: "unit", label: "Unit" },
-    { key: "active", label: "Active" },
-    { key: "barcode", label: "Barcode" },
-    { key: "tax", label: "Tax Name" },
+    { key: "name", label: "Name" },
+    { key: "taxNumber", label: "Tax Number" },
+    { key: "address", label: "Address" },
+    { key: "country", label: "Country" },
+    { key: "phoneNumber", label: "Phone Number" },
+    { key: "email", label: "Email" },
+    { key: "type", label: "Type (customer/supplier)" },
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,11 +44,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      if (tab === "csv") {
-        parseCSV(text);
-      } else {
-        parseXML();
-      }
+      parseCSV(text);
     };
     reader.readAsText(selectedFile);
   };
@@ -57,78 +60,94 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
       return obj;
     });
     setParsedData(rows);
+    setImportResult(null);
+
     // Auto-map common columns
     const mapping: Record<string, string> = {};
     headers.forEach((h) => {
       const lower = h.toLowerCase();
       if (lower.includes("code")) mapping.code = h;
-      else if (lower.includes("name") || lower.includes("title"))
-        mapping.title = h;
-      else if (lower.includes("cost") || lower.includes("price"))
-        mapping.cost = h;
-      else if (lower.includes("sale")) mapping.salePrice = h;
-      else if (lower.includes("unit")) mapping.unit = h;
-      else if (lower.includes("active")) mapping.active = h;
-      else if (lower.includes("barcode")) mapping.barcode = h;
-      else if (lower.includes("tax")) mapping.tax = h;
+      else if (lower.includes("name")) mapping.name = h;
+      else if (lower.includes("tax")) mapping.taxNumber = h;
+      else if (lower.includes("address") || lower.includes("street"))
+        mapping.address = h;
+      else if (lower.includes("country")) mapping.country = h;
+      else if (lower.includes("phone")) mapping.phoneNumber = h;
+      else if (lower.includes("email")) mapping.email = h;
+      else if (lower.includes("type") || lower.includes("supplier"))
+        mapping.type = h;
     });
     setColumnMapping(mapping);
   };
 
-  const parseXML = () => {
-    // Simple XML parsing - assume <products><product>...</product></products>
-    // For simplicity, just set empty for now
-    setParsedData([]);
-  };
-
   const handleImport = async () => {
-    if (!parsedData.length) return;
+    if (!parsedData.length || !columnMapping.name) return;
     setIsImporting(true);
+    setImportResult(null);
     let currentCode = parseInt(nextCodeBase || "1", 10);
-    try {
-      for (const row of parsedData) {
-        let code = row[columnMapping.code] || "";
-        if (!code) {
-          code = currentCode.toString();
-          currentCode++;
-        }
-        const productData = {
-          id: nanoid(),
-          title: row[columnMapping.title] || "Unnamed",
-          code,
-          unit: row[columnMapping.unit] || "pcs",
-          active: row[columnMapping.active]?.toLowerCase() === "yes" || true,
-          nodeId: "root", // Assume root group
-        };
-        const product = await createProduct.mutateAsync(productData);
-        if (columnMapping.cost || columnMapping.salePrice) {
-          await upsertPrice.mutateAsync({
-            id: nanoid(),
-            productId: product.id,
-            cost: parseFloat(row[columnMapping.cost]) || 0,
-            salePrice: parseFloat(row[columnMapping.salePrice]) || 0,
-            markup: 0,
-            isDefault: true,
-            label: "Retail",
-          });
-        }
-        if (columnMapping.barcode) {
-          await createBarcode.mutateAsync({
-            id: nanoid(),
-            productId: product.id,
-            value: row[columnMapping.barcode],
-            type: "CODE128",
-          });
-        }
-        // Tax would need more logic, skip for now
+    let imported = 0;
+    let failed = 0;
+
+    for (const row of parsedData) {
+      const name = row[columnMapping.name]?.trim();
+      if (!name) {
+        failed++;
+        continue;
       }
-      queryClient.invalidateQueries();
-      onClose?.();
-    } catch (error) {
-      console.error("Import failed", error);
-    } finally {
-      setIsImporting(false);
+
+      let code = columnMapping.code ? row[columnMapping.code]?.trim() : "";
+      if (!code) {
+        code = currentCode.toString();
+        currentCode++;
+      }
+
+      const typeRaw = (
+        columnMapping.type ? row[columnMapping.type] : ""
+      )
+        ?.toString()
+        .trim()
+        .toLowerCase();
+      const isCustomer =
+        typeRaw === "supplier"
+          ? false
+          : typeRaw === "customer"
+            ? true
+            : defaultType === "customer";
+
+      const customerData: NewCustomer = {
+        id: nanoid(),
+        name,
+        code,
+        taxNumber: columnMapping.taxNumber
+          ? row[columnMapping.taxNumber] || null
+          : null,
+        streetName: columnMapping.address
+          ? row[columnMapping.address] || null
+          : null,
+        country: columnMapping.country
+          ? row[columnMapping.country] || null
+          : null,
+        phoneNumber: columnMapping.phoneNumber
+          ? row[columnMapping.phoneNumber] || null
+          : null,
+        email: columnMapping.email ? row[columnMapping.email] || null : null,
+        active: true,
+        customer: isCustomer,
+        createdAt: new Date(),
+      };
+
+      try {
+        await createCustomer.mutateAsync(customerData);
+        imported++;
+      } catch (error) {
+        console.error("Failed to import row", row, error);
+        failed++;
+      }
     }
+
+    queryClient.invalidateQueries({ queryKey: ["customers"] });
+    setImportResult({ imported, failed });
+    setIsImporting(false);
   };
 
   return (
@@ -136,10 +155,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
       <div className="w-full max-w-[1200px] h-full max-h-[720px] bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded shadow-xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-700">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">←</span>
-            <h2 className="font-medium">Import</h2>
-          </div>
+          <h2 className="font-medium">Import Customers &amp; Suppliers</h2>
           <button
             className="text-xl text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white"
             onClick={onClose}
@@ -148,46 +164,38 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-stone-200 dark:border-stone-700 px-4">
-          {["csv", "xml"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-6 py-2 text-sm font-medium uppercase
-                ${
-                  tab === t
-                    ? "bg-amber-600 text-stone-900 dark:text-white"
-                    : "text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white"
-                }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
         {/* Info box */}
         <div className="m-4 border border-amber-600 bg-stone-100 dark:bg-stone-700/40 p-4 flex gap-3">
-          <span className="text-amber-400 text-xl">ℹ</span>
+          <span className="text-amber-500 text-xl">ℹ</span>
           <p className="text-sm text-stone-800 dark:text-stone-200">
-            Use CSV import to load products using custom CSV file or a CSV
-            exported from other application. You can read more about importing
-            products using CSV files on our{" "}
-            <span className="text-amber-400 underline cursor-pointer">
-              support center
-            </span>
-            .
+            Import customers and suppliers from a CSV file. Map the columns
+            below, then choose a default type for rows that don't specify one.
           </p>
         </div>
 
-        {/* File upload */}
-        <div className="px-4 py-2 border-b border-stone-200 dark:border-stone-700">
+        {/* File upload + default type */}
+        <div className="px-4 py-2 border-b border-stone-200 dark:border-stone-700 flex items-center gap-4">
           <input
             type="file"
-            accept={tab === "csv" ? ".csv" : ".xml"}
+            accept=".csv"
             onChange={handleFileChange}
-            className="block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+            className="block text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
           />
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="text-xs text-stone-500 dark:text-stone-400">
+              Default type
+            </label>
+            <select
+              value={defaultType}
+              onChange={(e) =>
+                setDefaultType(e.target.value as "customer" | "supplier")
+              }
+              className="bg-stone-100 dark:bg-stone-700 border border-stone-600 text-sm px-2 py-1.5 rounded focus:outline-none focus:border-amber-500"
+            >
+              <option value="customer">Customer</option>
+              <option value="supplier">Supplier</option>
+            </select>
+          </div>
         </div>
 
         {/* Body */}
@@ -198,6 +206,9 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
               <div key={field.key} className="mb-3">
                 <label className="text-xs text-stone-500 dark:text-stone-400 block mb-1">
                   {field.label}
+                  {field.key === "name" && (
+                    <span className="text-red-500"> *</span>
+                  )}
                 </label>
                 <select
                   value={columnMapping[field.key] || ""}
@@ -224,16 +235,29 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
               <span className="text-red-500">*</span> Indicates required field
             </p>
 
+            {importResult && (
+              <div className="mt-4 p-3 rounded border border-stone-600 text-sm">
+                <p className="text-emerald-500">
+                  Imported {importResult.imported} row
+                  {importResult.imported === 1 ? "" : "s"}
+                </p>
+                {importResult.failed > 0 && (
+                  <p className="text-red-500">
+                    Failed {importResult.failed} row
+                    {importResult.failed === 1 ? "" : "s"}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-3 mt-6">
-              <button className="flex items-center gap-2 bg-stone-100 dark:bg-stone-700 px-4 py-2 text-sm border border-stone-600 hover:bg-stone-600">
-                👁 Preview
-              </button>
-
               <button
                 onClick={handleImport}
-                disabled={!parsedData.length || isImporting}
-                className="flex items-center gap-2 bg-stone-600 px-4 py-2 text-sm text-white hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={
+                  !parsedData.length || !columnMapping.name || isImporting
+                }
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 px-4 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isImporting ? "Importing..." : "⬇ Import"}
               </button>
@@ -275,7 +299,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
                 </tbody>
               </table>
             ) : (
-              <p className="text-stone-500">Upload a file to see preview</p>
+              <p className="text-stone-500">Upload a CSV file to see preview</p>
             )}
           </div>
         </div>

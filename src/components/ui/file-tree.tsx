@@ -242,7 +242,7 @@ const Folder = forwardRef<
       >
         <AccordionPrimitive.Trigger
           className={cn(
-            `flex py-1  items-center gap-1 rounded-md text-sm text-slate-900 dark:text-white hover:bg-transparent!`,
+            `flex py-1  items-center gap-1 rounded-md text-sm text-stone-900 dark:text-white hover:bg-transparent!`,
             className,
             {
               "bg-transparent rounded-md": isSelect && isSelectable,
@@ -259,7 +259,7 @@ const Folder = forwardRef<
             : (closeIcon ?? <Plus className="size-4" />)}
           <span
             className={cn(`flex items-center gap-1 px-2 py-1`, {
-              "bg-sky-600 ": isSelect && isSelectable,
+              "bg-amber-600 ": isSelect && isSelectable,
             })}
           >
             <FaFolder className="size-4" />
@@ -319,9 +319,9 @@ const File = forwardRef<
         type="button"
         disabled={!isSelectable}
         className={cn(
-          "flex w-fit items-center ml-3 py-1 text-slate-900 dark:text-white gap-1 px-2  mr-4 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1",
+          "flex w-fit items-center ml-3 py-1 text-stone-900 dark:text-white gap-1 px-2  mr-4 text-sm duration-200 ease-in-out rtl:pr-0 rtl:pl-1",
           {
-            "bg-sky-600": isSelected && isSelectable,
+            "bg-amber-600": isSelected && isSelectable,
           },
           isSelectable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
           direction === "rtl" ? "rtl" : "ltr",

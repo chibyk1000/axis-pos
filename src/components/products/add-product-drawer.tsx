@@ -109,8 +109,8 @@ const TABS = [
 
 const labelStyle: Record<PriceLabel, { tab: string; badge: string }> = {
   Retail: {
-    tab: "border-sky-500 text-sky-300",
-    badge: "bg-sky-600/20 text-sky-300 border border-sky-600/30",
+    tab: "border-orange-500 text-orange-300",
+    badge: "bg-orange-600/20 text-orange-300 border border-orange-600/30",
   },
   Wholesale: {
     tab: "border-amber-400 text-amber-300",
@@ -158,7 +158,7 @@ function PricingSection({
   return (
     <div className="space-y-4">
       {/* Label tabs */}
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-1 border-b border-stone-200 dark:border-stone-700">
         {PRICE_LABELS.map((label) => {
           const isActive = activeLabel === label;
           return (
@@ -170,7 +170,7 @@ function PricingSection({
                 ${
                   isActive
                     ? labelStyle[label].tab
-                    : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-300"
+                    : "border-transparent text-stone-500 hover:text-stone-700 dark:text-stone-300"
                 }`}
             >
               {label}
@@ -193,7 +193,7 @@ function PricingSection({
           <button
             type="button"
             onClick={() => handleSetDefault(activeLabel)}
-            className="text-slate-500 dark:text-slate-400 hover:text-amber-300 transition-colors"
+            className="text-stone-500 dark:text-stone-400 hover:text-amber-300 transition-colors"
           >
             Set as default
           </button>
@@ -202,7 +202,7 @@ function PricingSection({
 
       {/* Cost */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-xs text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-stone-500 dark:text-stone-400">
           Cost
         </label>
         <div className="mt-1">
@@ -219,7 +219,7 @@ function PricingSection({
 
       {/* Markup */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-xs text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-stone-500 dark:text-stone-400">
           Markup
         </label>
         <div className="mt-1 flex items-center gap-2">
@@ -231,13 +231,13 @@ function PricingSection({
             value={entry.markup || ""}
             onChange={(e) => handleMarkupChange(Number(e.target.value))}
           />
-          <span className="text-xs text-slate-500 dark:text-slate-400">%</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400">%</span>
         </div>
       </div>
 
       {/* Sale price */}
       <div style={{ marginBottom: "1rem" }}>
-        <label className="text-xs text-slate-500 dark:text-slate-400">
+        <label className="text-xs text-stone-500 dark:text-stone-400">
           Sale price
         </label>
         <div className="mt-1">
@@ -257,7 +257,7 @@ function PricingSection({
           checked={entry.priceAfterTax}
           onCheckedChange={(v) => update({ priceAfterTax: v })}
         />
-        <span className="text-xs text-slate-700 dark:text-slate-300">
+        <span className="text-xs text-stone-700 dark:text-stone-300">
           Price includes tax
         </span>
       </div>
@@ -267,7 +267,7 @@ function PricingSection({
           checked={entry.priceChangeAllowed}
           onCheckedChange={(v) => update({ priceChangeAllowed: v })}
         />
-        <span className="text-xs text-slate-700 dark:text-slate-300">
+        <span className="text-xs text-stone-700 dark:text-stone-300">
           Price change allowed at POS
         </span>
       </div>
@@ -282,14 +282,14 @@ function PricingSection({
               className={`px-3 py-2 rounded text-xs ${labelStyle[label].badge}`}
             >
               <div className="font-medium mb-0.5">{label}</div>
-              <div className="text-slate-500 dark:text-slate-400">
+              <div className="text-stone-500 dark:text-stone-400">
                 Cost:{" "}
-                <span className="text-slate-800 dark:text-slate-200">
+                <span className="text-stone-800 dark:text-stone-200">
                   {p.cost.toFixed(2)}
                 </span>
                 {" · "}
                 Sale:{" "}
-                <span className="text-slate-900 dark:text-slate-100 font-semibold">
+                <span className="text-stone-900 dark:text-stone-100 font-semibold">
                   {p.salePrice.toFixed(2)}
                 </span>
               </div>
@@ -576,9 +576,9 @@ const AddProductDrawer = ({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-2xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-l border-slate-200 dark:border-slate-700">
-        <DrawerHeader className="flex flex-row items-center justify-between border-b border-slate-200 dark:border-slate-700">
-          <DrawerTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      <DrawerContent className="w-full data-[vaul-drawer-direction=right]:sm:max-w-2xl bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 border-l border-stone-200 dark:border-stone-700">
+        <DrawerHeader className="flex flex-row items-center justify-between border-b border-stone-200 dark:border-stone-700">
+          <DrawerTitle className="text-lg font-semibold text-stone-900 dark:text-stone-100">
             {initialData ? "Edit product" : "New product"}
           </DrawerTitle>
           <Button
@@ -591,7 +591,7 @@ const AddProductDrawer = ({
         </DrawerHeader>
 
         {/* Tabs */}
-        <div className="flex gap-2 px-6 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex gap-2 px-6 border-b border-stone-200 dark:border-stone-700">
           {TABS.map((tab) => (
             <button
               key={tab}
@@ -599,8 +599,8 @@ const AddProductDrawer = ({
               className={`px-4 py-2 text-sm transition-colors border-b-2 -mb-px
                 ${
                   activeTab === tab
-                    ? "border-sky-400 text-slate-900 dark:text-slate-100"
-                    : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
+                    ? "border-amber-400 text-stone-900 dark:text-stone-100"
+                    : "border-transparent text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200"
                 }`}
             >
               {tab}
@@ -630,14 +630,14 @@ const AddProductDrawer = ({
                   />
                   <button
                     type="button"
-                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-[10px] mt-1"
+                    className="text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 text-[10px] mt-1"
                     onClick={handleGenerateBarcode}
                   >
                     Generate
                   </button>
                   <button
                     type="button"
-                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 text-[10px] mt-1"
+                    className="text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 text-[10px] mt-1"
                     onClick={handleAddBarcode}
                   >
                     Add
@@ -647,7 +647,7 @@ const AddProductDrawer = ({
                   {barcodes.map((b) => (
                     <div
                       key={b.id}
-                      className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded text-xs"
+                      className="flex items-center gap-1 bg-white dark:bg-stone-800 px-2 py-1 rounded text-xs"
                     >
                       <span>{b.text}</span>
                       <button
@@ -669,12 +669,12 @@ const AddProductDrawer = ({
                   <SelectTrigger>
                     <SelectValue placeholder="Select group" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                  <SelectContent className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700">
                     {data.map((g) => (
                       <SelectItem
                         key={g.id}
                         value={g.id}
-                        className="focus:bg-slate-100 dark:bg-slate-700"
+                        className="focus:bg-stone-100 dark:bg-stone-700"
                       >
                         {g.name}
                       </SelectItem>
@@ -682,7 +682,7 @@ const AddProductDrawer = ({
                   </SelectContent>
                 </Select>
               </Field>
-              <div className="flex flex-col gap-3 text-xs text-slate-700 dark:text-slate-300">
+              <div className="flex flex-col gap-3 text-xs text-stone-700 dark:text-stone-300">
                 <Toggle
                   label="Active"
                   defaultChecked={active}
@@ -707,7 +707,7 @@ const AddProductDrawer = ({
                     value={ageRestriction ?? ""}
                     onChange={(e) => setAgeRestriction(Number(e.target.value))}
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-stone-500 dark:text-stone-400">
                     year(s)
                   </span>
                 </div>
@@ -727,7 +727,7 @@ const AddProductDrawer = ({
             <div className="space-y-4">
               {/* Taxes */}
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">
                   Taxes
                 </p>
                 {selectedTaxes.length > 0 && (
@@ -735,14 +735,14 @@ const AddProductDrawer = ({
                     {selectedTaxes.map((tax) => (
                       <div
                         key={tax.id}
-                        className="flex items-center justify-between bg-white dark:bg-slate-800 px-3 py-2 rounded"
+                        className="flex items-center justify-between bg-white dark:bg-stone-800 px-3 py-2 rounded"
                       >
                         <span className="text-xs">
                           {tax.name} ({tax.rate}%)
                         </span>
                         <button
                           onClick={() => removeTax(tax.id)}
-                          className="text-slate-500 dark:text-slate-400 hover:text-red-400"
+                          className="text-stone-500 dark:text-stone-400 hover:text-red-400"
                         >
                           <Trash size={14} />
                         </button>
@@ -755,7 +755,7 @@ const AddProductDrawer = ({
                     variant="ghost"
                     disabled={availableTaxOptions.length < 1}
                     onClick={() => setIsAddingTax(true)}
-                    className="flex items-center gap-2 text-xs bg-sky-500"
+                    className="flex items-center gap-2 text-xs bg-amber-500"
                   >
                     <Plus size={16} /> Add tax
                   </Button>
@@ -774,7 +774,7 @@ const AddProductDrawer = ({
                         control: (base) => ({
                           ...base,
                           backgroundColor: "#1e293b",
-                          borderColor: "#334155",
+                          borderColor: "#44403c",
                           color: "white",
                         }),
                         menu: (base) => ({
@@ -792,7 +792,7 @@ const AddProductDrawer = ({
                     <button
                       onClick={addTax}
                       disabled={!selectedTaxId}
-                      className="p-2 bg-slate-100 dark:bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-50"
+                      className="p-2 bg-stone-100 dark:bg-stone-700 rounded hover:bg-stone-600 disabled:opacity-50"
                     >
                       <Plus size={16} />
                     </button>
@@ -801,7 +801,7 @@ const AddProductDrawer = ({
                         setIsAddingTax(false);
                         setSelectedTaxId(null);
                       }}
-                      className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
+                      className="p-2 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
                     >
                       <Minus size={16} />
                     </button>
@@ -810,8 +810,8 @@ const AddProductDrawer = ({
               </div>
 
               {/* Per-label prices */}
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+              <div className="border-t border-stone-200 dark:border-stone-700 pt-4">
+                <p className="text-sm text-stone-500 dark:text-stone-400 mb-3">
                   Prices per list
                 </p>
                 <PricingSection prices={prices} onChange={setPrices} />
@@ -821,12 +821,12 @@ const AddProductDrawer = ({
 
           {/* ── Stock control ── */}
           {activeTab === "Stock control" && (
-            <div className="text-sm text-slate-500 dark:text-slate-400 space-y-3">
-              <Alert className="flex items-center gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-none">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-sky-500/20 text-sky-400">
+            <div className="text-sm text-stone-500 dark:text-stone-400 space-y-3">
+              <Alert className="flex items-center gap-3 bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 rounded-none">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-amber-500/20 text-amber-400">
                   <Info className="h-4 w-4" />
                 </div>
-                <AlertDescription className="text-sm text-sky-300 flex items-center">
+                <AlertDescription className="text-sm text-amber-300 flex items-center">
                   Set low stock quantity rules that can be used as a stock
                   reorder point
                 </AlertDescription>
@@ -841,14 +841,14 @@ const AddProductDrawer = ({
                   </SelectTrigger>
                   <SelectContent
                     data-side="bottom"
-                    className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 top-10"
+                    className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 top-10"
                     position="item-aligned"
                   >
                     {users.map((sup) => (
                       <SelectItem
                         key={sup.id}
                         value={sup.id}
-                        className="focus:bg-slate-100 dark:bg-slate-700"
+                        className="focus:bg-stone-100 dark:bg-stone-700"
                       >
                         {sup.name}
                       </SelectItem>
@@ -856,7 +856,7 @@ const AddProductDrawer = ({
                     {users.length < 1 && (
                       <SelectItem
                         value="(none)"
-                        className="focus:bg-slate-100 dark:bg-slate-700"
+                        className="focus:bg-stone-100 dark:bg-stone-700"
                       >
                         (none)
                       </SelectItem>
@@ -910,12 +910,12 @@ const AddProductDrawer = ({
 
           {/* ── Comments ── */}
           {activeTab === "Comments" && (
-            <div className="text-sm text-slate-500 dark:text-slate-400 space-y-3">
-              <Alert className="flex items-center gap-3 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-none">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-sky-500/20 text-sky-400">
+            <div className="text-sm text-stone-500 dark:text-stone-400 space-y-3">
+              <Alert className="flex items-center gap-3 bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 rounded-none">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md bg-amber-500/20 text-amber-400">
                   <Info className="h-4 w-4" />
                 </div>
-                <AlertDescription className="text-sm text-sky-300 flex items-center">
+                <AlertDescription className="text-sm text-amber-300 flex items-center">
                   Comments will be printed on kitchen tickets
                 </AlertDescription>
               </Alert>
@@ -942,16 +942,16 @@ const AddProductDrawer = ({
 
           {/* ── Image & Color ── */}
           {activeTab === "Image & color" && (
-            <div className="text-sm text-slate-500 dark:text-slate-400 space-y-4">
+            <div className="text-sm text-stone-500 dark:text-stone-400 space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-500 dark:text-slate-400">
+                <label className="text-xs text-stone-500 dark:text-stone-400">
                   Colors
                 </label>
                 <Select onValueChange={setColor}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-800">
+                  <SelectContent className="bg-white dark:bg-stone-800">
                     {[
                       "transparent",
                       "slate",
@@ -965,7 +965,7 @@ const AddProductDrawer = ({
                     ].map((c) => (
                       <SelectItem key={c} value={c}>
                         <div
-                          className={`w-4 h-4 rounded-sm ${c === "transparent" ? "border border-slate-400 bg-transparent" : `bg-${c}-500`}`}
+                          className={`w-4 h-4 rounded-sm ${c === "transparent" ? "border border-stone-400 bg-transparent" : `bg-${c}-500`}`}
                         />
                         {c.charAt(0).toUpperCase() + c.slice(1)}
                       </SelectItem>
@@ -974,13 +974,13 @@ const AddProductDrawer = ({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-slate-500 dark:text-slate-400">
+                <label className="text-xs text-stone-500 dark:text-stone-400">
                   Image
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="bg-transparent text-slate-900 dark:text-white"
+                    className="bg-transparent text-stone-900 dark:text-white"
                     onClick={async () => {
                       const r = await uploadImage();
                       if (r) setImage(r);
@@ -1001,9 +1001,9 @@ const AddProductDrawer = ({
                     <img
                       src={image.previewUrl}
                       alt="Preview"
-                      className="w-16 h-16 object-cover rounded border border-slate-200 dark:border-slate-700"
+                      className="w-16 h-16 object-cover rounded border border-stone-200 dark:border-stone-700"
                     />
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    <p className="text-xs text-stone-500 dark:text-stone-400 truncate">
                       {image.name}
                     </p>
                   </div>
@@ -1013,7 +1013,7 @@ const AddProductDrawer = ({
           )}
         </ScrollArea>
 
-        <DrawerFooter className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+        <DrawerFooter className="flex justify-end gap-3 border-t border-stone-200 dark:border-stone-700">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -1038,7 +1038,7 @@ const Field = ({
   className?: string;
 }) => (
   <div className={className} style={{ marginBottom: "1rem" }}>
-    <label className="text-sm text-slate-500 dark:text-slate-400">
+    <label className="text-sm text-stone-500 dark:text-stone-400">
       {label}
     </label>
     <div className="mt-1">{children}</div>
