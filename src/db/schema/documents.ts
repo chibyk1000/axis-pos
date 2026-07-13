@@ -71,6 +71,16 @@ export const documentPayments = sqliteTable("docmentPayments", {
   date: integer("date", { mode: "timestamp" }).notNull(),
 });
 
+export const documentPaymentsRelations = relations(
+  documentPayments,
+  ({ one }) => ({
+    document: one(documents, {
+      fields: [documentPayments.documentId],
+      references: [documents.id],
+    }),
+  }),
+);
+
 export const documentRelations = relations(documents, ({ many, one }) => ({
   items: many(documentItems),
   payments: many(documentPayments),

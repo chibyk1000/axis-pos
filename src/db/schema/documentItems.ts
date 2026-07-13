@@ -1,4 +1,5 @@
 import { real, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { relations } from "drizzle-orm";
 import { documents } from "./documents";
 import { products } from "./products";
 
@@ -34,3 +35,14 @@ export const documentItems = sqliteTable(
     productIdIdx: index("document_items_product_id_idx").on(table.productId),
   }),
 );
+
+export const documentItemsRelations = relations(documentItems, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentItems.documentId],
+    references: [documents.id],
+  }),
+  product: one(products, {
+    fields: [documentItems.productId],
+    references: [products.id],
+  }),
+}));

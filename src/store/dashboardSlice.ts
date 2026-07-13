@@ -68,6 +68,9 @@ export interface DashboardState {
   reporting: {
     selectedReport: string | null;
     searchQuery: string;
+    customerId: string | null;
+    dateFrom: string; // ISO date string (yyyy-mm-dd) or ""
+    dateTo: string; // ISO date string (yyyy-mm-dd) or ""
   };
   promotions: {
     selectedId: string | null;
@@ -131,6 +134,9 @@ const initialState: DashboardState = {
   reporting: {
     selectedReport: null,
     searchQuery: "",
+    customerId: null,
+    dateFrom: "",
+    dateTo: "",
   },
   promotions: {
     selectedId: null,
@@ -235,6 +241,15 @@ const dashboardSlice = createSlice({
     setReportingSearchQuery(state, action: PayloadAction<string>) {
       state.reporting.searchQuery = action.payload;
     },
+    setReportingCustomerId(state, action: PayloadAction<string | null>) {
+      state.reporting.customerId = action.payload;
+    },
+    setReportingDateFrom(state, action: PayloadAction<string>) {
+      state.reporting.dateFrom = action.payload;
+    },
+    setReportingDateTo(state, action: PayloadAction<string>) {
+      state.reporting.dateTo = action.payload;
+    },
 
     // ── Promotions ────────────────────────────────────────────────────────────
     setPromotionsSelectedId(state, action: PayloadAction<string | null>) {
@@ -327,6 +342,9 @@ export const {
   setPaymentTypesDrawerOpen,
   setReportingSelectedReport,
   setReportingSearchQuery,
+  setReportingCustomerId,
+  setReportingDateFrom,
+  setReportingDateTo,
   setPromotionsSelectedId,
   setPromotionsPanelMode,
   setPromotionsSearch,
