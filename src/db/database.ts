@@ -14,6 +14,13 @@ export type SelectQueryResult = {
  */
 export const sqlite = await Database.load("sqlite:data.db");
 
+// SQLite only enforces FK constraints (and therefore only fires the
+// ON DELETE CASCADE declared throughout db/schema/*) on connections that
+// explicitly opt in. Without this, deleting a product/customer/document
+// left orphaned rows in every table that referenced it (see productPrices
+// null-join crash in pos.tsx) instead of cascading as the schema intends.
+await sqlite.execute("PRAGMA foreign_keys = ON");
+
 // Enable WAL mode for concurrent read/write access and prevent lock errors
 await sqlite.execute("PRAGMA journal_mode = WAL");
 await sqlite.execute("PRAGMA busy_timeout = 30000");

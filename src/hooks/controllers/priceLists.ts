@@ -168,7 +168,15 @@ export function useAllPrices() {
         orderBy: (p) => p.createdAt,
         with: { product: true },
       });
-      return rows;
+      // SQLite's ON DELETE CASCADE only fires when a connection has
+      // `PRAGMA foreign_keys = ON`, which this app's connection doesn't set —
+      // so a deleted product can leave its price rows behind with a null
+      // `product` join. Drop those rather than let consumers crash on
+      // `.product.title`.
+      return rows.filter(
+        (row): row is typeof row & { product: NonNullable<typeof row.product> } =>
+          row.product != null,
+      );
     },
   });
 }
