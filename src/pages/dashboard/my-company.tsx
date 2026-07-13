@@ -9,7 +9,6 @@ import {
   Save,
   Plus,
   Trash2,
-  RefreshCw,
   Star,
   StarOff,
   GripVertical,
@@ -333,60 +332,6 @@ function LogoTab({
         >
           <Upload size={12} /> Replace logo
         </button>
-      )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           RESET DATABASE TAB                               */
-/* -------------------------------------------------------------------------- */
-
-function ResetTab() {
-  const [confirmed, setConfirmed] = useState(false);
-  const [typed, setTyped] = useState("");
-
-  return (
-    <div className="max-w-md flex flex-col gap-4">
-      <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
-        <p className="text-sm font-medium text-red-300 mb-1">⚠ Danger zone</p>
-        <p className="text-xs text-stone-500 dark:text-stone-400">
-          Resetting the database will permanently delete all transactions,
-          documents, and stock data for this company. Company settings are
-          preserved. This action cannot be undone.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-xs text-stone-500 dark:text-stone-400">
-          Type <span className="font-mono text-red-400">RESET</span> to confirm
-        </label>
-        <StyledInput
-          value={typed}
-          onChange={(e) => {
-            setTyped(e.target.value);
-            setConfirmed(false);
-          }}
-          placeholder="RESET"
-        />
-      </div>
-
-      <button
-        disabled={typed !== "RESET"}
-        onClick={() => {
-          // TODO: wire actual db reset logic here
-          setConfirmed(true);
-          setTyped("");
-        }}
-        className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-stone-900 dark:text-white rounded w-fit"
-      >
-        <RefreshCw size={14} /> Reset database
-      </button>
-
-      {confirmed && (
-        <p className="text-xs text-emerald-400 flex items-center gap-1">
-          <Check size={12} /> Reset completed.
-        </p>
       )}
     </div>
   );
@@ -733,7 +678,7 @@ export default function CompanyDataPage() {
             className="flex-1 flex flex-col overflow-hidden"
           >
             <TabsList className="w-full justify-start rounded-none border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 shrink-0 h-auto">
-              {["company", "void", "logo", "reset"].map((tab) => (
+              {["company", "void", "logo"].map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -744,7 +689,6 @@ export default function CompanyDataPage() {
                       company: "Company data",
                       void: "Void reasons",
                       logo: "My logo",
-                      reset: "Reset database",
                     }[tab]
                   }
                 </TabsTrigger>
@@ -771,10 +715,6 @@ export default function CompanyDataPage() {
                 onUpdate={(data) => handleSaveCompany(data)}
                 isSaving={updateMutation.isPending}
               />
-            </TabsContent>
-
-            <TabsContent value="reset" className="flex-1 overflow-y-auto p-6">
-              <ResetTab />
             </TabsContent>
           </Tabs>
         </div>

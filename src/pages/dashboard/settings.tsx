@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
 import {
@@ -22,6 +23,7 @@ import {
   AlertCircle,
   Upload,
   Radio,
+  Trash2,
 } from "lucide-react";
 import { useTheme } from "@/providers/theme-provider";
 import { useNavigate } from "react-router";
@@ -34,6 +36,7 @@ import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaxes } from "@/hooks/controllers/taxes";
 import { importAroniumDatabase } from "../../helpers/aroniumImporter";
+import { resetDatabase } from "../../helpers/resetDatabase";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SettingsPage() {
@@ -59,9 +62,14 @@ export default function SettingsPage() {
     connectToServer,
   } = useSync();
   const { data: taxes } = useTaxes();
+  const queryClient = useQueryClient();
   const [isImportingAronium, setIsImportingAronium] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null);
+  const [resetTyped, setResetTyped] = useState("");
+  const [isResettingDb, setIsResettingDb] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState(false);
 
   // SQL Server detection state (used in Database tab)
   const [sqlServerStatus, setSqlServerStatus] = useState<{
@@ -225,6 +233,22 @@ export default function SettingsPage() {
       await shellOpen(dataDir);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleResetDb = async () => {
+    setIsResettingDb(true);
+    setResetError(null);
+    try {
+      await resetDatabase();
+      await queryClient.invalidateQueries();
+      setResetDone(true);
+      setResetTyped("");
+    } catch (err) {
+      console.error(err);
+      setResetError("Failed to reset database: " + String(err));
+    } finally {
+      setIsResettingDb(false);
     }
   };
 
@@ -1588,6 +1612,63 @@ export default function SettingsPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Danger zone */}
+            <div>
+              <h2 className="text-2xl font-light mb-4 text-red-500">
+                Danger zone
+              </h2>
+              <div className="max-w-md flex flex-col gap-4 p-4 rounded-lg border border-red-700/50 bg-red-900/10">
+                <p className="text-sm text-stone-600 dark:text-stone-400">
+                  Resetting the database permanently deletes{" "}
+                  <span className="font-semibold text-red-400">
+                    every record in every table
+                  </span>{" "}
+                  — products, customers, documents, stock, users, everything.
+                  This action cannot be undone. Consider backing up the
+                  database first.
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-stone-500 dark:text-stone-400">
+                    Type <span className="font-mono text-red-400">RESET</span>{" "}
+                    to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={resetTyped}
+                    onChange={(e) => {
+                      setResetTyped(e.target.value);
+                      setResetDone(false);
+                      setResetError(null);
+                    }}
+                    placeholder="RESET"
+                    className={`w-full p-2 rounded ${input}`}
+                  />
+                </div>
+
+                <button
+                  disabled={resetTyped !== "RESET" || isResettingDb}
+                  onClick={handleResetDb}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded w-fit transition-colors"
+                >
+                  <Trash2
+                    size={14}
+                    className={isResettingDb ? "animate-pulse" : ""}
+                  />
+                  {isResettingDb ? "Resetting..." : "Reset database"}
+                </button>
+
+                {resetDone && (
+                  <p className="text-xs text-emerald-500">
+                    Database reset. All tables are now empty.
+                  </p>
+                )}
+                {resetError && (
+                  <p className="text-xs text-red-500">{resetError}</p>
+                )}
               </div>
             </div>
           </div>
