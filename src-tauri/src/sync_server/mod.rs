@@ -1187,6 +1187,12 @@ pub async fn stop_sync_server(
 
 #[tauri::command]
 pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
+    // mDNS browsing on the same machine that's advertising a service
+    // typically receives that service's own broadcast back — without
+    // filtering it out, a device running the store server would see (and
+    // be able to "connect" to) itself in its own discovery results.
+    let my_ip = local_ip().ok().map(|ip| ip.to_string());
+
     let mdns = ServiceDaemon::new().map_err(|e| e.to_string())?;
     let service_type = "_axis-pos._tcp.local.";
     let receiver = mdns.browse(service_type).map_err(|e| e.to_string())?;
@@ -1216,6 +1222,11 @@ pub async fn discover_sync_servers() -> Result<Vec<DiscoveredServer>, String> {
                 .next()
                 .map(|a| a.to_string())
                 .unwrap_or_else(|| info.get_hostname().replace(".local.", ""));
+
+            // Skip this device's own advertised server.
+            if my_ip.as_deref() == Some(ip_str.as_str()) || ip_str == "127.0.0.1" {
+                continue;
+            }
 
             servers.push(DiscoveredServer {
                 name: device_name,
