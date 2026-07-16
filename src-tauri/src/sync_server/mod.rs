@@ -1,7 +1,7 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Query, State,
+        DefaultBodyLimit, Query, State,
     },
     http::StatusCode,
     response::IntoResponse,
@@ -1089,6 +1089,13 @@ pub async fn start_sync_server(
                 .allow_methods(Any)
                 .allow_headers(Any),
         )
+        // Full-database snapshots (push/pull, used to bring a new cashier
+        // terminal or a rejoining store server up to date) dump every row of
+        // every table as one JSON body, which easily exceeds axum's 2MB
+        // default request-body limit for any store with real transaction
+        // history. This is a trusted LAN-only endpoint, so raise the cap
+        // generously rather than trying to guess a tight bound.
+        .layer(DefaultBodyLimit::max(512 * 1024 * 1024))
         .with_state(axum_state);
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), port);

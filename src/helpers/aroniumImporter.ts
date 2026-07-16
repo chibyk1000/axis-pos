@@ -3,6 +3,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { sqlite } from "@/db/database";
 import { ensureRootNode } from "@/hooks/controllers/nodes";
+import { invalidateChildNodeIdsCache } from "@/hooks/controllers/products";
 
 export interface ImportResult {
   success: boolean;
@@ -183,6 +184,28 @@ function coerceValue(raw: string): any {
 // Shared import logic
 // ---------------------------------------------------------------------------
 
+/**
+ * Reads a field off an Aronium row trying each candidate name first, then
+ * falling back to a case-insensitive scan of the row's actual keys. Source
+ * rows can come from three different pipelines (SQL Server FOR JSON AUTO,
+ * a raw SQLite export, or a hand-parsed .sql dump) that don't always agree
+ * on casing — a silent miss here means a product/group never gets linked to
+ * its parent and quietly stays under the root node.
+ */
+function pickField(row: any, ...candidates: string[]): any {
+  for (const key of candidates) {
+    if (row[key] !== undefined && row[key] !== null) return row[key];
+  }
+  const lowerCandidates = candidates.map((k) => k.toLowerCase());
+  for (const actualKey of Object.keys(row)) {
+    if (lowerCandidates.includes(actualKey.toLowerCase())) {
+      const value = row[actualKey];
+      if (value !== undefined && value !== null) return value;
+    }
+  }
+  return undefined;
+}
+
 interface AroniumData {
   aroniumTaxes: any[];
   aroniumGroups: any[];
@@ -303,15 +326,19 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
 
   // ── GROUPS ────────────────────────────────────────────────────────────────
   const validGroupIds = new Set<number>(
-    aroniumGroups.map((g) => Number(g.Id ?? g.id)).filter((id) => !isNaN(id)),
+    aroniumGroups
+      .map((g) => Number(pickField(g, "Id", "id")))
+      .filter((id) => !isNaN(id)),
   );
   for (const g of aroniumGroups) {
-    const id = g.Id ?? g.id;
-    if (id == null) continue;
+    const rawId = pickField(g, "Id", "id");
+    if (rawId == null) continue;
+    const gId = Number(rawId);
+    if (isNaN(gId)) continue;
     await sqlite.execute(
       `INSERT OR IGNORE INTO nodes (id, name, display_name, type, parent_id, image, color, position, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [
-        `aronium-group-${id}`,
+        `aronium-group-${gId}`,
         g.Name ?? g.name ?? "Unnamed Group",
         g.Name ?? g.name ?? "Unnamed Group",
         "group",
@@ -331,9 +358,10 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   const productIdMap = new Map<number, string>();
 
   for (const p of aroniumProducts) {
-    const id = p.Id ?? p.id;
-    if (id == null) continue;
-    const pId = Number(id);
+    const rawId = pickField(p, "Id", "id");
+    if (rawId == null) continue;
+    const pId = Number(rawId);
+    if (isNaN(pId)) continue;
     validProductIds.add(pId);
     const originalCode = String(p.Code ?? p.code ?? pId).trim();
     let code = originalCode;
@@ -781,30 +809,75 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   }
 
   // ── HIERARCHY PASS 2 ──────────────────────────────────────────────────────
+  // IDs are always run through Number(...) before being interpolated into a
+  // node id here — matching exactly how they were coerced when the group/
+  // product node was first inserted above. Building the id string from a raw
+  // (possibly string-typed) value in one pass and a Number-coerced value in
+  // the other would make the two template strings diverge (e.g.
+  // "aronium-group-5" vs "aronium-group-05"), so the UPDATE below would
+  // silently match zero rows and the row would quietly stay parented to
+  // "root" instead of its real group.
+  let groupsLinked = 0,
+    groupsSkipped = 0;
   for (const g of aroniumGroups) {
-    const id = g.Id ?? g.id;
-    if (id == null) continue;
-    const parentGroupId =
-      g.ParentGroupId ?? g.parentgroupid ?? g.parent_group_id;
-    if (parentGroupId != null && validGroupIds.has(Number(parentGroupId))) {
+    const rawId = pickField(g, "Id", "id");
+    if (rawId == null) continue;
+    const gId = Number(rawId);
+    if (isNaN(gId)) continue;
+    const rawParentGroupId = pickField(g, "ParentGroupId", "parent_group_id");
+    if (rawParentGroupId == null) continue;
+    const parentGroupId = Number(rawParentGroupId);
+    if (!isNaN(parentGroupId) && validGroupIds.has(parentGroupId)) {
       await sqlite.execute(`UPDATE nodes SET parent_id = ? WHERE id = ?`, [
         `aronium-group-${parentGroupId}`,
-        `aronium-group-${id}`,
+        `aronium-group-${gId}`,
       ]);
+      groupsLinked++;
+    } else {
+      groupsSkipped++;
     }
   }
+  let productsLinked = 0,
+    productsSkipped = 0;
   for (const p of aroniumProducts) {
-    const id = p.Id ?? p.id;
-    if (id == null) continue;
-    const productGroupId =
-      p.ProductGroupId ?? p.productgroupid ?? p.product_group_id;
-    if (productGroupId != null && validGroupIds.has(Number(productGroupId))) {
+    const rawId = pickField(p, "Id", "id");
+    if (rawId == null) continue;
+    const pId = Number(rawId);
+    if (isNaN(pId)) continue;
+    const rawProductGroupId = pickField(
+      p,
+      "ProductGroupId",
+      "product_group_id",
+      "GroupId",
+    );
+    if (rawProductGroupId == null) continue;
+    const productGroupId = Number(rawProductGroupId);
+    if (!isNaN(productGroupId) && validGroupIds.has(productGroupId)) {
       await sqlite.execute(`UPDATE nodes SET parent_id = ? WHERE id = ?`, [
         `aronium-group-${productGroupId}`,
-        `aronium-product-node-${id}`,
+        `aronium-product-node-${pId}`,
       ]);
+      productsLinked++;
+    } else {
+      productsSkipped++;
     }
   }
+  console.info(
+    `[aronium-import] group hierarchy: ${groupsLinked} linked, ${groupsSkipped} skipped (no/unknown parent). ` +
+      `product grouping: ${productsLinked} linked, ${productsSkipped} skipped (no/unknown group).`,
+  );
+  if (aroniumProducts.length > 0 && productsLinked === 0) {
+    console.warn(
+      "[aronium-import] No products were linked to any group. Sample product row keys:",
+      Object.keys(aroniumProducts[0]),
+    );
+  }
+
+  // The node tree just changed (new groups + product nodes reparented under
+  // them) via raw SQL, bypassing the node mutation hooks that normally bust
+  // this cache — clear it so "products by group" queries see the new
+  // hierarchy instead of a stale pre-import parent/child mapping.
+  invalidateChildNodeIdsCache();
 
   return {
     success: true,

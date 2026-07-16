@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 import { db } from "@/db/database";
 import { and, eq, inArray, like, or, count } from "drizzle-orm";
 import { products } from "@/db/schema/products";
@@ -21,6 +26,8 @@ export const productKeys = {
     ["products", "node-page", nodeId, page, pageSize, search] as const,
   byNodeCount: (nodeId: string, search: string) =>
     ["products", "node-count", nodeId, search] as const,
+  byNodeInfinite: (nodeId: string, pageSize: number, search: string) =>
+    ["products", "node-infinite", nodeId, pageSize, search] as const,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -255,13 +262,33 @@ export function useProductsByNodeCount(nodeId: string, search: string = "") {
   });
 }
 
-export function useProductById(id: string) {
-  return useQuery({
-    queryKey: ["product", id],
-    enabled: !!id,
-    queryFn: () =>
-      db.query.products.findFirst({
-        where: eq(products.id, id),
+/** Infinite-scroll product list for a group/node — fetches one page of
+ * `pageSize` products at a time instead of loading the whole subtree. */
+export function useInfiniteProductsByNode(
+  nodeId: string,
+  pageSize: number,
+  search: string = "",
+) {
+  return useInfiniteQuery({
+    queryKey: productKeys.byNodeInfinite(nodeId, pageSize, search),
+    enabled: !!nodeId,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const nodeIds = await getAllChildNodeIds(nodeId);
+      const clauses = [
+        inArray(products.nodeId, nodeIds),
+        search.trim()
+          ? or(
+              like(products.title, `%${search.trim()}%`),
+              like(products.code, `%${search.trim()}%`),
+            )
+          : undefined,
+      ].filter(Boolean);
+
+      return db.query.products.findMany({
+        where: and(...clauses),
+        limit: pageSize,
+        offset: pageParam * pageSize,
         with: {
           barcodes: true,
           taxes: { with: { tax: true } },
@@ -269,7 +296,34 @@ export function useProductById(id: string) {
           stockEntries: { orderBy: (s) => s.createdAt },
           supplier: true,
         },
-      }),
+      });
+    },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < pageSize ? undefined : allPages.length,
+  });
+}
+
+/** Plain (non-hook) lookup for use in event handlers — e.g. the sidebar
+ * product tree, where the clicked product may not be among the currently
+ * loaded infinite-scroll pages. */
+export function fetchProductById(id: string) {
+  return db.query.products.findFirst({
+    where: eq(products.id, id),
+    with: {
+      barcodes: true,
+      taxes: { with: { tax: true } },
+      prices: true,
+      stockEntries: { orderBy: (s) => s.createdAt },
+      supplier: true,
+    },
+  });
+}
+
+export function useProductById(id: string) {
+  return useQuery({
+    queryKey: ["product", id],
+    enabled: !!id,
+    queryFn: () => fetchProductById(id),
   });
 }
 

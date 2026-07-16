@@ -155,8 +155,9 @@ export default function SettingsPage() {
       setPendingFilePath(null);
 
       if (result.success) {
+        await queryClient.invalidateQueries();
         alert(
-          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers`,
+          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers\n- ${result.counts.documents} Documents\n- ${result.counts.documentItems} Document items\n- ${result.counts.documentPayments} Document payments\n- ${result.counts.stockEntries} Stock entries`,
         );
       } else {
         alert("Import failed: " + result.message);

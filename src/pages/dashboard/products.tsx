@@ -25,7 +25,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
@@ -46,7 +46,9 @@ import {
 import {
   useCreateProduct,
   useDeleteProduct,
-  useProduct,
+  useInfiniteProductsByNode,
+  useProductById,
+  fetchProductById,
   useUpdateProduct,
 } from "@/hooks/controllers/products";
 import { cn } from "@/lib/utils";
@@ -72,9 +74,8 @@ import type { DrawerPriceEntry } from "@/components/products/add-product-drawer"
 import { useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
-const DEFAULT_PAGE_SIZE = 25;
+const PRODUCTS_CHUNK_SIZE = 50;
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                         RESIZABLE COLUMNS                                  */
@@ -314,12 +315,21 @@ export function ProductsView() {
   }, [colWidths, dispatch]);
 
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // ── hooks ────────────────────────────────────────────────────────────────
   const deleteNodeMutation = useDeleteNode();
-  const { data: products, refetch: refetchProducts } = useProduct(selectedId);
+  const {
+    data: productPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch: refetchProducts,
+  } = useInfiniteProductsByNode(selectedId, PRODUCTS_CHUNK_SIZE, searchQuery);
+  const products = useMemo(
+    () => productPages?.pages.flat() ?? [],
+    [productPages],
+  );
+  const { data: singleProduct } = useProductById(selectedSingleProductId);
   const { data: roots } = useRootWithoutChildren();
   const createBarcode = useCreateBarcode();
   const deleteProductMut = useDeleteProduct();
@@ -483,19 +493,25 @@ export function ProductsView() {
                 </div>
               </ContextMenuTrigger>
               <ProductContextContent
-                onEdit={() => {
+                onEdit={async () => {
                   setSelectedSingleProductId(el.id);
                   setSelectedProductId(el.id);
-                  const prod = products?.find((p) => p.id === el.id);
+                  const prod =
+                    products?.find((p) => p.id === el.id) ??
+                    (await fetchProductById(el.id));
                   if (prod) setSelectedProduct(prod as any);
                   setAddProductDrawerOpen(true);
                 }}
                 onDelete={async () => {
-                  const prod = products?.find((p) => p.id === el.id);
+                  const prod =
+                    products?.find((p) => p.id === el.id) ??
+                    (await fetchProductById(el.id));
                   if (prod) await deleteSelectedProduct(prod as any);
                 }}
-                onDuplicate={() => {
-                  const prod = products?.find((p) => p.id === el.id);
+                onDuplicate={async () => {
+                  const prod =
+                    products?.find((p) => p.id === el.id) ??
+                    (await fetchProductById(el.id));
                   if (prod) {
                     setSelectedProduct(prod as any);
                     setIsDuplicate(true);
@@ -661,25 +677,42 @@ export function ProductsView() {
     return (stockLevels[product.id] as any)?.quantity ?? 0;
   }
 
-  const visibleProducts = (products ?? []).filter((p) =>
-    selectedSingleProductId
-      ? p.id === selectedSingleProductId
-      : !searchQuery ||
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / pageSize));
-  const paginatedProducts = visibleProducts.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
-  );
+  // Selecting a single product from the sidebar tree narrows the table down
+  // to just that product — fetched directly by id since it may not be among
+  // the currently loaded infinite-scroll pages.
+  const visibleProducts = selectedSingleProductId
+    ? singleProduct
+      ? [singleProduct]
+      : []
+    : (products ?? []);
+
+  // ── infinite scroll ──────────────────────────────────────────────────────
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
 
   useEffect(() => {
-    setPage(1);
-  }, [selectedId, selectedSingleProductId, searchQuery]);
+    if (selectedSingleProductId) return;
+    const sentinel = sentinelRef.current;
+    const root = scrollContainerRef.current;
+    if (!sentinel || !root) return;
 
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { root, rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    selectedSingleProductId,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    visibleProducts.length,
+  ]);
 
   function getPriceInfo(product: any) {
     const prices = product.prices || [];
@@ -971,7 +1004,7 @@ export function ProductsView() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
             <table
               className="border-collapse text-xs"
               style={{ width: "max-content", minWidth: "100%" }}
@@ -1008,7 +1041,7 @@ export function ProductsView() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedProducts.map((product) => {
+                  visibleProducts.map((product) => {
                     const priceInfo = getPriceInfo(product);
                     const stock = getStockLevel(product);
                     return (
@@ -1118,16 +1151,20 @@ export function ProductsView() {
                     );
                   })
                 )}
+                {!selectedSingleProductId &&
+                  (hasNextPage || isFetchingNextPage) && (
+                    <tr ref={sentinelRef}>
+                      <td
+                        colSpan={COLUMNS.length}
+                        className="px-6 py-3 text-center text-stone-500 text-xs"
+                      >
+                        {isFetchingNextPage ? "Loading more products…" : ""}
+                      </td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>
-          <DataTablePagination
-            page={page}
-            pageSize={pageSize}
-            total={visibleProducts.length}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
         </div>
       </div>
 
