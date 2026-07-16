@@ -97,6 +97,10 @@ export interface DashboardState {
     modalOpen: boolean;
     rangeFrom: string;
     rangeTo: string;
+    chartMode: "monthly" | "weekly" | "custom";
+    chartModalOpen: boolean;
+    chartRangeFrom: string;
+    chartRangeTo: string;
   };
 }
 
@@ -163,6 +167,10 @@ const initialState: DashboardState = {
     modalOpen: false,
     rangeFrom: firstOfMonth.toISOString(),
     rangeTo: now.toISOString(),
+    chartMode: "monthly",
+    chartModalOpen: false,
+    chartRangeFrom: firstOfMonth.toISOString(),
+    chartRangeTo: now.toISOString(),
   },
 };
 
@@ -318,6 +326,22 @@ const dashboardSlice = createSlice({
       state.dashboardMain.rangeFrom = action.payload.from;
       state.dashboardMain.rangeTo = action.payload.to;
     },
+    setDashboardChartMode(
+      state,
+      action: PayloadAction<"monthly" | "weekly" | "custom">,
+    ) {
+      state.dashboardMain.chartMode = action.payload;
+    },
+    setDashboardChartModalOpen(state, action: PayloadAction<boolean>) {
+      state.dashboardMain.chartModalOpen = action.payload;
+    },
+    setDashboardChartRange(
+      state,
+      action: PayloadAction<{ from: string; to: string }>,
+    ) {
+      state.dashboardMain.chartRangeFrom = action.payload.from;
+      state.dashboardMain.chartRangeTo = action.payload.to;
+    },
   },
 });
 
@@ -360,6 +384,9 @@ export const {
   setDashboardShowAll,
   setDashboardModalOpen,
   setDashboardRange,
+  setDashboardChartMode,
+  setDashboardChartModalOpen,
+  setDashboardChartRange,
 } = dashboardSlice.actions;
 
 export default dashboardSlice.reducer;

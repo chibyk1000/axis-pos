@@ -5,6 +5,9 @@ import {
   setDashboardShowAll,
   setDashboardModalOpen,
   setDashboardRange,
+  setDashboardChartMode,
+  setDashboardChartModalOpen,
+  setDashboardChartRange,
 } from "@/store/dashboardSlice";
 import { Switch } from "@/components/ui/switch";
 import { Calendar as CalendarIcon, RefreshCw } from "lucide-react";
@@ -34,17 +37,26 @@ import {
 } from "date-fns";
 import {
   useMonthlySales,
+  useWeeklySales,
+  useSalesByRange,
   useTopProducts,
   useHourlySales,
   useTopProductGroups,
   useTotalSales,
   useTopCustomers,
+  useOrderCount,
+  useRefundsSummary,
+  useOutstandingBalance,
+  useNewCustomersCount,
+  usePaymentMethodBreakdown,
 } from "@/hooks/controllers/dashboard";
 import type {
   TopProductRow,
   HourlySalesRow,
   TopGroupRow,
   TopCustomerRow,
+  SalesTrendRow,
+  PaymentMethodRow,
 } from "@/hooks/controllers/dashboard";
 
 /* -------------------------------------------------------------------------- */
@@ -294,7 +306,7 @@ function HourlySalesCard({ from, to }: { from: Date; to: Date }) {
                 {visible.map((entry: HourlySalesRow, i) => (
                   <Cell
                     key={i}
-                    fill={entry.sales > 0 ? "#38bdf8" : "#1e293b"}
+                    fill={entry.sales > 0 ? "#f59e0b" : "#44403c"}
                   />
                 ))}
               </Bar>
@@ -418,29 +430,215 @@ function TopCustomersCard({ from, to }: { from: Date; to: Date }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                              STAT TILES                                    */
+/* -------------------------------------------------------------------------- */
+
+function StatTile({
+  label,
+  value,
+  isLoading,
+  accent = "text-stone-900 dark:text-stone-100",
+}: {
+  label: string;
+  value: string;
+  isLoading: boolean;
+  accent?: string;
+}) {
+  return (
+    <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4">
+      <p className="text-xs text-stone-500 dark:text-stone-400 mb-1.5">
+        {label}
+      </p>
+      {isLoading ? (
+        <div className="h-7 w-20 bg-stone-100 dark:bg-stone-700/60 rounded animate-pulse" />
+      ) : (
+        <p className={`text-2xl font-bold tabular-nums ${accent}`}>{value}</p>
+      )}
+    </div>
+  );
+}
+
+function money(n: number) {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function OrderCountTile({ from, to }: { from: Date; to: Date }) {
+  const { data: count = 0, isLoading } = useOrderCount(from, to);
+  return (
+    <StatTile label="Orders" value={count.toLocaleString()} isLoading={isLoading} />
+  );
+}
+
+function AvgOrderValueTile({ from, to }: { from: Date; to: Date }) {
+  const { data: total = 0, isLoading: loadingTotal } = useTotalSales(from, to);
+  const { data: count = 0, isLoading: loadingCount } = useOrderCount(from, to);
+  const avg = count > 0 ? total / count : 0;
+  return (
+    <StatTile
+      label="Average order value"
+      value={money(avg)}
+      isLoading={loadingTotal || loadingCount}
+    />
+  );
+}
+
+function RefundsTile({ from, to }: { from: Date; to: Date }) {
+  const { data, isLoading } = useRefundsSummary(from, to);
+  return (
+    <StatTile
+      label="Refunds"
+      value={`${money(data?.total ?? 0)} (${data?.count ?? 0})`}
+      isLoading={isLoading}
+      accent="text-rose-600 dark:text-rose-400"
+    />
+  );
+}
+
+function OutstandingBalanceTile({ from, to }: { from: Date; to: Date }) {
+  const { data: total = 0, isLoading } = useOutstandingBalance(from, to);
+  return (
+    <StatTile
+      label="Outstanding balance"
+      value={money(total)}
+      isLoading={isLoading}
+      accent="text-amber-600 dark:text-amber-400"
+    />
+  );
+}
+
+function NewCustomersTile({ from, to }: { from: Date; to: Date }) {
+  const { data: count = 0, isLoading } = useNewCustomersCount(from, to);
+  return (
+    <StatTile label="New customers" value={count.toLocaleString()} isLoading={isLoading} />
+  );
+}
+
+function PaymentMethodsCard({ from, to }: { from: Date; to: Date }) {
+  const { data = [], isLoading } = usePaymentMethodBreakdown(from, to);
+  const max = Math.max(...data.map((d) => d.total), 1);
+
+  return (
+    <CardShell title="Payment methods">
+      {isLoading ? (
+        <LoadingRows />
+      ) : data.length === 0 ? (
+        <Empty />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {data.map((row: PaymentMethodRow, i) => (
+            <div key={i} className="flex flex-col gap-0.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-stone-700 dark:text-stone-300 truncate max-w-[65%]">
+                  {row.paymentType}
+                </span>
+                <span className="text-stone-500 dark:text-stone-400 font-mono">
+                  {money(row.total)}
+                </span>
+              </div>
+              <div className="h-1.5 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{ width: `${(row.total / max) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              MAIN DASHBOARD                                */
 /* -------------------------------------------------------------------------- */
+
+const CHART_MODES: { key: "monthly" | "weekly" | "custom"; label: string }[] = [
+  { key: "monthly", label: "Monthly" },
+  { key: "weekly", label: "Weekly" },
+  { key: "custom", label: "Custom" },
+];
 
 export default function Dashboard() {
   const currentYear = new Date().getFullYear();
   const dispatch = useDispatch();
-  const { showAll, modalOpen, rangeFrom, rangeTo } = useSelector(
-    (state: RootState) => state.dashboard.dashboardMain,
-  );
+  const {
+    showAll,
+    modalOpen,
+    rangeFrom,
+    rangeTo,
+    chartMode,
+    chartModalOpen,
+    chartRangeFrom,
+    chartRangeTo,
+  } = useSelector((state: RootState) => state.dashboard.dashboardMain);
   const range = {
     from: new Date(rangeFrom),
     to: new Date(rangeTo),
+  };
+  const chartRange = {
+    from: new Date(chartRangeFrom),
+    to: new Date(chartRangeTo),
   };
   const setShowAll = (val: boolean) => dispatch(setDashboardShowAll(val));
   const setModalOpen = (val: boolean) => dispatch(setDashboardModalOpen(val));
   const setRange = (val: { from: Date; to: Date }) =>
     dispatch(setDashboardRange({ from: val.from.toISOString(), to: val.to.toISOString() }));
+  const setChartMode = (val: "monthly" | "weekly" | "custom") =>
+    dispatch(setDashboardChartMode(val));
+  const setChartModalOpen = (val: boolean) =>
+    dispatch(setDashboardChartModalOpen(val));
+  const setChartRange = (val: { from: Date; to: Date }) =>
+    dispatch(
+      setDashboardChartRange({
+        from: val.from.toISOString(),
+        to: val.to.toISOString(),
+      }),
+    );
 
-  const {
-    data: monthlySales = [],
-    isLoading: loadingMonthly,
-    refetch: refetchMonthly,
-  } = useMonthlySales(currentYear);
+  // All three are fetched unconditionally (hooks can't be called
+  // conditionally) — we just render whichever one matches `chartMode`.
+  const monthlyQuery = useMonthlySales(currentYear, showAll);
+  const weeklyQuery = useWeeklySales(12, showAll);
+  const customQuery = useSalesByRange(chartRange.from, chartRange.to, showAll);
+
+  const chartData: SalesTrendRow[] =
+    chartMode === "monthly"
+      ? monthlyQuery.data?.map((r) => ({ label: r.month, sales: r.sales })) ?? []
+      : chartMode === "weekly"
+        ? weeklyQuery.data ?? []
+        : customQuery.data ?? [];
+
+  const loadingChart =
+    chartMode === "monthly"
+      ? monthlyQuery.isLoading
+      : chartMode === "weekly"
+        ? weeklyQuery.isLoading
+        : customQuery.isLoading;
+
+  const refetchChart =
+    chartMode === "monthly"
+      ? monthlyQuery.refetch
+      : chartMode === "weekly"
+        ? weeklyQuery.refetch
+        : customQuery.refetch;
+
+  const chartTitle =
+    chartMode === "monthly"
+      ? `Monthly sales — ${currentYear}`
+      : chartMode === "weekly"
+        ? "Weekly sales — last 12 weeks"
+        : `Sales — ${format(chartRange.from, "MM/dd/yyyy")} – ${format(chartRange.to, "MM/dd/yyyy")}`;
+
+  const chartSubtitle =
+    chartMode === "monthly"
+      ? "Sales grouped by month"
+      : chartMode === "weekly"
+        ? "Sales grouped by week, starting Monday"
+        : "Sales grouped by day, week, or month depending on the range";
 
   const rangeLabel = `${format(range.from, "MM/dd/yyyy")} – ${format(range.to, "MM/dd/yyyy")}`;
 
@@ -456,23 +654,65 @@ export default function Dashboard() {
         />
       )}
 
+      {chartModalOpen && (
+        <DateRangeModal
+          range={chartRange}
+          onSelect={(r) =>
+            setChartRange({
+              from: r.from ?? chartRange.from,
+              to: r.to ?? chartRange.to,
+            })
+          }
+          onClose={() => setChartModalOpen(false)}
+        />
+      )}
+
       <main className="p-6 space-y-8">
-        {/* ── Monthly Sales Chart ─────────────────────────────── */}
+        {/* ── Sales Chart ─────────────────────────────── */}
         <section className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
-              <h2 className="text-lg font-semibold">
-                Monthly sales — {currentYear}
-              </h2>
+              <h2 className="text-lg font-semibold">{chartTitle}</h2>
               <p className="text-xs text-stone-500 dark:text-stone-400">
-                Sales grouped by month (posted documents only)
+                {chartSubtitle}
+                {!showAll && " (posted documents only)"}
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {/* Monthly / Weekly / Custom toggle */}
+              <div className="flex items-center bg-stone-100 dark:bg-stone-700 rounded-lg p-0.5">
+                {CHART_MODES.map((m) => (
+                  <button
+                    key={m.key}
+                    onClick={() => {
+                      setChartMode(m.key);
+                      if (m.key === "custom") setChartModalOpen(true);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      chartMode === m.key
+                        ? "bg-amber-500 text-black"
+                        : "text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {chartMode === "custom" && (
+                <button
+                  onClick={() => setChartModalOpen(true)}
+                  className="p-2 rounded-lg hover:bg-stone-100 dark:bg-stone-700 transition text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
+                  title="Change date range"
+                >
+                  <CalendarIcon className="w-4 h-4" />
+                </button>
+              )}
+
               <span className="text-xs text-stone-500">All docs</span>
               <Switch checked={showAll} onCheckedChange={setShowAll} />
               <button
-                onClick={() => refetchMonthly()}
+                onClick={() => refetchChart()}
                 className="p-2 rounded-lg hover:bg-stone-100 dark:bg-stone-700 transition text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -481,15 +721,19 @@ export default function Dashboard() {
           </div>
 
           <div className="h-64 w-full">
-            {loadingMonthly ? (
+            {loadingChart ? (
               <div className="h-full flex items-center justify-center text-stone-500 text-sm animate-pulse">
                 Loading chart…
               </div>
+            ) : chartData.every((d) => d.sales === 0) ? (
+              <div className="h-full flex items-center justify-center text-stone-500 text-sm">
+                No sales in this period
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlySales}>
+                <BarChart data={chartData}>
                   <XAxis
-                    dataKey="month"
+                    dataKey="label"
                     tick={{ fill: "#94a3b8", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
@@ -509,10 +753,10 @@ export default function Dashboard() {
                     }}
                   />
                   <Bar dataKey="sales" radius={[6, 6, 0, 0]}>
-                    {monthlySales.map((_, i) => (
+                    {chartData.map((_, i) => (
                       <Cell
                         key={i}
-                        fill={_.sales > 0 ? "#38bdf8" : "#1e293b"}
+                        fill={_.sales > 0 ? "#f59e0b" : "#44403c"}
                       />
                     ))}
                   </Bar>
@@ -520,7 +764,6 @@ export default function Dashboard() {
               </ResponsiveContainer>
             )}
           </div>
-          <p className="text-center text-xs text-stone-500 mt-3">Month</p>
         </section>
 
         {/* ── Periodic Reports ────────────────────────────────── */}
@@ -537,12 +780,22 @@ export default function Dashboard() {
             </button>
           </div>
 
+          {/* Key metric tiles */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <OrderCountTile from={range.from} to={range.to} />
+            <AvgOrderValueTile from={range.from} to={range.to} />
+            <RefundsTile from={range.from} to={range.to} />
+            <OutstandingBalanceTile from={range.from} to={range.to} />
+            <NewCustomersTile from={range.from} to={range.to} />
+          </div>
+
           {/* Cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <TopProductsCard from={range.from} to={range.to} />
             <HourlySalesCard from={range.from} to={range.to} />
             <TopGroupsCard from={range.from} to={range.to} />
             <TotalSalesCard from={range.from} to={range.to} />
+            <PaymentMethodsCard from={range.from} to={range.to} />
             <TopCustomersCard from={range.from} to={range.to} />
           </div>
         </section>
