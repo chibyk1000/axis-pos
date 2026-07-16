@@ -45,18 +45,17 @@ export const db = drizzle<typeof schema>(
     let rows: any = [];
     let results = [];
 
-    // If the query is a SELECT, use the select method
+    // Previously both branches below swallowed every SQL error (caught it,
+    // logged it, and resolved as if nothing happened) — a failed insert,
+    // update, or select would report success/empty-but-fine to every caller
+    // in the app, with no way to tell a real failure from "no rows" or "0
+    // rows affected". Letting the rejection propagate is what makes
+    // try/catch around mutations (and react-query's isError/error state)
+    // actually mean something.
     if (isSelectQuery(sql)) {
-      rows = await sqlite.select(sql, params).catch((e) => {
-        console.error("SQL Error:", e);
-        return [];
-      });
+      rows = await sqlite.select(sql, params);
     } else {
-      // Otherwise, use the execute method
-      rows = await sqlite.execute(sql, params).catch((e) => {
-        console.log("SQL Error:", e, sql);
-        return [];
-      });
+      await sqlite.execute(sql, params);
       return { rows: [] };
     }
 

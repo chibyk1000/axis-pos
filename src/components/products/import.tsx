@@ -4,6 +4,41 @@ import { useUpsertProductPrice } from "@/hooks/controllers/priceLists";
 import { useCreateBarcode } from "@/hooks/controllers/barcodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { ROOT_NODE_ID } from "@/db/constants";
+
+/** Splits one CSV line into fields, respecting double-quoted values so a
+ * quoted comma (e.g. a product name like "Bag, Small") doesn't get treated
+ * as a column separator. Handles the `""` escaped-quote convention too. */
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
 
 export default function ImportModal({ onClose }: { onClose?: () => void }) {
   const [tab, setTab] = useState("csv");
@@ -12,6 +47,10 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
     {},
   );
   const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    failed: number;
+  } | null>(null);
 
   const createProduct = useCreateProduct();
   const upsertPrice = useUpsertProductPrice();
@@ -21,7 +60,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
 
   const fields = [
     { key: "code", label: "Code" },
-    { key: "title", label: "Name" },
+    { key: "title", label: "Name", required: true },
     { key: "cost", label: "Cost" },
     { key: "salePrice", label: "Sale Price" },
     { key: "unit", label: "Unit" },
@@ -39,8 +78,6 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
       const text = event.target?.result as string;
       if (tab === "csv") {
         parseCSV(text);
-      } else {
-        parseXML();
       }
     };
     reader.readAsText(selectedFile);
@@ -49,58 +86,83 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
   const parseCSV = (text: string) => {
     const lines = text.split("\n").filter((line) => line.trim());
     if (lines.length < 2) return;
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+    const headers = parseCSVLine(lines[0]);
     const rows = lines.slice(1).map((line) => {
-      const values = line.split(",").map((v) => v.trim().replace(/"/g, ""));
+      const values = parseCSVLine(line);
       const obj: any = {};
-      headers.forEach((h, i) => (obj[h] = values[i] || ""));
+      headers.forEach((h, i) => (obj[h] = values[i] ?? ""));
       return obj;
     });
     setParsedData(rows);
-    // Auto-map common columns
+    setImportResult(null);
+
+    // Auto-map common columns. Order matters: "Barcode" contains "code" and
+    // "Sale Price" contains "price", so the more specific keyword has to be
+    // checked first or it gets swallowed by the broader one below it —
+    // "Code" and "Cost" would otherwise silently end up mapped to the
+    // Barcode/Sale Price columns instead (which is exactly what happened
+    // before this fix, corrupting every imported product's code and cost).
     const mapping: Record<string, string> = {};
     headers.forEach((h) => {
       const lower = h.toLowerCase();
-      if (lower.includes("code")) mapping.code = h;
+      if (lower.includes("barcode")) mapping.barcode = h;
+      else if (lower.includes("code")) mapping.code = h;
       else if (lower.includes("name") || lower.includes("title"))
         mapping.title = h;
+      else if (lower.includes("sale")) mapping.salePrice = h;
       else if (lower.includes("cost") || lower.includes("price"))
         mapping.cost = h;
-      else if (lower.includes("sale")) mapping.salePrice = h;
       else if (lower.includes("unit")) mapping.unit = h;
       else if (lower.includes("active")) mapping.active = h;
-      else if (lower.includes("barcode")) mapping.barcode = h;
       else if (lower.includes("tax")) mapping.tax = h;
     });
     setColumnMapping(mapping);
   };
 
-  const parseXML = () => {
-    // Simple XML parsing - assume <products><product>...</product></products>
-    // For simplicity, just set empty for now
-    setParsedData([]);
-  };
-
   const handleImport = async () => {
-    if (!parsedData.length) return;
+    if (!parsedData.length || !columnMapping.title) return;
     setIsImporting(true);
+    setImportResult(null);
     let currentCode = parseInt(nextCodeBase || "1", 10);
-    try {
-      for (const row of parsedData) {
-        let code = row[columnMapping.code] || "";
+    let imported = 0;
+    let failed = 0;
+
+    for (const row of parsedData) {
+      try {
+        const title = row[columnMapping.title]?.trim();
+        if (!title) {
+          failed++;
+          continue;
+        }
+
+        let code = columnMapping.code ? row[columnMapping.code]?.trim() : "";
         if (!code) {
           code = currentCode.toString();
           currentCode++;
         }
+
+        // `X.toLowerCase() === "yes" || true` used to always evaluate to
+        // `true` no matter what the CSV said — every imported row came in
+        // active regardless of the "Active" column's value.
+        const activeRaw = columnMapping.active
+          ? row[columnMapping.active]?.trim().toLowerCase()
+          : undefined;
+        const active = activeRaw
+          ? ["yes", "true", "1"].includes(activeRaw)
+          : true;
+
         const productData = {
           id: nanoid(),
-          title: row[columnMapping.title] || "Unnamed",
+          title,
           code,
-          unit: row[columnMapping.unit] || "pcs",
-          active: row[columnMapping.active]?.toLowerCase() === "yes" || true,
-          nodeId: "root", // Assume root group
+          unit: columnMapping.unit
+            ? row[columnMapping.unit]?.trim() || "pcs"
+            : "pcs",
+          active,
+          nodeId: ROOT_NODE_ID,
         };
         const product = await createProduct.mutateAsync(productData);
+
         if (columnMapping.cost || columnMapping.salePrice) {
           await upsertPrice.mutateAsync({
             id: nanoid(),
@@ -112,23 +174,36 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
             label: "Retail",
           });
         }
-        if (columnMapping.barcode) {
+
+        // Only create a barcode when the row actually has one — inserting
+        // blank values for rows without a barcode would collide on the
+        // column's unique constraint as soon as a second blank row came in.
+        const barcodeValue = columnMapping.barcode
+          ? row[columnMapping.barcode]?.trim()
+          : "";
+        if (barcodeValue) {
           await createBarcode.mutateAsync({
             id: nanoid(),
             productId: product.id,
-            value: row[columnMapping.barcode],
+            value: barcodeValue,
             type: "CODE128",
           });
         }
         // Tax would need more logic, skip for now
+
+        imported++;
+      } catch (error) {
+        // A single bad row (duplicate code/barcode, etc.) used to throw out
+        // of the loop entirely and abandon the rest of the import with only
+        // a console.error — no indication to the user that anything failed.
+        console.error("Failed to import row", row, error);
+        failed++;
       }
-      queryClient.invalidateQueries();
-      onClose?.();
-    } catch (error) {
-      console.error("Import failed", error);
-    } finally {
-      setIsImporting(false);
     }
+
+    queryClient.invalidateQueries();
+    setImportResult({ imported, failed });
+    setIsImporting(false);
   };
 
   return (
@@ -167,28 +242,39 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
         </div>
 
         {/* Info box */}
-        <div className="m-4 border border-amber-600 bg-stone-100 dark:bg-stone-700/40 p-4 flex gap-3">
-          <span className="text-amber-400 text-xl">ℹ</span>
-          <p className="text-sm text-stone-800 dark:text-stone-200">
-            Use CSV import to load products using custom CSV file or a CSV
-            exported from other application. You can read more about importing
-            products using CSV files on our{" "}
-            <span className="text-amber-400 underline cursor-pointer">
-              support center
-            </span>
-            .
-          </p>
-        </div>
+        {tab === "csv" ? (
+          <div className="m-4 border border-amber-600 bg-stone-100 dark:bg-stone-700/40 p-4 flex gap-3">
+            <span className="text-amber-400 text-xl">ℹ</span>
+            <p className="text-sm text-stone-800 dark:text-stone-200">
+              Use CSV import to load products using custom CSV file or a CSV
+              exported from other application. You can read more about importing
+              products using CSV files on our{" "}
+              <span className="text-amber-400 underline cursor-pointer">
+                support center
+              </span>
+              .
+            </p>
+          </div>
+        ) : (
+          <div className="m-4 border border-stone-400 dark:border-stone-600 bg-stone-100 dark:bg-stone-700/40 p-4 flex gap-3">
+            <span className="text-stone-500 text-xl">ℹ</span>
+            <p className="text-sm text-stone-800 dark:text-stone-200">
+              XML import isn't available yet — please use the CSV tab.
+            </p>
+          </div>
+        )}
 
         {/* File upload */}
-        <div className="px-4 py-2 border-b border-stone-200 dark:border-stone-700">
-          <input
-            type="file"
-            accept={tab === "csv" ? ".csv" : ".xml"}
-            onChange={handleFileChange}
-            className="block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
-          />
-        </div>
+        {tab === "csv" && (
+          <div className="px-4 py-2 border-b border-stone-200 dark:border-stone-700">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+            />
+          </div>
+        )}
 
         {/* Body */}
         <div className="flex flex-1 px-4 pb-4 gap-4 overflow-hidden">
@@ -198,6 +284,7 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
               <div key={field.key} className="mb-3">
                 <label className="text-xs text-stone-500 dark:text-stone-400 block mb-1">
                   {field.label}
+                  {field.required && <span className="text-red-500"> *</span>}
                 </label>
                 <select
                   value={columnMapping[field.key] || ""}
@@ -224,16 +311,27 @@ export default function ImportModal({ onClose }: { onClose?: () => void }) {
               <span className="text-red-500">*</span> Indicates required field
             </p>
 
+            {importResult && (
+              <div className="mt-4 p-3 rounded border border-stone-600 text-sm">
+                <p className="text-emerald-500">
+                  Imported {importResult.imported} row
+                  {importResult.imported === 1 ? "" : "s"}
+                </p>
+                {importResult.failed > 0 && (
+                  <p className="text-red-500">
+                    Failed {importResult.failed} row
+                    {importResult.failed === 1 ? "" : "s"}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-3 mt-6">
-              <button className="flex items-center gap-2 bg-stone-100 dark:bg-stone-700 px-4 py-2 text-sm border border-stone-600 hover:bg-stone-600">
-                👁 Preview
-              </button>
-
               <button
                 onClick={handleImport}
-                disabled={!parsedData.length || isImporting}
-                className="flex items-center gap-2 bg-stone-600 px-4 py-2 text-sm text-white hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!parsedData.length || !columnMapping.title || isImporting}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 px-4 py-2 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isImporting ? "Importing..." : "⬇ Import"}
               </button>
