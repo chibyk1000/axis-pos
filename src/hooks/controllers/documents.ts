@@ -6,7 +6,7 @@ import {
   documentPayments,
   customers,
 } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, or, like, gte, lte, eq, desc, count } from "drizzle-orm";
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
@@ -42,7 +42,6 @@ export function useDocuments() {
   return useQuery({
     queryKey: ["documents"],
     queryFn: async () => {
-      console.log("useDocuments - Query starting...");
       const [docs, items, payments, custs] = await Promise.all([
         db.select().from(documents).orderBy(desc(documents.createdAt)),
         db.select().from(documentItems),
@@ -50,62 +49,145 @@ export function useDocuments() {
         db.select().from(customers),
       ]);
 
-      console.log("useDocuments - Raw data from DB:", {
-        docsCount: docs.length,
-        itemsCount: items.length,
-        paymentsCount: payments.length,
-        paymentsData: payments.slice(0, 5).map((p) => ({
-          id: p.id,
-          documentId: p.documentId,
-          amount: p.amount,
-          paymentType: p.paymentType,
-        })),
-      });
+      // PERF: group children by documentId in one O(n) pass. This used to
+      // run items.filter(...) + payments.filter(...) INSIDE the per-document
+      // map — O(docs × (items + payments)), i.e. ~20 billion comparisons on
+      // a 70k-doc / 215k-item imported database — plus a console.log per
+      // document. That froze the entire machine every time this query ran.
+      const customerMap = new Map(custs.map((c) => [c.id, c]));
+      const itemsByDoc = new Map<string, (typeof items)[number][]>();
+      for (const item of items) {
+        const list = itemsByDoc.get(item.documentId);
+        if (list) list.push(item);
+        else itemsByDoc.set(item.documentId, [item]);
+      }
+      const paymentsByDoc = new Map<string, (typeof payments)[number][]>();
+      for (const payment of payments) {
+        const list = paymentsByDoc.get(payment.documentId);
+        if (list) list.push(payment);
+        else paymentsByDoc.set(payment.documentId, [payment]);
+      }
 
-      const customerMap = Object.fromEntries(custs.map((c) => [c.id, c]));
-
-      const result = docs.map((doc) => {
-        const docPayments = payments.filter((p) => p.documentId === doc.id);
-        const itemsForDoc = items.filter((i) => i.documentId === doc.id);
-
-        // Debug: show all recent docs
-        console.log("useDocuments - Doc:", doc.number, {
-          totalPaidDB: doc.totalPaid,
-          paymentsFound: docPayments.length,
-        });
-
-        const withComputed = createDocumentWithComputed(
+      return docs.map((doc) =>
+        createDocumentWithComputed(
           doc,
-          docPayments,
-          customerMap[doc.customerId] || null,
-          itemsForDoc,
-        );
-
-        if (withComputed.totalPaid > 0 || docPayments.length > 0) {
-          console.log(
-            "useDocuments - Retrieved document with payments from DB:",
-            {
-              id: doc.id,
-              number: doc.number,
-              total: doc.total,
-              totalPaidInDB: doc.totalPaid,
-              paymentsInDB: docPayments.length,
-              paymentAmounts: docPayments.map((p) => p.amount),
-              calculatedTotalPaid: withComputed.totalPaid,
-              calculatedOutstandingBalance: withComputed.outstandingBalance,
-            },
-          );
-        }
-
-        return withComputed;
-      });
-
-      console.log(
-        "useDocuments - Query complete, returning",
-        result.length,
-        "documents",
+          paymentsByDoc.get(doc.id) ?? [],
+          customerMap.get(doc.customerId) ?? null,
+          itemsByDoc.get(doc.id) ?? [],
+        ),
       );
-      return result;
+    },
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     DB-LEVEL PAGINATED DOCUMENT LIST                       */
+/*                                                                            */
+/*  The dashboard Documents page works against tens of thousands of rows     */
+/*  after an Aronium import — filtering and paging must happen in SQL, not   */
+/*  by loading everything into JS (useDocuments above does that and is kept  */
+/*  only for the POS documents screen).                                      */
+/* -------------------------------------------------------------------------- */
+
+export type DocumentListFilters = {
+  /** users.id to restrict to, or null/undefined for all users */
+  userId?: number | null;
+  customerId?: string | null;
+  /** app document type code (100/120/200/220/230/300/400) */
+  type?: number | null;
+  paid?: boolean | null;
+  /** matches number, external number, or customer name */
+  search?: string;
+  /** date range as epoch ms (primitives keep the query key stable) */
+  fromMs?: number | null;
+  toMs?: number | null;
+};
+
+function documentFilterConditions(f: DocumentListFilters) {
+  const conds = [];
+  if (f.userId != null) conds.push(eq(documents.userId, f.userId));
+  if (f.customerId) conds.push(eq(documents.customerId, f.customerId));
+  if (f.type != null) conds.push(eq(documents.type, f.type));
+  if (f.paid != null) conds.push(eq(documents.paid, f.paid));
+  const s = f.search?.trim();
+  if (s) {
+    conds.push(
+      or(
+        like(documents.number, `%${s}%`),
+        like(documents.externalNumber, `%${s}%`),
+        like(customers.name, `%${s}%`),
+      ),
+    );
+  }
+  if (f.fromMs != null) conds.push(gte(documents.date, new Date(f.fromMs)));
+  if (f.toMs != null) conds.push(lte(documents.date, new Date(f.toMs)));
+  return conds;
+}
+
+export type DocumentPageRow = {
+  id: string;
+  number: string;
+  externalNumber: string | null;
+  customerId: string;
+  customerName: string | null;
+  userId: number | null;
+  date: Date;
+  paid: boolean | null;
+  type: number | null;
+  status: "draft" | "posted" | "cancelled" | null;
+  total: number | null;
+  totalPaid: number | null;
+  outstandingBalance: number | null;
+};
+
+export function useDocumentsPage(
+  filters: DocumentListFilters,
+  page: number,
+  pageSize: number,
+) {
+  return useQuery({
+    queryKey: ["documents", "page", JSON.stringify(filters), page, pageSize],
+    queryFn: async (): Promise<DocumentPageRow[]> => {
+      const conds = documentFilterConditions(filters);
+      const rows = await db
+        .select({
+          id: documents.id,
+          number: documents.number,
+          externalNumber: documents.externalNumber,
+          customerId: documents.customerId,
+          customerName: customers.name,
+          userId: documents.userId,
+          date: documents.date,
+          paid: documents.paid,
+          type: documents.type,
+          status: documents.status,
+          total: documents.total,
+          totalPaid: documents.totalPaid,
+          outstandingBalance: documents.outstandingBalance,
+        })
+        .from(documents)
+        .leftJoin(customers, eq(documents.customerId, customers.id))
+        .where(conds.length ? and(...conds) : undefined)
+        .orderBy(desc(documents.date))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
+      return rows as DocumentPageRow[];
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useDocumentsCount(filters: DocumentListFilters) {
+  return useQuery({
+    queryKey: ["documents", "count", JSON.stringify(filters)],
+    queryFn: async (): Promise<number> => {
+      const conds = documentFilterConditions(filters);
+      const [row] = await db
+        .select({ total: count(documents.id) })
+        .from(documents)
+        .leftJoin(customers, eq(documents.customerId, customers.id))
+        .where(conds.length ? and(...conds) : undefined);
+      return row?.total ?? 0;
     },
   });
 }

@@ -10,7 +10,7 @@ import {
   FileDown,
   AlertTriangle,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
 import {
@@ -43,7 +43,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useDeleteDocument, useDocuments } from "@/hooks/controllers/documents";
+import {
+  useDeleteDocument,
+  useDocument,
+  useDocumentsPage,
+  useDocumentsCount,
+  type DocumentListFilters,
+} from "@/hooks/controllers/documents";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { writeFile, BaseDirectory } from "@tauri-apps/plugin-fs";
@@ -241,9 +248,6 @@ export function DocumentsView() {
     }
   };
 
-  // Fix #5: store refetch from hook so button triggers it properly
-  const { data: savedDocuments = [], refetch } = useDocuments();
-
   const setSelectedSavedDocument = (
     val: any | null | ((prev: any | null) => any | null),
   ) => {
@@ -272,6 +276,58 @@ export function DocumentsView() {
 
   const currentUserId = currentUser?.id ?? null;
 
+  // ── DB-level pagination ───────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+
+  const listFilters: DocumentListFilters = useMemo(() => {
+    let toMs: number | null = null;
+    if (filters.period?.to) {
+      const to = new Date(filters.period.to);
+      to.setHours(23, 59, 59, 999); // inclusive end of day
+      toMs = to.getTime();
+    }
+    return {
+      userId:
+        filters.user === "mine"
+          ? (currentUserId ?? null)
+          : filters.user !== "all"
+            ? Number(filters.user)
+            : null,
+      customerId: filters.customer !== "all" ? filters.customer : null,
+      type:
+        filters.documentType !== "all" ? Number(filters.documentType) : null,
+      paid:
+        filters.paid === "paid" ? true : filters.paid === "unpaid" ? false : null,
+      search: filters.search || undefined,
+      fromMs: filters.period?.from
+        ? new Date(filters.period.from).getTime()
+        : null,
+      toMs,
+    };
+  }, [filters, currentUserId]);
+
+  const { data: pageRows = [], refetch } = useDocumentsPage(
+    listFilters,
+    page,
+    pageSize,
+  );
+  const { data: totalDocs = 0 } = useDocumentsCount(listFilters);
+
+  // Jump back to page 1 whenever the filters change.
+  const filterKey = JSON.stringify(listFilters);
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
+
+  // Items/payments for the selected document are fetched lazily — the
+  // paginated list rows are slim on purpose.
+  const { data: selectedDocDetails } = useDocument(
+    selectedSavedDocument?.id ?? "",
+  );
+  const selectedItems: any[] =
+    selectedDocDetails?.items ?? selectedSavedDocument?.items ?? [];
+
   const onAdd = () => setOpen(true);
 
   // Tauri v2: write via BaseDirectory.Temp (satisfies $TEMP scope), then shellOpen with full path
@@ -299,19 +355,13 @@ export function DocumentsView() {
 
   const handlePrint = async () => {
     if (!selectedSavedDocument) return alert("Select a document first");
-    const pdf = buildDocPdf(
-      selectedSavedDocument,
-      selectedSavedDocument.items || [],
-    );
+    const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
     await openPdfInTauri(pdf, `print-${selectedSavedDocument.id}.pdf`, true);
   };
 
   const handlePreview = async () => {
     if (!selectedSavedDocument) return alert("Select a document first");
-    const pdf = buildDocPdf(
-      selectedSavedDocument,
-      selectedSavedDocument.items || [],
-    );
+    const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
     await openPdfInTauri(pdf, `preview-${selectedSavedDocument.id}.pdf`, false);
   };
 
@@ -324,10 +374,7 @@ export function DocumentsView() {
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (savePath) {
-        const pdf = buildDocPdf(
-          selectedSavedDocument,
-          selectedSavedDocument.items || [],
-        );
+        const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
         const bytes = new Uint8Array(pdf.output("arraybuffer"));
         await writeFile(savePath, bytes);
       }
@@ -357,43 +404,6 @@ export function DocumentsView() {
     refetch();
   };
 
-  const filteredDocuments = savedDocuments.filter((doc) => {
-    if (filters.user !== "all") {
-      if (filters.user === "mine") {
-        if (currentUserId != null && doc.userId !== currentUserId) return false;
-      } else {
-        if (doc.userId?.toString() !== filters.user) return false;
-      }
-    }
-    if (filters.customer !== "all" && doc.customerId !== filters.customer)
-      return false;
-    if (
-      filters.documentType !== "all" &&
-      doc.type?.toString() !== filters.documentType
-    )
-      return false;
-    if (filters.paid === "paid" && !doc.paid) return false;
-    if (filters.paid === "unpaid" && doc.paid) return false;
-    if (
-      filters.search &&
-      !doc.number?.toLowerCase().includes(filters.search.toLowerCase()) &&
-      !doc.externalNumber
-        ?.toLowerCase()
-        .includes(filters.search.toLowerCase()) &&
-      !customers
-        .find((c) => c.id === doc.customerId)
-        ?.name.toLowerCase()
-        .includes(filters.search.toLowerCase())
-    )
-      return false;
-    if (filters.period?.from) {
-      const docDate = new Date(doc.date);
-      if (docDate < filters.period.from) return false;
-      if (filters.period.to && docDate > filters.period.to) return false;
-    }
-    return true;
-  });
-
   // Fix #3: Edit — properly open an existing doc in the NewDocument editor
   const handleEdit = () => {
     if (!selectedSavedDocument) return;
@@ -408,7 +418,9 @@ export function DocumentsView() {
       category: "Edit",
     };
 
-    setEditingDocument(selectedSavedDocument);
+    // Paginated list rows are slim — attach the lazily-fetched items so the
+    // editor opens with the document's lines.
+    setEditingDocument({ ...selectedSavedDocument, items: selectedItems });
 
     // Add tab if not already open
     setDocuments((prev) => {
@@ -420,7 +432,7 @@ export function DocumentsView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
       {/* Fix #4: Confirmation modal */}
       <ConfirmDeleteModal
         open={confirmDeleteOpen}
@@ -594,6 +606,10 @@ export function DocumentsView() {
             />
           </div>
 
+          {/* Everything below the toolbar scrolls as one region, so the
+              filters scroll out of the way and the table gets the room to
+              show the whole page of documents. */}
+          <div className="flex-1 min-h-0 overflow-auto flex flex-col">
           {/* Filters */}
           <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-4 space-y-3">
             <div className="grid grid-cols-3 gap-4">
@@ -701,9 +717,9 @@ export function DocumentsView() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-auto px-6 py-4 space-y-6">
-            <TableWrapper title={`Documents (${filteredDocuments.length})`}>
-              <thead>
+          <div className="px-6 py-4 space-y-6">
+            <TableWrapper title={`Documents (${totalDocs})`}>
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                   <th className="px-4 py-2">
                     <input type="checkbox" />
@@ -733,7 +749,7 @@ export function DocumentsView() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDocuments.length === 0 ? (
+                {pageRows.length === 0 ? (
                   <tr className="bg-stone-50 dark:bg-stone-900">
                     <td
                       colSpan={12}
@@ -743,10 +759,7 @@ export function DocumentsView() {
                     </td>
                   </tr>
                 ) : (
-                  filteredDocuments.map((doc) => {
-                    const customer = customers.find(
-                      (c) => c.id === doc.customerId,
-                    );
+                  pageRows.map((doc) => {
                     const isSelected = selectedSavedDocument?.id === doc.id;
                     return (
                       <tr
@@ -778,7 +791,7 @@ export function DocumentsView() {
                           {doc.paid ? "Paid" : "Unpaid"}
                         </td>
                         <td className="px-4 py-2">
-                          {customer?.name ?? "Unknown"}
+                          {doc.customerName ?? "Unknown"}
                         </td>
                         <td className="px-4 py-2">
                           {doc.date
@@ -795,9 +808,16 @@ export function DocumentsView() {
               </tbody>
             </TableWrapper>
 
-            <TableWrapper
-              title={`Document items (${selectedSavedDocument?.items?.length ?? 0})`}
-            >
+            <DataTablePagination
+              page={page}
+              pageSize={pageSize}
+              total={totalDocs}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
+
+            <TableWrapper title={`Document items (${selectedItems.length})`}>
               <thead>
                 <tr className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                   {[
@@ -820,7 +840,7 @@ export function DocumentsView() {
                 </tr>
               </thead>
               <tbody>
-                {!selectedSavedDocument?.items?.length ? (
+                {selectedItems.length === 0 ? (
                   <tr className="bg-stone-50 dark:bg-stone-900">
                     <td
                       colSpan={11}
@@ -830,7 +850,7 @@ export function DocumentsView() {
                     </td>
                   </tr>
                 ) : (
-                  selectedSavedDocument.items.map((item: any) => {
+                  selectedItems.map((item: any) => {
                     const price =
                       item.priceBeforeTax * (1 + item.taxRate / 100);
                     return (
@@ -859,6 +879,7 @@ export function DocumentsView() {
                 )}
               </tbody>
             </TableWrapper>
+          </div>
           </div>
         </>
       )}
@@ -964,7 +985,9 @@ function TableWrapper({
   return (
     <div>
       <h3 className="text-sm font-semibold mb-3">{title}</h3>
-      <div className="border border-stone-300 dark:border-stone-800 rounded overflow-hidden">
+      {/* No overflow-hidden here: an overflow-hidden ancestor between a
+          sticky thead and the page's scroll container disables stickiness. */}
+      <div className="border border-stone-300 dark:border-stone-800 rounded">
         <table className="w-full text-sm">{children}</table>
       </div>
     </div>

@@ -72,7 +72,9 @@ export default function TaxRatesTable() {
     allTaxes.find((t) => t.id === selected);
 
   return (
-    <div className="h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4">
+    // flex-1/min-h-0, not h-screen: inside the dashboard shell h-screen
+    // exceeded the available space and clipped the table's bottom.
+    <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4">
       <SwitchTaxesDrawer
         open={switchOpen}
         onOpenChange={setSwitchOpen}
@@ -167,13 +169,13 @@ export default function TaxRatesTable() {
       </div>
 
       {/* Table */}
-      <div className="flex h-[calc(100vh-120px)] flex-col overflow-hidden rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900">
         {isLoading ? (
           <PageLoading label="Loading tax rates" />
         ) : (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <Table>
-            <TableHeader className="  bg-stone-100 dark:bg-stone-700 border-b border-stone-100">
+            <TableHeader className="sticky top-0 z-10 bg-stone-100 dark:bg-stone-700 border-b border-stone-100">
               <TableRow>
                 <TableHead className="text-stone-800 dark:text-stone-200 w-[40%]">
                   Name

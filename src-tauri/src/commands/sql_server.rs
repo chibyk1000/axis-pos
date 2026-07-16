@@ -925,7 +925,19 @@ pub async fn install_sql_server_localdb(app: AppHandle) -> Result<(), String> {
 /// const tables = JSON.parse(json);
 /// ```
 #[tauri::command]
-pub fn import_aronium_bak(file_path: String) -> Result<String, String> {
+pub async fn import_aronium_bak(file_path: String) -> Result<String, String> {
+    // async + spawn_blocking: this command shells out to SqlLocalDB/sqlcmd
+    // dozens of times and takes 30-60s. As a synchronous command it ran on
+    // the app's main thread, freezing the webview for the whole restore —
+    // which killed the Vite dev-server websocket, whose reconnect then
+    // force-reloaded the page mid-import (wiping the progress toast and
+    // cutting off whatever import steps hadn't run yet).
+    tauri::async_runtime::spawn_blocking(move || import_aronium_bak_blocking(file_path))
+        .await
+        .map_err(|e| format!("Import task panicked: {e}"))?
+}
+
+fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
     #[cfg(not(target_os = "windows"))]
     {
         let _ = file_path;
@@ -934,6 +946,17 @@ pub fn import_aronium_bak(file_path: String) -> Result<String, String> {
 
     #[cfg(target_os = "windows")]
     {
+        // Only one import may run at a time: the setup below drops and
+        // re-restores the shared AroniumImport database, so a second
+        // concurrent invocation (e.g. a double-clicked confirm button)
+        // yanks the database out from under the first — every remaining
+        // table read in the first run then comes back "not found".
+        static IMPORT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = IMPORT_LOCK.try_lock().map_err(|_| {
+            "An Aronium import is already in progress — wait for it to finish."
+                .to_string()
+        })?;
+
         const INSTANCE: &str = "axis_import";
         const DB_NAME: &str = "AroniumImport";
         let server = format!("(localdb)\\{INSTANCE}");
@@ -991,60 +1014,37 @@ pub fn import_aronium_bak(file_path: String) -> Result<String, String> {
         )
         .map_err(|e| format!("RESTORE DATABASE failed: {e}"))?;
 
-        // ── 4. Read every Aronium table ────────────────────────────────────────
-    let tables: &[&str] = &[
-    // ── catalogue ─────────────────────────────────────────────────────
-    "Tax",
-    "ProductGroup",
-    "Product",
-    "Barcode",
-    "ProductTax",
-    "PriceList",
-    "PriceListItem",
-    "StockEntry",
-    "Stock",
-    "StockControl",
-    // ── customers ─────────────────────────────────────────────────────
-    "Customer",
-    "CustomerDiscount",
-    "LoyaltyCard",
-    "Country",
-    // ── payments ──────────────────────────────────────────────────────
-    "PaymentType",
-    "Payment",
-    // ── documents / invoices ──────────────────────────────────────────
-    // Aronium uses Document / DocumentItem, not Receipt*
-    "DocumentType",
-    "DocumentCategory",
-    "Document",
-    "DocumentItem",
-    "DocumentItemTax",
-    "DocumentItemExpirationDate",
-    // ── POS / orders ──────────────────────────────────────────────────
-    "PosOrder",
-    "PosOrderItem",
-    "PosVoid",
-    "VoidReason",
-    // ── fiscal / reporting ────────────────────────────────────────────
-    "FiscalItem",
-    "ZReport",
-    "Counter",
-    "StartingCash",
-    // ── floor plan ────────────────────────────────────────────────────
-    "FloorPlan",
-    "FloorPlanTable",
-    // ── promotions ────────────────────────────────────────────────────
-    "Promotion",
-    "PromotionItem",
-    // ── misc ──────────────────────────────────────────────────────────
-    "CashRegister",
-    "Warehouse",
-    "Template",
-    "User",
-    "Company",
-    "ApplicationProperty",
-];
+        // ── 4. Read the Aronium tables the importer actually consumes ─────────
+        // Keep this list in sync with runImport() in aroniumImporter.ts.
+        // It used to fetch ~40 tables "just in case" (ApplicationProperty,
+        // Template, FiscalItem, Company logos, Product image blobs, ...) —
+        // FOR JSON AUTO base64-encodes every varbinary column, which blew the
+        // returned payload up to >100MB and made the frontend spend ages
+        // shipping and parsing data it immediately threw away.
+        let tables: &[&str] = &[
+            "Tax",
+            "ProductGroup",
+            "Product",
+            "Barcode",
+            "ProductTax",
+            "Stock",
+            "StockEntry",
+            "StockControl",
+            "Customer",
+            "Country",
+            "PaymentType",
+            "Payment",
+            "Document",
+            "DocumentItem",
+            "DocumentItemTax",
+            "DocumentType",
+        ];
         let mut result = serde_json::Map::new();
+        // Table-fetch failures used to be swallowed into an empty result
+        // (`unwrap_or_default()` below) with only a println! nobody sees —
+        // indistinguishable from a table that's genuinely empty. Collect
+        // them here and surface them in the returned JSON instead.
+        let mut import_errors: Vec<String> = Vec::new();
 
         for &table in tables {
             // Step A: check the table exists before querying it.
@@ -1071,8 +1071,43 @@ pub fn import_aronium_bak(file_path: String) -> Result<String, String> {
             // We do NOT use -y / -Y (column width caps) because they silently
             // truncate JSON mid-chunk. sqlcmd's default is unlimited for
             // nvarchar(max).
-            let query = format!("SELECT * FROM [{table}] FOR JSON AUTO");
-            let raw = run_sqlcmd(&server, DB_NAME, &query).unwrap_or_default();
+            //
+            // Binary columns (Product.Image etc.) are excluded via dynamic
+            // SQL: FOR JSON base64-encodes varbinary data, and the importer
+            // never uses it — including it multiplied the payload ~50x.
+            let query = format!(
+                "DECLARE @cols NVARCHAR(MAX); \
+                 SELECT @cols = COALESCE(@cols + ',', '') + QUOTENAME(c.name) \
+                 FROM sys.columns c \
+                 JOIN sys.types t ON c.user_type_id = t.user_type_id \
+                 WHERE c.object_id = OBJECT_ID(N'[{table}]') \
+                   AND t.name NOT IN ('image', 'varbinary', 'binary'); \
+                 DECLARE @sql NVARCHAR(MAX) = \
+                     N'SELECT ' + @cols + N' FROM [{table}] FOR JSON AUTO'; \
+                 EXEC sp_executesql @sql;"
+            );
+            // Retry once — a transient sqlcmd/LocalDB hiccup (rapid
+            // sequential temp-file spawns across ~40 tables) shouldn't
+            // silently drop an entire table's data.
+            let raw = match run_sqlcmd(&server, DB_NAME, &query) {
+                Ok(r) => r,
+                Err(first_err) => {
+                    println!(
+                        "[aronium-import] table={table} query failed, retrying once: {first_err}"
+                    );
+                    match run_sqlcmd(&server, DB_NAME, &query) {
+                        Ok(r) => r,
+                        Err(second_err) => {
+                            let msg = format!(
+                                "table {table}: query failed after retry: {second_err}"
+                            );
+                            println!("[aronium-import] ERROR {msg}");
+                            import_errors.push(msg);
+                            String::new()
+                        }
+                    }
+                }
+            };
 
             println!(
                 "[aronium-import] table={table} raw_bytes={} first_120={:?}",
@@ -1174,19 +1209,33 @@ pub fn import_aronium_bak(file_path: String) -> Result<String, String> {
                     let col = e.column();
                     let ctx_start = col.saturating_sub(40).min(json_str.len());
                     let ctx_end   = (col + 40).min(json_str.len());
-                    println!(
-                        "[aronium-import] table={table} JSON parse error at col {col}: {e}"
-                    );
+                    let msg = format!("table {table}: JSON parse error at col {col}: {e}");
+                    println!("[aronium-import] ERROR {msg}");
                     println!(
                         "[aronium-import] table={table} context: {:?}",
                         &json_str[ctx_start..ctx_end]
                     );
+                    import_errors.push(msg);
                     serde_json::Value::Array(vec![])
                 }
             };
 
             result.insert(table.to_owned(), parsed);
         }
+
+        if !import_errors.is_empty() {
+            println!(
+                "[aronium-import] {} table(s) failed to import fully: {}",
+                import_errors.len(),
+                import_errors.join(" | ")
+            );
+        }
+        result.insert(
+            "_ImportErrors".to_owned(),
+            serde_json::Value::Array(
+                import_errors.into_iter().map(serde_json::Value::String).collect(),
+            ),
+        );
 
         // ── 5. Drop temp database ──────────────────────────────────────────────
         let _ = run_sqlcmd(

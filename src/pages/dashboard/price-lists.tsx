@@ -28,6 +28,7 @@ import {
 } from "@/hooks/controllers/priceLists";
 import { useProducts } from "@/hooks/controllers/products";
 import { useRootNodes } from "@/hooks/controllers/nodes";
+import { useInfiniteRows } from "@/hooks/useInfiniteRows";
 import type { ProductPrice } from "@/hooks/controllers/priceLists";
 import { BsStar } from "react-icons/bs";
 
@@ -430,6 +431,12 @@ export function PriceListsView() {
   }, [allNodes, allProducts, priceMap, selectedNodeId, searchTerm]);
 
   const pricedCount = enrichedProducts.filter((p) => p.hasPriceRow).length;
+  const {
+    visibleRows: visibleProducts,
+    containerRef,
+    sentinelRef,
+    hasMore,
+  } = useInfiniteRows(enrichedProducts, 50);
   function handleSetDefault(productId: string, priceRowId?: string) {
     if (!priceRowId) return;
     setDefaultPrice.mutate({ productId, priceId: priceRowId });
@@ -504,7 +511,7 @@ export function PriceListsView() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
       {bulkModalOpen && (
         <BulkAdjustModal
           label={selectedLabel as PriceLabel}
@@ -603,10 +610,15 @@ export function PriceListsView() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 min-h-0 overflow-auto px-6 py-4">
-            <div className="border border-stone-300 dark:border-stone-800 rounded-lg overflow-hidden">
+          <div
+            ref={containerRef}
+            className="flex-1 min-h-0 overflow-auto px-6 py-4"
+          >
+            {/* No overflow-hidden on this wrapper — it would break the
+                sticky thead relative to the scroll container above. */}
+            <div className="border border-stone-300 dark:border-stone-800 rounded-lg">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="border-b border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
                     {[
                       { label: "Code", cls: "w-20 text-left" },
@@ -647,7 +659,7 @@ export function PriceListsView() {
                       </td>
                     </tr>
                   ) : (
-                    enrichedProducts.map((p, index, arr) => (
+                    visibleProducts.map((p, index, arr) => (
                       <tr
                         key={p.id}
                         className={`transition-colors
@@ -754,6 +766,16 @@ export function PriceListsView() {
                         </td>
                       </tr>
                     ))
+                  )}
+                  {hasMore && (
+                    <tr ref={sentinelRef}>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-3 text-center text-xs text-stone-500"
+                      >
+                        Loading more…
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>

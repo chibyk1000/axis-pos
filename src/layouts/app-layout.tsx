@@ -21,10 +21,14 @@ import { SyncStatusWidget } from "@/components/SyncStatusWidget";
 const Applayout = () => {
   const location = useLocation();
 
+  // h-svh + overflow-hidden clamp the app shell to the viewport — the
+  // provider's own class is only min-h-svh (no max), so a tall table would
+  // otherwise grow the whole page and scroll the window instead of the
+  // table body.
   return (
-    <SidebarProvider className="bg-stone-950 w-screen">
+    <SidebarProvider className="bg-stone-950 w-screen h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset className="bg-white dark:bg-stone-900 flex-1 overflow-hidden">
+      <SidebarInset className="bg-white dark:bg-stone-900 flex-1 min-h-0 overflow-hidden">
         <header className="flex h-16 shrink-0 pr-4 items-center justify-between transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1 text-stone-900 dark:text-white" />
@@ -51,7 +55,7 @@ const Applayout = () => {
             <SyncStatusWidget />
           </div>
         </header>
-        <div className="flex flex-1 overflow-hidden flex-col">
+        <div className="flex flex-1 min-h-0 overflow-hidden flex-col">
           <Outlet />
         </div>
       </SidebarInset>

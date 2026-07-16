@@ -53,6 +53,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { useProducts } from "@/hooks/controllers/products";
+import { useInfiniteRows } from "@/hooks/useInfiniteRows";
 import { useRootNodes } from "@/hooks/controllers/nodes";
 import {
   useStockLevels,
@@ -965,6 +966,15 @@ export default function StockView() {
   const getStock = (p: EnrichedProduct) =>
     (stockLevels[p.id] as any)?.quantity ?? 0;
 
+  // visibleProducts stays the full filtered set (the stat counters below need
+  // it) — only the rendered rows are chunked for infinite scrolling.
+  const {
+    visibleRows: renderedProducts,
+    containerRef: tableContainerRef,
+    sentinelRef: tableSentinelRef,
+    hasMore: hasMoreRows,
+  } = useInfiniteRows(visibleProducts, 50);
+
   const negativeCount = visibleProducts.filter((p) => getStock(p) < 0).length;
   const nonZeroCount = visibleProducts.filter((p) => getStock(p) !== 0).length;
   const zeroCount = visibleProducts.filter((p) => getStock(p) === 0).length;
@@ -1388,7 +1398,7 @@ export default function StockView() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div ref={tableContainerRef} className="flex-1 min-h-0 overflow-auto">
             {productsQuery.isLoading ? (
               <div className="flex items-center justify-center h-full text-stone-500 text-sm gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" /> Loading products…
@@ -1431,7 +1441,7 @@ export default function StockView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleProducts.map((p) => {
+                  {renderedProducts.map((p) => {
                     const stock = getStock(p);
                     return (
                       <tr
@@ -1480,6 +1490,16 @@ export default function StockView() {
                       </tr>
                     );
                   })}
+                  {hasMoreRows && (
+                    <tr ref={tableSentinelRef}>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-3 text-center text-xs text-stone-500"
+                      >
+                        Loading more…
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             )}

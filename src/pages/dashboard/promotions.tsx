@@ -482,7 +482,10 @@ export default function PromotionsScreen() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="h-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 flex flex-col">
+    // flex-1/min-h-0, not h-screen: this renders inside the dashboard shell
+    // below its header, so h-screen overflowed the viewport by the header
+    // height and clipped the bottom of the table.
+    <div className="flex-1 min-h-0 overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-3 py-2 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm shrink-0">
         {[

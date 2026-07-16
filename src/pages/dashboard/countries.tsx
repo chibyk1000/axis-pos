@@ -54,7 +54,10 @@ export default function CountriesTable() {
   const selectedCountry = countries.find((c) => c.id === selected);
 
   return (
-    <div className="h-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4">
+    // flex-1/min-h-0, not h-screen: this renders inside the dashboard shell
+    // below its header, so h-screen exceeded the available space and clipped
+    // the bottom of the table (breaking its internal scrolling).
+    <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 p-4">
       {/* Drawer */}
       <CountryDrawer
         open={drawerOpen}
@@ -124,11 +127,11 @@ export default function CountriesTable() {
       </div>
 
       {/* Table */}
-      <div className="flex h-[calc(100vh-110px)] flex-col overflow-hidden rounded-md border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-md border border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-800">
         {isLoading ? (
           <PageLoading label="Loading countries" />
         ) : (
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <Table>
               <TableHeader className="sticky top-0 bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
                 <TableRow>

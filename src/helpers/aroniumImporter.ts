@@ -8,6 +8,10 @@ import { invalidateChildNodeIdsCache } from "@/hooks/controllers/products";
 export interface ImportResult {
   success: boolean;
   message: string;
+  /** Non-fatal problems from the import — e.g. a table that failed to fetch
+   * from the SQL Server backup after retrying, so it silently contributed
+   * zero rows instead of aborting the whole import. */
+  warnings?: string[];
   counts: {
     taxes: number;
     groups: number;
@@ -72,10 +76,12 @@ interface ParsedDumpTables {
   Document: any[];
   DocumentItem: any[];
   DocumentItemTax: any[];
+  DocumentType: any[];
   Payment: any[];
   PaymentType: any[];
   // Aronium stock tables
   Stock: any[];        // Id, ProductId, WarehouseId, Quantity
+  StockEntry: any[];   // Same shape as Stock — some Aronium versions use this name instead
   StockControl: any[]; // ProductId, ReorderPoint, PreferredQuantity, IsLowStockWarningEnabled, LowStockWarningQuantity
   PosOrder: any[];
   PosOrderItem: any[];
@@ -93,9 +99,11 @@ function parseSqlDump(sql: string): ParsedDumpTables {
     Document: [],
     DocumentItem: [],
     DocumentItemTax: [],
+    DocumentType: [],
     Payment: [],
     PaymentType: [],
     Stock: [],
+    StockEntry: [],
     StockControl: [],
     PosOrder: [],
     PosOrderItem: [],
@@ -206,6 +214,33 @@ function pickField(row: any, ...candidates: string[]): any {
   return undefined;
 }
 
+/**
+ * Multi-row `INSERT OR IGNORE` in chunks. A 70k-document Aronium backup
+ * would otherwise need ~360k sequential single-row execute() round-trips —
+ * far too slow to ever finish. Chunks stay well under SQLite's 999-bind-
+ * parameter compatibility limit.
+ */
+async function batchInsert(
+  table: string,
+  columns: string[],
+  rows: any[][],
+  onChunk?: (inserted: number, total: number) => void,
+): Promise<void> {
+  if (rows.length === 0) return;
+  const chunkSize = Math.max(1, Math.floor(800 / columns.length));
+  const placeholderRow = `(${columns.map(() => "?").join(",")})`;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    await sqlite.execute(
+      `INSERT OR IGNORE INTO ${table} (${columns.join(",")}) VALUES ${chunk
+        .map(() => placeholderRow)
+        .join(",")}`,
+      chunk.flat(),
+    );
+    onChunk?.(Math.min(i + chunkSize, rows.length), rows.length);
+  }
+}
+
 interface AroniumData {
   aroniumTaxes: any[];
   aroniumGroups: any[];
@@ -215,14 +250,23 @@ interface AroniumData {
   aroniumCustomers: any[];
   aroniumDocuments: any[];
   aroniumDocumentItems: any[];
+  aroniumDocumentItemTaxes: any[];
+  aroniumDocumentTypes: any[];
   aroniumPayments: any[];
   aroniumPaymentTypes: any[];
   aroniumStock: any[];        // Aronium Stock table (quantity per product/warehouse)
+  aroniumStockEntries: any[]; // Aronium StockEntry table — same shape, different name on some versions
   aroniumStockControls: any[]; // Aronium StockControl table (reorder points etc.)
   countryMap: Map<number, string>;
+  /** Table fetch/parse failures surfaced by the .bak reader (see
+   * `_ImportErrors` in sql_server.rs) — not fatal, but worth showing. */
+  sourceWarnings?: string[];
 }
 
-async function runImport(data: AroniumData): Promise<ImportResult> {
+async function runImport(
+  data: AroniumData,
+  onProgress: (stage: string) => void = () => {},
+): Promise<ImportResult> {
   const {
     aroniumTaxes,
     aroniumGroups,
@@ -232,11 +276,15 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
     aroniumCustomers,
     aroniumDocuments,
     aroniumDocumentItems,
+    aroniumDocumentItemTaxes,
+    aroniumDocumentTypes,
     aroniumPayments,
     aroniumPaymentTypes,
     aroniumStock,
+    aroniumStockEntries,
     aroniumStockControls,
     countryMap,
+    sourceWarnings = [],
   } = data;
 
   // ── Pre-load existing keys to avoid duplicates ───────────────────────────
@@ -281,6 +329,37 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
       .filter(Boolean),
   );
 
+  // ── Suspend LAN-sync triggers for the duration of the import ─────────────
+  // Every insert below would otherwise fire a sync_* trigger writing a JSON
+  // event row into sync_queue — a full Aronium import generated 360k+ queue
+  // rows, bogging down both the import itself and the sync machinery ever
+  // after. A fresh import should reach other terminals via a snapshot push,
+  // not a row-by-row event replay. Triggers are re-created before returning;
+  // if the import crashes mid-way, the Rust side re-installs them on the
+  // next app launch (setup_database_triggers in lib.rs).
+  const syncTriggers = (await sqlite
+    .select<any[]>(
+      `SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'sync_%'`,
+    )
+    .catch(() => [])) as { name: string; sql: string }[];
+  for (const trigger of syncTriggers) {
+    await sqlite.execute(`DROP TRIGGER IF EXISTS "${trigger.name}"`);
+  }
+  const restoreSyncTriggers = async () => {
+    for (const trigger of syncTriggers) {
+      if (trigger.sql) {
+        await sqlite
+          .execute(trigger.sql)
+          .catch((e) =>
+            console.warn(
+              `[aronium-import] failed to restore trigger ${trigger.name}:`,
+              e,
+            ),
+          );
+      }
+    }
+  };
+
   let taxCount = 0,
     groupCount = 0,
     productCount = 0,
@@ -291,9 +370,16 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   let documentItemCount = 0,
     documentPaymentCount = 0,
     stockEntryCount = 0;
-  const nowTimestamp = Date.now();
+  // Epoch SECONDS, not milliseconds: every timestamp column in the app's
+  // drizzle schema uses integer mode "timestamp", which reads values as
+  // `new Date(value * 1000)` and writes `getTime() / 1000`. Writing raw
+  // Date.now() ms here (as this importer once did) made every imported
+  // date deserialize ~55,000 years in the future, so date-range queries
+  // (dashboard charts, sales history) never matched a single imported row.
+  const nowTimestamp = Math.floor(Date.now() / 1000);
 
   // ── TAXES ─────────────────────────────────────────────────────────────────
+  onProgress(`Importing taxes (${aroniumTaxes.length})…`);
   const taxIdMap = new Map<number, string>();
   for (const t of aroniumTaxes) {
     const id = t.Id ?? t.id;
@@ -325,6 +411,7 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   }
 
   // ── GROUPS ────────────────────────────────────────────────────────────────
+  onProgress(`Importing groups (${aroniumGroups.length})…`);
   const validGroupIds = new Set<number>(
     aroniumGroups
       .map((g) => Number(pickField(g, "Id", "id")))
@@ -354,8 +441,11 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   }
 
   // ── PRODUCTS ──────────────────────────────────────────────────────────────
+  onProgress(`Importing products (${aroniumProducts.length})…`);
   const validProductIds = new Set<number>();
   const productIdMap = new Map<number, string>();
+  let productsLinked = 0,
+    productsSkipped = 0;
 
   for (const p of aroniumProducts) {
     const rawId = pickField(p, "Id", "id");
@@ -370,29 +460,37 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
       code = `${originalCode}-${c++}`;
     existingCodes.add(code.toLowerCase());
     const posProductId = `aronium-product-${pId}`;
-    const posNodeId = `aronium-product-node-${pId}`;
     productIdMap.set(pId, posProductId);
     const name = p.Name ?? p.name ?? "Unnamed Product";
-    await sqlite.execute(
-      `INSERT OR IGNORE INTO nodes (id, name, display_name, type, parent_id, image, color, position, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-      [
-        posNodeId,
-        name,
-        name,
-        "product",
-        "root",
-        null,
-        p.Color ?? p.color ?? "Transparent",
-        Number(p.Rank ?? p.rank ?? 0),
-        nowTimestamp,
-        nowTimestamp,
-      ],
+
+    // Products attach directly to their group's node, exactly like a
+    // manually-created product does (see useCreateProduct's
+    // `nodeId: groupId`) — there is no separate per-product node. The
+    // `nodes.products` relation that powers the sidebar tree and the
+    // "products in this group" queries only ever matches
+    // `products.nodeId === nodes.id` directly, so routing through an extra
+    // per-product proxy node (as this importer used to) meant the relation
+    // never found the product at all.
+    const rawProductGroupId = pickField(
+      p,
+      "ProductGroupId",
+      "product_group_id",
+      "GroupId",
     );
+    const productGroupId =
+      rawProductGroupId == null ? NaN : Number(rawProductGroupId);
+    const productNodeId =
+      !isNaN(productGroupId) && validGroupIds.has(productGroupId)
+        ? `aronium-group-${productGroupId}`
+        : "root";
+    if (productNodeId === "root") productsSkipped++;
+    else productsLinked++;
+
     await sqlite.execute(
       `INSERT OR IGNORE INTO products (id, node_id, supplier_id, owner_id, company_id, title, code, unit, active, service, default_quantity, age_restriction, description, image, color, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         posProductId,
-        posNodeId,
+        productNodeId,
         null,
         null,
         null,
@@ -430,6 +528,7 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   }
 
   // ── BARCODES ──────────────────────────────────────────────────────────────
+  onProgress(`Importing barcodes (${aroniumBarcodes.length})…`);
   for (const b of aroniumBarcodes) {
     const id = b.Id ?? b.id;
     const aroniumProductId = b.ProductId ?? b.productid ?? b.product_id;
@@ -470,6 +569,7 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
   }
 
   // ── CUSTOMERS ─────────────────────────────────────────────────────────────
+  onProgress(`Importing customers (${aroniumCustomers.length})…`);
   const customerIdMap = new Map<number, string>();
 
   for (const cust of aroniumCustomers) {
@@ -545,7 +645,197 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
     );
   }
 
+  // ── STOCK ─────────────────────────────────────────────────────────────────
+  onProgress("Importing stock quantities…");
+  // Aronium Stock/StockEntry table: Id, ProductId, WarehouseId, Quantity —
+  // one row per product/warehouse pair. We SUM across warehouses so the
+  // stock_entries table (one row per product) gets the total on-hand qty.
+  //
+  // Different Aronium versions/backups appear to use different table names
+  // for this ("Stock" vs "StockEntry" — the Rust .bak reader queries both).
+  // Reading only "Stock" meant imports from a backup whose data actually
+  // lives in "StockEntry" silently produced zero stock rows. Prefer "Stock"
+  // and fall back to "StockEntry" only if it's empty — summing both
+  // unconditionally would double-count on the (unlikely but possible) chance
+  // a database has real rows in both.
+  const stockRows = aroniumStock.length > 0 ? aroniumStock : aroniumStockEntries;
+  if (aroniumStock.length === 0 && aroniumStockEntries.length > 0) {
+    console.info(
+      `[aronium-import] stock quantities came from "StockEntry" (${aroniumStockEntries.length} rows) — "Stock" was empty.`,
+    );
+  }
+
+  // Build a map: aroniumProductId → total quantity (summed across warehouses)
+  const stockQtyMap = new Map<number, number>();
+  for (const s of stockRows) {
+    const aroniumProdId = pickField(s, "ProductId", "product_id");
+    if (aroniumProdId == null) continue;
+    const pId = Number(aroniumProdId);
+    if (isNaN(pId) || !validProductIds.has(pId)) continue;
+    const qty = Number(pickField(s, "Quantity", "quantity") ?? 0);
+    stockQtyMap.set(pId, (stockQtyMap.get(pId) ?? 0) + qty);
+  }
+
+  // Build a map: aroniumProductId → StockControl row (reorder info)
+  const stockControlMap = new Map<number, any>();
+  for (const sc of aroniumStockControls) {
+    const aroniumProdId = pickField(sc, "ProductId", "product_id");
+    if (aroniumProdId == null) continue;
+    const scId = Number(aroniumProdId);
+    if (!isNaN(scId)) stockControlMap.set(scId, sc);
+  }
+
+  for (const [pId, quantity] of stockQtyMap) {
+    const posProductId = `aronium-product-${pId}`;
+    const sc = stockControlMap.get(pId);
+    // pickField (not a raw `??` chain) is required here: it falls back to a
+    // case-insensitive scan of the row's actual keys, which is what catches
+    // camelCase source columns like "preferredQuantity" — `sc.reorderpoint`
+    // is a literal property lookup and does NOT match a real key spelled
+    // "reorderPoint", so these silently resolved to their 0/null default for
+    // any camelCase-named export.
+    const reorderPoint = sc
+      ? Number(pickField(sc, "ReorderPoint", "reorder_point") ?? 0)
+      : null;
+    const preferredQty = sc
+      ? Number(pickField(sc, "PreferredQuantity", "preferred_quantity") ?? 0)
+      : null;
+    const lowStockWarning = sc
+      ? Number(
+          pickField(
+            sc,
+            "IsLowStockWarningEnabled",
+            "is_low_stock_warning_enabled",
+          ),
+        ) === 1
+        ? 1
+        : 0
+      : 0;
+    const lowStockWarningQty = sc
+      ? Number(
+          pickField(
+            sc,
+            "LowStockWarningQuantity",
+            "low_stock_warning_quantity",
+          ) ?? 0,
+        )
+      : 0;
+
+    // Proper upsert: INSERT ... ON CONFLICT DO UPDATE (no INSERT OR IGNORE
+    // which would silently swallow conflicts and prevent the SET clause
+    // from running).
+    await sqlite.execute(
+      `INSERT INTO stock_entries
+         (id, product_id, type, quantity, reorder_point, preferred_quantity,
+          low_stock_warning, low_stock_warning_quantity, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(product_id) DO UPDATE SET
+         quantity                  = excluded.quantity,
+         type                      = excluded.type,
+         reorder_point             = excluded.reorder_point,
+         preferred_quantity        = excluded.preferred_quantity,
+         low_stock_warning         = excluded.low_stock_warning,
+         low_stock_warning_quantity= excluded.low_stock_warning_quantity`,
+      [
+        `aronium-se-${pId}`,
+        posProductId,
+        "adjustment",
+        quantity,
+        reorderPoint,
+        preferredQty,
+        lowStockWarning,
+        lowStockWarningQty,
+        nowTimestamp,
+      ],
+    );
+    stockEntryCount++;
+  }
+  console.info(
+    `[aronium-import] stock: ${stockRows.length} source row(s) → ${stockQtyMap.size} product(s) got a stock_entries row ` +
+      `(${aroniumProducts.length} product(s) total, ${aroniumStockControls.length} StockControl row(s) matched). ` +
+      `Source table: ${aroniumStock.length > 0 ? "Stock" : aroniumStockEntries.length > 0 ? "StockEntry" : "(none found)"}.`,
+  );
+  // Always dump a few raw source rows and their resolved (productId,
+  // quantity) pairs — whether the count above looks right or not, this is
+  // the fastest way to confirm the actual column names/values coming out of
+  // a real Aronium export match what this importer assumes.
+  if (stockRows.length > 0) {
+    console.info(
+      "[aronium-import] sample Stock/StockEntry rows (raw):",
+      stockRows.slice(0, 3),
+    );
+  } else {
+    console.warn(
+      "[aronium-import] Neither \"Stock\" nor \"StockEntry\" returned any rows at all.",
+    );
+  }
+  if (stockQtyMap.size > 0) {
+    console.info(
+      "[aronium-import] sample resolved (productId → quantity):",
+      [...stockQtyMap.entries()].slice(0, 5),
+    );
+  } else if (stockRows.length > 0) {
+    console.warn(
+      "[aronium-import] Stock/StockEntry rows exist but none resolved to a quantity — " +
+        "likely a ProductId/Quantity field-name or type mismatch. Sample raw row:",
+      stockRows[0],
+    );
+  }
+
+  // ── HIERARCHY PASS 2 ──────────────────────────────────────────────────────
+  // Nests subgroups under their real parent group (products already got
+  // their correct node_id directly at insert time above — no product-level
+  // reparenting needed).
+  //
+  // IDs are always run through Number(...) before being interpolated into a
+  // node id here — matching exactly how they were coerced when the group
+  // node was first inserted above. Building the id string from a raw
+  // (possibly string-typed) value in one pass and a Number-coerced value in
+  // the other would make the two template strings diverge (e.g.
+  // "aronium-group-5" vs "aronium-group-05"), so the UPDATE below would
+  // silently match zero rows and the group would quietly stay parented to
+  // "root" instead of its real parent.
+  let groupsLinked = 0,
+    groupsSkipped = 0;
+  for (const g of aroniumGroups) {
+    const rawId = pickField(g, "Id", "id");
+    if (rawId == null) continue;
+    const gId = Number(rawId);
+    if (isNaN(gId)) continue;
+    const rawParentGroupId = pickField(g, "ParentGroupId", "parent_group_id");
+    if (rawParentGroupId == null) continue;
+    const parentGroupId = Number(rawParentGroupId);
+    if (!isNaN(parentGroupId) && validGroupIds.has(parentGroupId)) {
+      await sqlite.execute(`UPDATE nodes SET parent_id = ? WHERE id = ?`, [
+        `aronium-group-${parentGroupId}`,
+        `aronium-group-${gId}`,
+      ]);
+      groupsLinked++;
+    } else {
+      groupsSkipped++;
+    }
+  }
+  console.info(
+    `[aronium-import] group hierarchy: ${groupsLinked} linked, ${groupsSkipped} skipped (no/unknown parent). ` +
+      `product grouping: ${productsLinked} linked, ${productsSkipped} skipped (no/unknown group).`,
+  );
+  if (aroniumProducts.length > 0 && productsLinked === 0) {
+    console.warn(
+      "[aronium-import] No products were linked to any group. Sample product row keys:",
+      Object.keys(aroniumProducts[0]),
+    );
+  }
+
+  // The node tree just changed (new groups + products attached to them) via
+  // raw SQL, bypassing the node mutation hooks that normally bust this cache
+  // — clear it so "products by group" queries see the new hierarchy instead
+  // of a stale pre-import parent/child mapping.
+  invalidateChildNodeIdsCache();
+
   // ── DOCUMENTS ─────────────────────────────────────────────────────────────
+  onProgress(
+    `Importing documents (${aroniumDocuments.length} — this is the long part)…`,
+  );
   // Aronium Document columns: Id, Number, ExternalNumber, CustomerId, Date,
   //   TotalWithTax, TotalWithoutTax, TaxTotal, DocumentTypeId, IsDeleted, etc.
   // Payment links to Document via DocumentId.
@@ -603,6 +893,68 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
     paymentsByDocId.get(did)!.push(payment);
   }
 
+  // ── Lookup maps ──────────────────────────────────────────────────────────
+  // Aronium's real schema (verified against a live backup):
+  //   Document:      Id, Number, UserId, CustomerId, Date, Total,
+  //                  DocumentTypeId, PaidStatus, Discount, DueDate, …
+  //   DocumentItem:  Id, DocumentId, ProductId, Quantity, PriceBeforeTax,
+  //                  Price, Discount, Total, … (NO Name/Unit/TaxRate columns)
+  //   DocumentType:  Id, Name, Code — Code maps 1:1 onto this app's document
+  //                  type codes (100 Purchase, 120 Stock Return, 200 Sales,
+  //                  220 Refund, 230 Proforma, 300 Inventory, 400 Loss).
+  //   DocumentItemTax: DocumentItemId, TaxId, Amount — per-item tax.
+
+  // DocumentTypeId → app type code. Hardcoding 200 here (as this importer
+  // once did) turned every purchase/refund/inventory-count into a "Sale".
+  const typeCodeById = new Map<number, number>();
+  for (const dt of aroniumDocumentTypes) {
+    const dtId = Number(pickField(dt, "Id", "id"));
+    const code = Number(pickField(dt, "Code", "code"));
+    if (!isNaN(dtId) && !isNaN(code)) typeCodeById.set(dtId, code);
+  }
+
+  // DocumentItem has no product name/unit — resolve them from the product.
+  const productInfoById = new Map<
+    number,
+    { name: string; unit: string | null }
+  >();
+  for (const p of aroniumProducts) {
+    const pId = Number(pickField(p, "Id", "id"));
+    if (isNaN(pId)) continue;
+    productInfoById.set(pId, {
+      name: String(p.Name ?? p.name ?? "Product"),
+      unit: p.MeasurementUnit ?? p.measurementunit ?? null,
+    });
+  }
+
+  // Per-item tax rate/amount via DocumentItemTax → Tax.
+  const taxRateById = new Map<number, number>();
+  for (const t of aroniumTaxes) {
+    const tId = Number(pickField(t, "Id", "id"));
+    if (!isNaN(tId)) taxRateById.set(tId, Number(t.Rate ?? t.rate ?? 0));
+  }
+  const itemTaxRate = new Map<number, number>();
+  const itemTaxAmount = new Map<number, number>();
+  for (const it of aroniumDocumentItemTaxes) {
+    const itemId = Number(pickField(it, "DocumentItemId", "document_item_id"));
+    if (isNaN(itemId)) continue;
+    const taxId = Number(pickField(it, "TaxId", "tax_id"));
+    itemTaxRate.set(
+      itemId,
+      (itemTaxRate.get(itemId) ?? 0) + (taxRateById.get(taxId) ?? 0),
+    );
+    itemTaxAmount.set(
+      itemId,
+      (itemTaxAmount.get(itemId) ?? 0) +
+        Number(pickField(it, "Amount", "amount") ?? 0),
+    );
+  }
+
+  // ── Accumulate rows, then batch-insert ───────────────────────────────────
+  const docRows: any[][] = [];
+  const itemRows: any[][] = [];
+  const payRows: any[][] = [];
+
   for (const doc of aroniumDocuments) {
     const id = doc.Id ?? doc.id;
     if (id == null) continue;
@@ -624,51 +976,23 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
     }
 
     let docDate: number = nowTimestamp;
-    const rawDate = doc.Date ?? doc.date ?? doc.CreatedAt ?? doc.createdat;
+    const rawDate = doc.Date ?? doc.date ?? doc.DateCreated ?? doc.datecreated;
     if (rawDate) {
       const parsed = new Date(rawDate);
-      if (!isNaN(parsed.getTime())) docDate = parsed.getTime();
+      // Epoch seconds — see the nowTimestamp comment above.
+      if (!isNaN(parsed.getTime()))
+        docDate = Math.floor(parsed.getTime() / 1000);
     }
 
-    const totalWithTax = Number(
-      doc.TotalWithTax ?? doc.totalwithtax ?? doc.Total ?? doc.total ?? 0,
-    );
-    const totalWithoutTax = Number(
-      doc.TotalWithoutTax ?? doc.totalwithouttax ?? 0,
-    );
-    const taxTotal = Number(doc.TaxTotal ?? doc.taxtotal ?? 0);
+    const rawTypeId = doc.DocumentTypeId ?? doc.documenttypeid;
+    const typeCode =
+      rawTypeId != null ? (typeCodeById.get(Number(rawTypeId)) ?? 200) : 200;
 
-    // Aronium marks deleted/voided documents via IsDeleted flag or PosVoid rows.
-    // We treat IsDeleted=1 as cancelled; everything else as posted.
-    const isDeleted =
-      (doc.IsDeleted ?? doc.isdeleted) === true ||
-      (doc.IsDeleted ?? doc.isdeleted) === 1;
-    const status = isDeleted ? "cancelled" : "posted";
-
-    const posDocId = `aronium-doc-${id}`;
-
-    await sqlite.execute(
-      `INSERT OR IGNORE INTO documents (id, number, external_number, customer_id, date, paid, type, status, total_before_tax, tax_total, total, total_paid, outstanding_balance, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        posDocId,
-        rawNumber,
-        doc.ExternalNumber ?? doc.externalnumber ?? null,
-        posCustomerId,
-        docDate,
-        isDeleted ? 0 : 1,
-        200, // sale type
-        status,
-        totalWithoutTax,
-        taxTotal,
-        totalWithTax,
-        isDeleted ? 0 : totalWithTax,
-        0,
-        docDate,
-      ],
-    );
-    documentCount++;
+    const totalWithTax = Number(doc.Total ?? doc.total ?? 0);
+    const posDocId = `doc-${id}`;
 
     // ── DocumentItem → document_items ────────────────────────────────────
+    let docTaxTotal = 0;
     for (const item of itemsByDocId.get(Number(id)) ?? []) {
       const aroniumProdId = item.ProductId ?? item.productid ?? item.product_id;
       const posProductId =
@@ -677,37 +1001,27 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
           : null;
       if (!posProductId) continue;
 
-      await sqlite.execute(
-        `INSERT OR IGNORE INTO document_items (id, document_id, product_id, name, unit, quantity, price_before_tax, tax_rate, discount, total) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-        [
-          `aronium-di-${item.Id ?? item.id ?? crypto.randomUUID()}`,
-          posDocId,
-          posProductId,
-          String(item.Name ?? item.name ?? "Product"),
-          item.MeasurementUnit ?? item.measurementunit ?? null,
-          Number(item.Quantity ?? item.quantity ?? 1),
-          Number(
-            item.PriceWithoutTax ??
-              item.pricewithoutax ??
-              item.Price ??
-              item.price ??
-              0,
-          ),
-          Number(item.TaxRate ?? item.taxrate ?? 0),
-          Number(item.Discount ?? item.discount ?? 0),
-          Number(
-            item.TotalWithTax ??
-              item.totalwithtax ??
-              item.Total ??
-              item.total ??
-              0,
-          ),
-        ],
-      );
+      const itemId = Number(item.Id ?? item.id);
+      const info = productInfoById.get(Number(aroniumProdId));
+      docTaxTotal += itemTaxAmount.get(itemId) ?? 0;
+
+      itemRows.push([
+        `doc-item-${item.Id ?? item.id ?? crypto.randomUUID()}`,
+        posDocId,
+        posProductId,
+        info?.name ?? "Product",
+        info?.unit ?? null,
+        Number(item.Quantity ?? item.quantity ?? 1),
+        Number(item.PriceBeforeTax ?? item.pricebeforetax ?? item.Price ?? 0),
+        itemTaxRate.get(itemId) ?? 0,
+        Number(item.Discount ?? item.discount ?? 0),
+        Number(item.Total ?? item.total ?? 0),
+      ]);
       documentItemCount++;
     }
 
     // ── Payment → docmentPayments ────────────────────────────────────────
+    let paidSum = 0;
     for (const payment of paymentsByDocId.get(Number(id)) ?? []) {
       const ptId =
         payment.PaymentTypeId ??
@@ -717,171 +1031,103 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
         ptId != null
           ? (paymentTypeNameMap.get(Number(ptId)) ?? "Cash")
           : "Cash";
+      const amount = Number(payment.Amount ?? payment.amount ?? 0);
+      paidSum += amount;
 
-      await sqlite.execute(
-        `INSERT OR IGNORE INTO docmentPayments (id, document_id, payment_id, status, payment_type, amount, date) VALUES (?,?,?,?,?,?,?)`,
-        [
-          `aronium-pay-${payment.Id ?? payment.id ?? crypto.randomUUID()}`,
-          posDocId,
-          `aronium-pt-${ptId ?? "unknown"}`,
-          "paid",
-          paymentType,
-          Number(payment.Amount ?? payment.amount ?? 0),
-          docDate,
-        ],
-      );
+      payRows.push([
+        `aronium-pay-${payment.Id ?? payment.id ?? crypto.randomUUID()}`,
+        posDocId,
+        `aronium-pt-${ptId ?? "unknown"}`,
+        "paid",
+        paymentType,
+        amount,
+        docDate,
+      ]);
       documentPaymentCount++;
     }
+
+    // `paid` is derived from actual payment rows rather than Aronium's
+    // PaidStatus enum, whose values proved ambiguous in real data.
+    const isPaid = totalWithTax > 0 && paidSum >= totalWithTax - 0.005;
+
+    docRows.push([
+      posDocId,
+      rawNumber,
+      null, // Aronium Document has no external-number column
+      posCustomerId,
+      docDate,
+      isPaid ? 1 : 0,
+      typeCode,
+      "posted",
+      totalWithTax - docTaxTotal,
+      docTaxTotal,
+      totalWithTax,
+      paidSum,
+      Math.max(0, totalWithTax - paidSum),
+      docDate,
+    ]);
+    documentCount++;
   }
 
-  // ── STOCK ─────────────────────────────────────────────────────────────────
-  // Aronium Stock table: Id, ProductId, WarehouseId, Quantity
-  // One row per product/warehouse pair. We SUM across warehouses so the
-  // stock_entries table (one row per product) gets the total on-hand qty.
-
-  // Build a map: aroniumProductId → total quantity (summed across warehouses)
-  const stockQtyMap = new Map<number, number>();
-  for (const s of aroniumStock) {
-    const aroniumProdId = s.ProductId ?? s.productid ?? s.product_id;
-    if (aroniumProdId == null) continue;
-    const pId = Number(aroniumProdId);
-    if (!validProductIds.has(pId)) continue;
-    const qty = Number(s.Quantity ?? s.quantity ?? 0);
-    stockQtyMap.set(pId, (stockQtyMap.get(pId) ?? 0) + qty);
-  }
-
-  // Build a map: aroniumProductId → StockControl row (reorder info)
-  const stockControlMap = new Map<number, any>();
-  for (const sc of aroniumStockControls) {
-    const aroniumProdId = sc.ProductId ?? sc.productid ?? sc.product_id;
-    if (aroniumProdId == null) continue;
-    stockControlMap.set(Number(aroniumProdId), sc);
-  }
-
-  for (const [pId, quantity] of stockQtyMap) {
-    const posProductId = `aronium-product-${pId}`;
-    const sc = stockControlMap.get(pId);
-    const reorderPoint = sc
-      ? Number(sc.ReorderPoint ?? sc.reorderpoint ?? 0)
-      : null;
-    const preferredQty = sc
-      ? Number(sc.PreferredQuantity ?? sc.preferredquantity ?? 0)
-      : null;
-    const lowStockWarning = sc
-      ? (sc.IsLowStockWarningEnabled ?? sc.islowstockwarningenabled) === 1
-        ? 1
-        : 0
-      : 0;
-    const lowStockWarningQty = sc
-      ? Number(
-          sc.LowStockWarningQuantity ?? sc.lowstockwarningquantity ?? 0,
-        )
-      : 0;
-
-    // Proper upsert: INSERT ... ON CONFLICT DO UPDATE (no INSERT OR IGNORE
-    // which would silently swallow conflicts and prevent the SET clause
-    // from running).
-    await sqlite.execute(
-      `INSERT INTO stock_entries
-         (id, product_id, type, quantity, reorder_point, preferred_quantity,
-          low_stock_warning, low_stock_warning_quantity, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(product_id) DO UPDATE SET
-         quantity                  = excluded.quantity,
-         type                      = excluded.type,
-         reorder_point             = excluded.reorder_point,
-         preferred_quantity        = excluded.preferred_quantity,
-         low_stock_warning         = excluded.low_stock_warning,
-         low_stock_warning_quantity= excluded.low_stock_warning_quantity`,
-      [
-        `aronium-se-${pId}`,
-        posProductId,
-        "adjustment",
-        quantity,
-        reorderPoint,
-        preferredQty,
-        lowStockWarning,
-        lowStockWarningQty,
-        nowTimestamp,
-      ],
-    );
-    stockEntryCount++;
-  }
-
-  // ── HIERARCHY PASS 2 ──────────────────────────────────────────────────────
-  // IDs are always run through Number(...) before being interpolated into a
-  // node id here — matching exactly how they were coerced when the group/
-  // product node was first inserted above. Building the id string from a raw
-  // (possibly string-typed) value in one pass and a Number-coerced value in
-  // the other would make the two template strings diverge (e.g.
-  // "aronium-group-5" vs "aronium-group-05"), so the UPDATE below would
-  // silently match zero rows and the row would quietly stay parented to
-  // "root" instead of its real group.
-  let groupsLinked = 0,
-    groupsSkipped = 0;
-  for (const g of aroniumGroups) {
-    const rawId = pickField(g, "Id", "id");
-    if (rawId == null) continue;
-    const gId = Number(rawId);
-    if (isNaN(gId)) continue;
-    const rawParentGroupId = pickField(g, "ParentGroupId", "parent_group_id");
-    if (rawParentGroupId == null) continue;
-    const parentGroupId = Number(rawParentGroupId);
-    if (!isNaN(parentGroupId) && validGroupIds.has(parentGroupId)) {
-      await sqlite.execute(`UPDATE nodes SET parent_id = ? WHERE id = ?`, [
-        `aronium-group-${parentGroupId}`,
-        `aronium-group-${gId}`,
-      ]);
-      groupsLinked++;
-    } else {
-      groupsSkipped++;
-    }
-  }
-  let productsLinked = 0,
-    productsSkipped = 0;
-  for (const p of aroniumProducts) {
-    const rawId = pickField(p, "Id", "id");
-    if (rawId == null) continue;
-    const pId = Number(rawId);
-    if (isNaN(pId)) continue;
-    const rawProductGroupId = pickField(
-      p,
-      "ProductGroupId",
-      "product_group_id",
-      "GroupId",
-    );
-    if (rawProductGroupId == null) continue;
-    const productGroupId = Number(rawProductGroupId);
-    if (!isNaN(productGroupId) && validGroupIds.has(productGroupId)) {
-      await sqlite.execute(`UPDATE nodes SET parent_id = ? WHERE id = ?`, [
-        `aronium-group-${productGroupId}`,
-        `aronium-product-node-${pId}`,
-      ]);
-      productsLinked++;
-    } else {
-      productsSkipped++;
-    }
-  }
-  console.info(
-    `[aronium-import] group hierarchy: ${groupsLinked} linked, ${groupsSkipped} skipped (no/unknown parent). ` +
-      `product grouping: ${productsLinked} linked, ${productsSkipped} skipped (no/unknown group).`,
+  await batchInsert(
+    "documents",
+    [
+      "id",
+      "number",
+      "external_number",
+      "customer_id",
+      "date",
+      "paid",
+      "type",
+      "status",
+      "total_before_tax",
+      "tax_total",
+      "total",
+      "total_paid",
+      "outstanding_balance",
+      "created_at",
+    ],
+    docRows,
+    (done, total) => onProgress(`Importing documents ${done}/${total}…`),
   );
-  if (aroniumProducts.length > 0 && productsLinked === 0) {
+  await batchInsert(
+    "document_items",
+    [
+      "id",
+      "document_id",
+      "product_id",
+      "name",
+      "unit",
+      "quantity",
+      "price_before_tax",
+      "tax_rate",
+      "discount",
+      "total",
+    ],
+    itemRows,
+    (done, total) => onProgress(`Importing document items ${done}/${total}…`),
+  );
+  await batchInsert(
+    "docmentPayments",
+    ["id", "document_id", "payment_id", "status", "payment_type", "amount", "date"],
+    payRows,
+    (done, total) => onProgress(`Importing payments ${done}/${total}…`),
+  );
+
+  await restoreSyncTriggers();
+
+  if (sourceWarnings.length > 0) {
     console.warn(
-      "[aronium-import] No products were linked to any group. Sample product row keys:",
-      Object.keys(aroniumProducts[0]),
+      `[aronium-import] ${sourceWarnings.length} table(s) failed to fetch from the source database ` +
+        `and contributed zero rows:`,
+      sourceWarnings,
     );
   }
-
-  // The node tree just changed (new groups + product nodes reparented under
-  // them) via raw SQL, bypassing the node mutation hooks that normally bust
-  // this cache — clear it so "products by group" queries see the new
-  // hierarchy instead of a stale pre-import parent/child mapping.
-  invalidateChildNodeIdsCache();
 
   return {
     success: true,
     message: "Database imported successfully!",
+    warnings: sourceWarnings.length > 0 ? sourceWarnings : undefined,
     counts: {
       taxes: taxCount,
       groups: groupCount,
@@ -903,6 +1149,7 @@ async function runImport(data: AroniumData): Promise<ImportResult> {
 
 export async function importAroniumDatabase(
   filePath: string,
+  onProgress: (stage: string) => void = () => {},
 ): Promise<ImportResult> {
   try {
     await ensureRootNode();
@@ -913,6 +1160,7 @@ export async function importAroniumDatabase(
     if (fileType === "mssql-bak") {
       let tablesJson: string;
       try {
+        onProgress("Restoring SQL Server backup (this can take a minute)…");
         tablesJson = await invoke<string>("import_aronium_bak", { filePath });
         console.log(
           "Aronium .bak import completed, JSON length:",
@@ -926,7 +1174,15 @@ export async function importAroniumDatabase(
         );
       }
 
+      onProgress("Parsing exported tables…");
       const tables: Record<string, any[]> = JSON.parse(tablesJson);
+      const sourceWarnings: string[] = (tables["_ImportErrors"] ?? []) as string[];
+      if (sourceWarnings.length > 0) {
+        console.warn(
+          "[aronium-import] .bak reader reported table fetch failures:",
+          sourceWarnings,
+        );
+      }
 
       const countryMap = new Map<number, string>();
       for (const c of tables["Country"] ?? []) {
@@ -945,12 +1201,16 @@ export async function importAroniumDatabase(
         aroniumCustomers: tables["Customer"] ?? [],
         aroniumDocuments: tables["Document"] ?? [],
         aroniumDocumentItems: tables["DocumentItem"] ?? [],
+        aroniumDocumentItemTaxes: tables["DocumentItemTax"] ?? [],
+        aroniumDocumentTypes: tables["DocumentType"] ?? [],
         aroniumPayments: tables["Payment"] ?? [],
         aroniumPaymentTypes: tables["PaymentType"] ?? [],
         aroniumStock: tables["Stock"] ?? [],
+        aroniumStockEntries: tables["StockEntry"] ?? [],
         aroniumStockControls: tables["StockControl"] ?? [],
         countryMap,
-      });
+        sourceWarnings,
+      }, onProgress);
     }
 
     // ── Path B: binary SQLite ─────────────────────────────────────────────
@@ -979,12 +1239,15 @@ export async function importAroniumDatabase(
           aroniumCustomers: await q("Customer"),
           aroniumDocuments: await q("Document"),
           aroniumDocumentItems: await q("DocumentItem"),
+          aroniumDocumentItemTaxes: await q("DocumentItemTax"),
+          aroniumDocumentTypes: await q("DocumentType"),
           aroniumPayments: await q("Payment"),
           aroniumPaymentTypes: await q("PaymentType"),
           aroniumStock: await q("Stock"),
+          aroniumStockEntries: await q("StockEntry"),
           aroniumStockControls: await q("StockControl"),
           countryMap,
-        });
+        }, onProgress);
       } finally {
         aroniumSqlite = null;
       }
@@ -1016,12 +1279,15 @@ export async function importAroniumDatabase(
       aroniumCustomers: tables.Customer,
       aroniumDocuments: tables.Document,
       aroniumDocumentItems: tables.DocumentItem,
+      aroniumDocumentItemTaxes: tables.DocumentItemTax,
+      aroniumDocumentTypes: tables.DocumentType,
       aroniumPayments: tables.Payment,
       aroniumPaymentTypes: tables.PaymentType,
       aroniumStock: tables.Stock,
+      aroniumStockEntries: tables.StockEntry,
       aroniumStockControls: tables.StockControl,
       countryMap,
-    });
+    }, onProgress);
   } catch (err) {
     console.error("Aronium import error:", err);
     return {

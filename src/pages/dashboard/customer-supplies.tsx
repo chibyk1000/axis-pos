@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import CustomerSupplierDrawer from "@/components/customer-drawer";
 import CustomerImportModal from "@/components/customer-import";
 import { useCustomers, useDeleteCustomer } from "@/hooks/controllers/customers";
+import { useInfiniteRows } from "@/hooks/useInfiniteRows";
 import { confirm, message } from "@tauri-apps/plugin-dialog";
 import { Customer } from "@/db/schema";
 
@@ -40,13 +41,18 @@ export default function CustomersSuppliersClient() {
   const { data = [] } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
 
-  console.log("cust", data);
   const filteredCustomers = data?.filter((customer) =>
     JSON.stringify(customer).toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const {
+    visibleRows: visibleCustomers,
+    containerRef,
+    sentinelRef,
+    hasMore,
+  } = useInfiniteRows(filteredCustomers, 50);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200">
       <CustomerSupplierDrawer
         onOpenChange={setOpen}
         open={open}
@@ -158,9 +164,9 @@ export default function CustomersSuppliersClient() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div ref={containerRef} className="flex-1 min-h-0 overflow-auto">
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
+            <thead className="sticky top-0 z-10 bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700">
               <tr>
                 {[
                   "Code",
@@ -185,7 +191,7 @@ export default function CustomersSuppliersClient() {
             </thead>
             <tbody>
               {filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer) => (
+                visibleCustomers.map((customer) => (
                   <tr
                     key={customer.id}
                     className={`border-b border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700/50 transition-colors cursor-pointer ${
@@ -230,10 +236,20 @@ export default function CustomersSuppliersClient() {
               ) : (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={10}
                     className="px-6 py-8 text-center text-stone-500 dark:text-stone-400"
                   >
                     No customers or suppliers found
+                  </td>
+                </tr>
+              )}
+              {hasMore && (
+                <tr ref={sentinelRef}>
+                  <td
+                    colSpan={10}
+                    className="px-6 py-3 text-center text-xs text-stone-500"
+                  >
+                    Loading more…
                   </td>
                 </tr>
               )}

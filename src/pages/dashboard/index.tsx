@@ -643,7 +643,9 @@ export default function Dashboard() {
   const rangeLabel = `${format(range.from, "MM/dd/yyyy")} – ${format(range.to, "MM/dd/yyyy")}`;
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+    // flex-1 + overflow-y-auto: the app shell is clamped to the viewport, so
+    // this page scrolls its own content (min-h-screen would just get clipped).
+    <div className="flex-1 min-h-0 overflow-y-auto bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
       {modalOpen && (
         <DateRangeModal
           range={range}

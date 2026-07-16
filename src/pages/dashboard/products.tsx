@@ -863,7 +863,7 @@ export function ProductsView() {
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex-1 w-full overflow-hidden flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 h-full">
+    <div className="flex-1 w-full min-h-0 overflow-hidden flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 h-full">
       <AddGroupDrawer
         open={drawerOpen}
         onOpenChange={() => {
@@ -984,7 +984,7 @@ export function ProductsView() {
         </div>
 
         {/* Table area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3 flex-1 max-w-md">
               <span className="text-stone-500">🔍</span>

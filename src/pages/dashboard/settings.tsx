@@ -1,5 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../../store";
 import {
@@ -36,7 +37,11 @@ import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaxes } from "@/hooks/controllers/taxes";
 import { importAroniumDatabase } from "../../helpers/aroniumImporter";
-import { resetDatabase } from "../../helpers/resetDatabase";
+import {
+  resetDatabase,
+  previewResetTables,
+  TABLE_CATEGORIES,
+} from "../../helpers/resetDatabase";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SettingsPage() {
@@ -70,6 +75,10 @@ export default function SettingsPage() {
   const [isResettingDb, setIsResettingDb] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetDone, setResetDone] = useState(false);
+  const [resetMode, setResetMode] = useState<"all" | "selected">("all");
+  const [selectedResetCategories, setSelectedResetCategories] = useState<
+    Set<string>
+  >(new Set());
 
   // SQL Server detection state (used in Database tab)
   const [sqlServerStatus, setSqlServerStatus] = useState<{
@@ -109,7 +118,7 @@ export default function SettingsPage() {
       await shellOpen(SQL_LOCALDB_DOWNLOAD_URL);
     } catch (err) {
       console.error(err);
-      alert("Failed to open download link: " + err);
+      toast.error("Failed to open download link: " + err);
     }
   };
 
@@ -142,31 +151,83 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to select database file: " + err);
+      toast.error("Failed to select database file: " + err);
     }
   };
 
   const executeImport = async () => {
-    if (!pendingFilePath) return;
+    // Capture and clear the pending path SYNCHRONOUSLY so a double-click on
+    // the confirm button can't start two concurrent imports — the second
+    // run's setup drops/re-restores the temp SQL Server database out from
+    // under the first, making every table read come back empty.
+    const filePath = pendingFilePath;
+    if (!filePath || isImportingAronium) return;
+    setPendingFilePath(null);
+
+    const toastId = toast.loading("Importing Aronium database…");
     try {
       setIsImportingAronium(true);
-      const result = await importAroniumDatabase(pendingFilePath);
+      const result = await importAroniumDatabase(filePath, (stage) =>
+        toast.update(toastId, { render: stage, isLoading: true }),
+      );
       setIsImportingAronium(false);
-      setPendingFilePath(null);
 
       if (result.success) {
         await queryClient.invalidateQueries();
-        alert(
-          `Database imported successfully!\n\nImported:\n- ${result.counts.taxes} Taxes\n- ${result.counts.groups} Groups\n- ${result.counts.products} Products\n- ${result.counts.barcodes} Barcodes\n- ${result.counts.productTaxes} Product Tax mappings\n- ${result.counts.customers} Customers\n- ${result.counts.documents} Documents\n- ${result.counts.documentItems} Document items\n- ${result.counts.documentPayments} Document payments\n- ${result.counts.stockEntries} Stock entries`,
-        );
+        const hasWarnings = (result.warnings?.length ?? 0) > 0;
+        toast.update(toastId, {
+          render: (
+            <div>
+              <p className="font-medium mb-1">Database imported successfully!</p>
+              <ul className="text-xs space-y-0.5">
+                <li>{result.counts.taxes} Taxes</li>
+                <li>{result.counts.groups} Groups</li>
+                <li>{result.counts.products} Products</li>
+                <li>{result.counts.barcodes} Barcodes</li>
+                <li>{result.counts.productTaxes} Product tax mappings</li>
+                <li>{result.counts.customers} Customers</li>
+                <li>{result.counts.documents} Documents</li>
+                <li>{result.counts.documentItems} Document items</li>
+                <li>{result.counts.documentPayments} Document payments</li>
+                <li>{result.counts.stockEntries} Stock entries</li>
+              </ul>
+              {hasWarnings && (
+                <>
+                  <p className="font-medium text-amber-500 mt-2 mb-1">
+                    {result.warnings!.length} table(s) failed to fetch from the
+                    backup and were skipped:
+                  </p>
+                  <ul className="text-xs space-y-0.5 text-amber-400">
+                    {result.warnings!.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          ),
+          type: hasWarnings ? "warning" : "success",
+          isLoading: false,
+          autoClose: hasWarnings ? false : 10000,
+          closeOnClick: true,
+        });
       } else {
-        alert("Import failed: " + result.message);
+        toast.update(toastId, {
+          render: "Import failed: " + result.message,
+          type: "error",
+          isLoading: false,
+          autoClose: 10000,
+        });
       }
     } catch (err) {
       setIsImportingAronium(false);
-      setPendingFilePath(null);
       console.error(err);
-      alert("Failed to import database: " + err);
+      toast.update(toastId, {
+        render: "Failed to import database: " + String(err),
+        type: "error",
+        isLoading: false,
+        autoClose: 10000,
+      });
     }
   };
 
@@ -206,11 +267,11 @@ export default function SettingsPage() {
         const dataDir = await appDataDir();
         const dbPath = await join(dataDir, "data.db");
         await copyFile(dbPath, savePath);
-        alert("Database exported successfully!");
+        toast.success("Database exported successfully!");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to export database: " + err);
+      toast.error("Failed to export database: " + err);
     }
   };
 
@@ -237,14 +298,37 @@ export default function SettingsPage() {
     }
   };
 
+  const selectedResetTables = TABLE_CATEGORIES.filter((c) =>
+    selectedResetCategories.has(c.label),
+  ).flatMap((c) => c.tables);
+
+  const resetPreviewTables =
+    resetMode === "all"
+      ? previewResetTables()
+      : previewResetTables(selectedResetTables);
+
+  const toggleResetCategory = (label: string) => {
+    setSelectedResetCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+    setResetDone(false);
+    setResetError(null);
+  };
+
   const handleResetDb = async () => {
     setIsResettingDb(true);
     setResetError(null);
     try {
-      await resetDatabase();
+      const { cleared } = await resetDatabase(
+        resetMode === "all" ? undefined : selectedResetTables,
+      );
       await queryClient.invalidateQueries();
       setResetDone(true);
       setResetTyped("");
+      console.info("[reset] cleared tables:", cleared);
     } catch (err) {
       console.error(err);
       setResetError("Failed to reset database: " + String(err));
@@ -1621,15 +1705,87 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-light mb-4 text-red-500">
                 Danger zone
               </h2>
-              <div className="max-w-md flex flex-col gap-4 p-4 rounded-lg border border-red-700/50 bg-red-900/10">
+              <div className="max-w-lg flex flex-col gap-4 p-4 rounded-lg border border-red-700/50 bg-red-900/10">
                 <p className="text-sm text-stone-600 dark:text-stone-400">
-                  Resetting the database permanently deletes{" "}
-                  <span className="font-semibold text-red-400">
-                    every record in every table
-                  </span>{" "}
-                  — products, customers, documents, stock, users, everything.
-                  This action cannot be undone. Consider backing up the
-                  database first.
+                  Resetting the database permanently deletes data from the
+                  local database. This action cannot be undone. Consider
+                  backing up the database first.
+                </p>
+
+                <div className="flex gap-4 text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={resetMode === "all"}
+                      onChange={() => {
+                        setResetMode("all");
+                        setResetDone(false);
+                        setResetError(null);
+                      }}
+                    />
+                    <span className="text-stone-700 dark:text-stone-300">
+                      All tables
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={resetMode === "selected"}
+                      onChange={() => {
+                        setResetMode("selected");
+                        setResetDone(false);
+                        setResetError(null);
+                      }}
+                    />
+                    <span className="text-stone-700 dark:text-stone-300">
+                      Selected tables only
+                    </span>
+                  </label>
+                </div>
+
+                {resetMode === "selected" && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {TABLE_CATEGORIES.map((cat) => (
+                      <label
+                        key={cat.label}
+                        className="flex items-center gap-2 text-xs text-stone-600 dark:text-stone-400 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedResetCategories.has(cat.label)}
+                          onChange={() => toggleResetCategory(cat.label)}
+                        />
+                        {cat.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-stone-500 dark:text-stone-500">
+                  {resetMode === "all" ? (
+                    <>
+                      Will clear <span className="text-red-400">every</span>{" "}
+                      table — products, customers, documents, stock, users,
+                      everything.
+                    </>
+                  ) : resetPreviewTables.length === 0 ? (
+                    "Select at least one category above."
+                  ) : (
+                    <>
+                      Will clear:{" "}
+                      <span className="font-mono text-stone-400">
+                        {resetPreviewTables.join(", ")}
+                      </span>
+                      {resetPreviewTables.length >
+                        selectedResetTables.length && (
+                        <>
+                          {" "}
+                          — some tables were added automatically because other
+                          selected tables reference them.
+                        </>
+                      )}
+                    </>
+                  )}
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -1651,7 +1807,11 @@ export default function SettingsPage() {
                 </div>
 
                 <button
-                  disabled={resetTyped !== "RESET" || isResettingDb}
+                  disabled={
+                    resetTyped !== "RESET" ||
+                    isResettingDb ||
+                    (resetMode === "selected" && resetPreviewTables.length === 0)
+                  }
                   onClick={handleResetDb}
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded w-fit transition-colors"
                 >
@@ -1664,7 +1824,7 @@ export default function SettingsPage() {
 
                 {resetDone && (
                   <p className="text-xs text-emerald-500">
-                    Database reset. All tables are now empty.
+                    Database reset.
                   </p>
                 )}
                 {resetError && (

@@ -86,7 +86,7 @@ export default function PaymentTypesClient() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
       <PaymentTypeDrawer
         open={drawerOpen}
         setOpen={setDrawerOpen}
@@ -180,9 +180,11 @@ export default function PaymentTypesClient() {
           {isLoading ? (
             <PageLoading label="Loading payment types" />
           ) : (
-          <div className="flex-1 overflow-auto p-4">
+          // px only — vertical padding here would leave a gap the rows
+          // scroll through above the sticky thead
+          <div className="flex-1 min-h-0 overflow-auto px-4 pb-4">
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-stone-300 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
                 {[
                   "Name",

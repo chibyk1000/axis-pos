@@ -59,6 +59,7 @@ import type {
   SalesFilters,
 } from "@/hooks/controllers/sales-history";
 import { useCustomers } from "@/hooks/controllers/customers";
+import { useInfiniteRows } from "@/hooks/useInfiniteRows";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
@@ -578,6 +579,13 @@ export default function SalesHistory() {
     useDocumentItems(selectedDocId);
   const selectedDoc = docs.find((d) => d.id === selectedDocId) ?? null;
 
+  const {
+    visibleRows: visibleDocs,
+    containerRef: docsContainerRef,
+    sentinelRef: docsSentinelRef,
+    hasMore: hasMoreDocs,
+  } = useInfiniteRows(docs, 50);
+
   // ── Modal flags ────────────────────────────────────────────────────────────
 
 
@@ -887,7 +895,7 @@ export default function SalesHistory() {
           <div className="px-4 py-1.5 text-xs text-stone-500 border-b border-stone-300 dark:border-stone-800 bg-white dark:bg-stone-800/30 shrink-0">
             Documents
           </div>
-          <div className="flex-1 overflow-auto">
+          <div ref={docsContainerRef} className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-xs border-collapse min-w-max">
               <thead className="sticky top-0 bg-white dark:bg-stone-800 z-10">
                 <tr>
@@ -931,7 +939,7 @@ export default function SalesHistory() {
                     </td>
                   </tr>
                 ) : (
-                  docs.map((doc) => (
+                  visibleDocs.map((doc) => (
                     <tr
                       key={doc.id}
                       onClick={() =>
@@ -982,6 +990,16 @@ export default function SalesHistory() {
                       </td>
                     </tr>
                   ))
+                )}
+                {hasMoreDocs && (
+                  <tr ref={docsSentinelRef}>
+                    <td
+                      colSpan={8}
+                      className="px-3 py-3 text-center text-stone-500"
+                    >
+                      Loading more…
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
