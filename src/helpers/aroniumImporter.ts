@@ -1158,6 +1158,21 @@ export async function importAroniumDatabase(
 
     // ── Path A: Microsoft SQL Server .bak ────────────────────────────────
     if (fileType === "mssql-bak") {
+      // Pre-flight: make sure sqlcmd is resolvable (on PATH, cached, or
+      // downloaded now) *before* the restore starts, so first-time
+      // provisioning shows its own progress stage instead of appearing to
+      // hang mid-restore. Kept in its own try/catch so a download/extraction
+      // failure surfaces its own actionable message rather than being
+      // overwritten by the "Make sure SQL Server LocalDB is installed" text
+      // below, which is misleading here — LocalDB itself is fine, sqlcmd
+      // just couldn't be provisioned.
+      try {
+        onProgress("Preparing SQL command-line tools…");
+        await invoke<void>("ensure_sqlcmd_available");
+      } catch (err) {
+        throw new Error(String(err));
+      }
+
       let tablesJson: string;
       try {
         onProgress("Restoring SQL Server backup (this can take a minute)…");

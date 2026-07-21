@@ -9,6 +9,7 @@ import { and, eq, inArray, like, or, count } from "drizzle-orm";
 import { products } from "@/db/schema/products";
 import { productPrices } from "@/db/schema/index";
 import type { Product, NewProduct } from "@/db/schema/products";
+import { logActivity } from "@/lib/activity-log";
 
 export { type Product, type NewProduct };
 
@@ -389,6 +390,12 @@ export function useCreateProduct() {
         image: data.image ?? null,
         color: data.color ?? null,
       });
+      logActivity({
+        action: "product.create",
+        entityType: "product",
+        entityId: data.id,
+        description: `Added product "${data.title}" (${data.code})`,
+      });
       return data as NewProduct;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
@@ -410,6 +417,13 @@ export function useUpdateProduct() {
         where: eq(products.id, id),
       });
       if (!updated) throw new Error("Product not found");
+      logActivity({
+        action: "product.update",
+        entityType: "product",
+        entityId: id,
+        description: `Updated product "${updated.title}"`,
+        metadata: data,
+      });
       return updated;
     },
     onSuccess: (updated) => {
@@ -423,7 +437,16 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      const existing = await db.query.products.findFirst({
+        where: eq(products.id, id),
+      });
       await db.delete(products).where(eq(products.id, id));
+      logActivity({
+        action: "product.delete",
+        entityType: "product",
+        entityId: id,
+        description: `Deleted product "${existing?.title ?? id}"`,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });

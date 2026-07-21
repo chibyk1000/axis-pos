@@ -8,6 +8,12 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 use tauri::Emitter;
 
+#[cfg(target_os = "windows")]
+use tauri::Manager;
+
+#[cfg(target_os = "windows")]
+use std::path::{Path, PathBuf};
+
 // ─── Public return type ───────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -86,6 +92,31 @@ pub fn check_sql_server_installation() -> SqlServerStatus {
         variant: String::new(),
         description:
             "SQL Server LocalDB is not installed. It is required to import .bak files.".into(),
+    }
+}
+
+// ─── Command: ensure_sqlcmd_available ────────────────────────────────────────
+
+/// Pre-flight check the frontend calls before starting a `.bak` import — makes
+/// sure `sqlcmd.exe` is resolvable (already on PATH, previously cached, or
+/// downloaded now) *before* the import kicks off. `import_aronium_bak` also
+/// resolves it internally, so this just gives first-time provisioning its own
+/// visible progress step instead of appearing to hang mid-restore.
+///
+/// TypeScript:
+/// ```ts
+/// await invoke<void>("ensure_sqlcmd_available");
+/// ```
+#[tauri::command]
+pub async fn ensure_sqlcmd_available(app: AppHandle) -> Result<(), String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        return Err("SQL Server tools are only available on Windows.".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        resolve_sqlcmd_exe(&app).await.map(|_| ())
     }
 }
 
@@ -925,22 +956,140 @@ pub async fn install_sql_server_localdb(app: AppHandle) -> Result<(), String> {
 /// const tables = JSON.parse(json);
 /// ```
 #[tauri::command]
-pub async fn import_aronium_bak(file_path: String) -> Result<String, String> {
-    // async + spawn_blocking: this command shells out to SqlLocalDB/sqlcmd
-    // dozens of times and takes 30-60s. As a synchronous command it ran on
-    // the app's main thread, freezing the webview for the whole restore —
-    // which killed the Vite dev-server websocket, whose reconnect then
-    // force-reloaded the page mid-import (wiping the progress toast and
-    // cutting off whatever import steps hadn't run yet).
-    tauri::async_runtime::spawn_blocking(move || import_aronium_bak_blocking(file_path))
-        .await
-        .map_err(|e| format!("Import task panicked: {e}"))?
-}
-
-fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
+pub async fn import_aronium_bak(app: AppHandle, file_path: String) -> Result<String, String> {
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = file_path;
+        let _ = (app, file_path);
+        return Err("SQL Server LocalDB is only available on Windows.".into());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Resolved here (async, can .await the download) rather than inside
+        // the blocking closure below, then handed down as a plain path.
+        let sqlcmd_path = resolve_sqlcmd_exe(&app).await?;
+
+        // async + spawn_blocking: this command shells out to SqlLocalDB/sqlcmd
+        // dozens of times and takes 30-60s. As a synchronous command it ran on
+        // the app's main thread, freezing the webview for the whole restore —
+        // which killed the Vite dev-server websocket, whose reconnect then
+        // force-reloaded the page mid-import (wiping the progress toast and
+        // cutting off whatever import steps hadn't run yet).
+        tauri::async_runtime::spawn_blocking(move || {
+            import_aronium_bak_blocking(file_path, sqlcmd_path)
+        })
+        .await
+        .map_err(|e| format!("Import task panicked: {e}"))?
+    }
+}
+
+/// Starts the named LocalDB instance, (re)creating it first if needed.
+///
+/// Uninstalling/reinstalling the LocalDB engine orphans any instance created
+/// under the old install — `start` then fails with something like "no named
+/// pipe instance matching '{INSTANCE}'" even though `create`+`start` both
+/// "succeeded" (as processes), because the old code only checked whether the
+/// commands *spawned*, never their exit status. Try the fast path (instance
+/// already exists and just needs starting) first; only if that fails, drop
+/// and recreate it from scratch, and surface a real error if that fails too
+/// instead of silently continuing into a confusing sqlcmd-level failure.
+///
+/// Returns the instance's fully-qualified named-pipe address (e.g.
+/// `np:\\.\pipe\LOCALDB#XXXX\tsql\query`) for callers to use as the sqlcmd
+/// `-S` server. We deliberately connect via the explicit pipe rather than the
+/// `(localdb)\instance` shorthand: the portable go-sqlcmd binary this app now
+/// ships fails to resolve that shorthand ("no named pipe instance matching
+/// 'INSTANCE' returned from host '(localdb)'"), whereas the explicit pipe
+/// works with both go-sqlcmd and the classic ODBC sqlcmd.
+#[cfg(target_os = "windows")]
+fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
+    let quick_start = Command::new("SqlLocalDB")
+        .args(["start", instance])
+        .creation_flags(0x08000000)
+        .output();
+    if matches!(&quick_start, Ok(o) if o.status.success()) {
+        return wait_for_localdb_pipe_ready(instance);
+    }
+
+    // Fast path failed — the instance may not exist yet, or may be orphaned
+    // from a previous LocalDB install. Best-effort tear down, then recreate.
+    let _ = Command::new("SqlLocalDB")
+        .args(["stop", instance])
+        .creation_flags(0x08000000)
+        .output();
+    let _ = Command::new("SqlLocalDB")
+        .args(["delete", instance])
+        .creation_flags(0x08000000)
+        .output();
+
+    let create = Command::new("SqlLocalDB")
+        .args(["create", instance])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| format!("Cannot run SqlLocalDB create: {e}"))?;
+    if !create.status.success() {
+        return Err(format!(
+            "Cannot create LocalDB instance '{instance}': {}",
+            String::from_utf8_lossy(&create.stderr)
+        ));
+    }
+
+    let start = Command::new("SqlLocalDB")
+        .args(["start", instance])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| format!("Cannot run SqlLocalDB start: {e}"))?;
+    if !start.status.success() {
+        return Err(format!(
+            "Cannot start LocalDB instance '{instance}': {}",
+            String::from_utf8_lossy(&start.stderr)
+        ));
+    }
+
+    wait_for_localdb_pipe_ready(instance)
+}
+
+/// `SqlLocalDB start` can report success before the engine has actually
+/// finished initializing its named-pipe endpoint — most noticeably on the
+/// very first startup after a fresh (re)install, which has extra system-
+/// database setup to do. Racing straight into a query then fails with "no
+/// named pipe instance matching '{instance}'" even though `start` itself
+/// "succeeded". Poll `SqlLocalDB info` for a non-empty "Instance pipe name"
+/// line for a few seconds, and return that pipe address once it appears.
+#[cfg(target_os = "windows")]
+fn wait_for_localdb_pipe_ready(instance: &str) -> Result<String, String> {
+    for _ in 0..30 {
+        let output = Command::new("SqlLocalDB")
+            .args(["info", instance])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| format!("Cannot query SqlLocalDB info: {e}"))?;
+        let text = String::from_utf8_lossy(&output.stdout);
+        let pipe = text.lines().find_map(|l| {
+            l.trim()
+                .strip_prefix("Instance pipe name:")
+                .map(|rest| rest.trim())
+                .filter(|rest| !rest.is_empty())
+        });
+        if let Some(pipe) = pipe {
+            return Ok(pipe.to_string());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    Err(format!(
+        "LocalDB instance '{instance}' started but never finished initializing its \
+         connection pipe. This can happen right after installing/reinstalling SQL \
+         Server LocalDB — try running the import again."
+    ))
+}
+
+fn import_aronium_bak_blocking(
+    file_path: String,
+    sqlcmd_path: std::path::PathBuf,
+) -> Result<String, String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (file_path, sqlcmd_path);
         return Err("SQL Server LocalDB is only available on Windows.".into());
     }
 
@@ -959,22 +1108,15 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
 
         const INSTANCE: &str = "axis_import";
         const DB_NAME: &str = "AroniumImport";
-        let server = format!("(localdb)\\{INSTANCE}");
 
         // ── 1. Ensure the LocalDB instance exists and is running ───────────────
-        let _ = Command::new("SqlLocalDB")
-            .args(["create", INSTANCE])
-            .creation_flags(0x08000000)
-            .output();
-        Command::new("SqlLocalDB")
-            .args(["start", INSTANCE])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|e| format!("Cannot start LocalDB instance '{INSTANCE}': {e}"))?;
+        // Connect via the explicit named pipe it reports (not the
+        // `(localdb)\instance` shorthand, which go-sqlcmd can't resolve).
+        let server = ensure_localdb_instance_running(INSTANCE)?;
 
         // ── 2. Detect logical file names ───────────────────────────────────────
         let (data_logical, mut log_logical) =
-            restore_filelistonly(&server, &file_path)
+            restore_filelistonly(&server, &file_path, &sqlcmd_path)
                 .map_err(|e| format!("RESTORE FILELISTONLY failed: {e}"))?;
 
         if data_logical.is_empty() {
@@ -992,6 +1134,7 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
 
         // Drop any leftover temp database from a previous import
         let _ = run_sqlcmd(
+            &sqlcmd_path,
             &server,
             "master",
             &format!(
@@ -1002,6 +1145,7 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
         );
 
         run_sqlcmd(
+            &sqlcmd_path,
             &server,
             "master",
             &format!(
@@ -1054,7 +1198,8 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
                 "SELECT CAST(CASE WHEN OBJECT_ID(N'[{table}]', 'U') IS NOT NULL \
                  THEN 1 ELSE 0 END AS varchar(1)) AS exists_flag"
             );
-            let exists_raw = run_sqlcmd(&server, DB_NAME, &exists_query).unwrap_or_default();
+            let exists_raw =
+                run_sqlcmd(&sqlcmd_path, &server, DB_NAME, &exists_query).unwrap_or_default();
             let table_exists = exists_raw
                 .lines()
                 .any(|l| l.trim() == "1");
@@ -1089,13 +1234,13 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
             // Retry once — a transient sqlcmd/LocalDB hiccup (rapid
             // sequential temp-file spawns across ~40 tables) shouldn't
             // silently drop an entire table's data.
-            let raw = match run_sqlcmd(&server, DB_NAME, &query) {
+            let raw = match run_sqlcmd(&sqlcmd_path, &server, DB_NAME, &query) {
                 Ok(r) => r,
                 Err(first_err) => {
                     println!(
                         "[aronium-import] table={table} query failed, retrying once: {first_err}"
                     );
-                    match run_sqlcmd(&server, DB_NAME, &query) {
+                    match run_sqlcmd(&sqlcmd_path, &server, DB_NAME, &query) {
                         Ok(r) => r,
                         Err(second_err) => {
                             let msg = format!(
@@ -1239,6 +1384,7 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
 
         // ── 5. Drop temp database ──────────────────────────────────────────────
         let _ = run_sqlcmd(
+            &sqlcmd_path,
             &server,
             "master",
             &format!(
@@ -1261,7 +1407,11 @@ fn import_aronium_bak_blocking(file_path: String) -> Result<String, String> {
 /// insert its result set into a temp table and then SELECT from it with
 /// `FOR JSON AUTO`, which gives us clean structured output to parse.
 #[cfg(target_os = "windows")]
-fn restore_filelistonly(server: &str, file_path: &str) -> Result<(String, String), String> {
+fn restore_filelistonly(
+    server: &str,
+    file_path: &str,
+    sqlcmd_path: &Path,
+) -> Result<(String, String), String> {
     let sql = format!(
         "CREATE TABLE #fl (\
             LogicalName nvarchar(128), PhysicalName nvarchar(260), \
@@ -1279,7 +1429,7 @@ fn restore_filelistonly(server: &str, file_path: &str) -> Result<(String, String
         DROP TABLE #fl;"
     );
 
-    let raw = run_sqlcmd(server, "master", &sql)
+    let raw = run_sqlcmd(sqlcmd_path, server, "master", &sql)
         .map_err(|e| format!("FILELISTONLY query failed: {e}"))?;
 
     // Reassemble FOR JSON AUTO chunks using the same defensive logic as above.
@@ -1328,6 +1478,162 @@ fn restore_filelistonly(server: &str, file_path: &str) -> Result<(String, String
     Ok((data_logical, log_logical))
 }
 
+// ─── Internal: resolve sqlcmd.exe ─────────────────────────────────────────────
+
+/// Official Microsoft go-sqlcmd release — a single statically-linked,
+/// dependency-free sqlcmd.exe (no ODBC driver, no elevation needed to run).
+/// A fixed, versioned direct-download link, same reproducibility rationale as
+/// `LOCALDB_MSI_URL` above (not a "latest" resolver).
+#[cfg(target_os = "windows")]
+const SQLCMD_ZIP_URL: &str =
+    "https://github.com/microsoft/go-sqlcmd/releases/download/v1.10.0/sqlcmd-windows-amd64.zip";
+
+/// Resolves a usable `sqlcmd` executable, cheapest option first:
+///   1. Already on PATH? → use it directly, zero extra work (the common case).
+///   2. Previously downloaded and cached under the app data dir? → reuse it.
+///   3. Otherwise, download the portable go-sqlcmd zip, extract it with
+///      PowerShell's `Expand-Archive` (no new crate dependency, consistent
+///      with this file's existing style of shelling out to Windows
+///      built-ins), and cache it for next time.
+///
+/// `sqlcmd.exe` genuinely not being installed (only the LocalDB *engine* is
+/// checked/installed elsewhere in this file) is exactly what caused "sqlcmd
+/// not found or failed to start" on machines that never had SSMS or the SQL
+/// Server command-line utilities installed.
+#[cfg(target_os = "windows")]
+async fn resolve_sqlcmd_exe(app: &AppHandle) -> Result<PathBuf, String> {
+    // 1. PATH — same cheap spawn probe `run_sqlcmd` already relied on.
+    if Command::new("sqlcmd")
+        .args(["-?"])
+        .creation_flags(0x08000000)
+        .output()
+        .is_ok()
+    {
+        return Ok(PathBuf::from("sqlcmd"));
+    }
+
+    // 2. Cached copy from a previous run.
+    let tools_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Cannot resolve app data directory: {e}"))?
+        .join("tools")
+        .join("sqlcmd");
+    let cached_exe = tools_dir.join("sqlcmd.exe");
+    if cached_exe.is_file() {
+        return Ok(cached_exe);
+    }
+
+    // 3. First-time download + extract.
+    std::fs::create_dir_all(&tools_dir)
+        .map_err(|e| format!("Cannot create sqlcmd tools directory: {e}"))?;
+
+    let response = reqwest::get(SQLCMD_ZIP_URL).await.map_err(|e| {
+        format!(
+            "Could not download the SQL command-line tools (sqlcmd) — no internet \
+             connection or the download was blocked: {e}. If you're behind a \
+             corporate firewall or proxy, allow access to github.com, or install \
+             \"sqlcmd\" manually and ensure it's on your PATH, then retry the import."
+        )
+    })?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Downloading sqlcmd failed (HTTP {}). This may mean the download was \
+             blocked by a firewall, or the download link is out of date. You can \
+             install \"sqlcmd\" manually (search \"SQL Server command line \
+             utilities\" or download go-sqlcmd from \
+             https://github.com/microsoft/go-sqlcmd/releases) and make sure it's \
+             on your PATH, then retry.",
+            response.status()
+        ));
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read sqlcmd download: {e}"))?;
+
+    let zip_path = std::env::temp_dir().join("axis_sqlcmd_download.zip");
+    std::fs::write(&zip_path, &bytes)
+        .map_err(|e| format!("Cannot write sqlcmd download to disk: {e}"))?;
+
+    let extract = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &format!(
+                "Expand-Archive -LiteralPath '{}' -DestinationPath '{}' -Force",
+                zip_path.display(),
+                tools_dir.display()
+            ),
+        ])
+        .creation_flags(0x08000000)
+        .output();
+
+    let _ = std::fs::remove_file(&zip_path);
+
+    let extract = extract.map_err(|e| format!("Cannot launch PowerShell to unpack sqlcmd: {e}"))?;
+    if !extract.status.success() {
+        return Err(format!(
+            "Downloaded sqlcmd but could not unpack it: {}. Try re-running the \
+             import, or install sqlcmd manually and add it to PATH.",
+            String::from_utf8_lossy(&extract.stderr)
+        ));
+    }
+
+    // go-sqlcmd's zip layout isn't guaranteed flat — search a couple of
+    // levels deep for the extracted exe rather than assuming tools_dir root.
+    let found = find_file_recursive(&tools_dir, "sqlcmd.exe", 2).ok_or_else(|| {
+        "Downloaded and unpacked sqlcmd, but sqlcmd.exe was not found in the archive."
+            .to_string()
+    })?;
+
+    // Sanity-check the extracted binary actually runs before trusting/caching
+    // it — a corrupt or antivirus-quarantined download should fail loudly
+    // here instead of being silently cached as a broken "cached copy" for
+    // every future import.
+    Command::new(&found)
+        .args(["-?"])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| {
+            format!(
+                "The downloaded sqlcmd.exe could not be run — it may have been \
+                 blocked by antivirus software: {e}. Check your antivirus \
+                 quarantine, or install sqlcmd manually."
+            )
+        })?;
+
+    Ok(found)
+}
+
+/// Searches `dir` up to `max_depth` levels deep for a file named `name`.
+#[cfg(target_os = "windows")]
+fn find_file_recursive(dir: &Path, name: &str, max_depth: u32) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut subdirs = Vec::new();
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() && path.file_name().and_then(|n| n.to_str()) == Some(name) {
+            return Some(path);
+        }
+        if path.is_dir() {
+            subdirs.push(path);
+        }
+    }
+    if max_depth == 0 {
+        return None;
+    }
+    for subdir in subdirs {
+        if let Some(found) = find_file_recursive(&subdir, name, max_depth - 1) {
+            return Some(found);
+        }
+    }
+    None
+}
+
 // ─── Internal: run one T-SQL statement via sqlcmd ─────────────────────────────
 
 /// Writes `sql` to a plain temp file (closed before sqlcmd spawns), runs
@@ -1335,7 +1641,7 @@ fn restore_filelistonly(server: &str, file_path: &str) -> Result<(String, String
 /// `NamedTempFile` avoids the race where the tempfile crate deletes the file
 /// while sqlcmd is still opening it ("file is being used by another process").
 #[cfg(target_os = "windows")]
-fn run_sqlcmd(server: &str, database: &str, sql: &str) -> Result<String, String> {
+fn run_sqlcmd(sqlcmd_path: &Path, server: &str, database: &str, sql: &str) -> Result<String, String> {
     use std::io::Write;
 
     let tmp_path = std::env::temp_dir().join(format!(
@@ -1358,7 +1664,7 @@ fn run_sqlcmd(server: &str, database: &str, sql: &str) -> Result<String, String>
         // `f` drops here, closing the file handle before sqlcmd spawns
     }
 
-    let output = Command::new("sqlcmd")
+    let output = Command::new(sqlcmd_path)
         .args([
             "-S", server,
             "-d", database,

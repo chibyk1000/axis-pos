@@ -5,6 +5,7 @@ import { stockEntries } from "@/db/schema/stockEntries";
 import type { StockEntry, NewStockEntry } from "@/db/schema/stockEntries";
 import { stockLogs } from "@/db/schema/stockLogs";
 import { nanoid } from "nanoid";
+import { logActivity, type ActivityAction } from "@/lib/activity-log";
 
 export type { StockEntry, NewStockEntry };
 
@@ -182,6 +183,15 @@ export function useAddStockEntry() {
       const row = await db.query.stockEntries.findFirst({
         where: eq(stockEntries.productId, data.productId),
       });
+
+      logActivity({
+        action: `stock.${data.type}` as ActivityAction,
+        entityType: "stock",
+        entityId: data.productId,
+        description: `Stock ${data.type} of ${data.quantity} for product ${data.productId}`,
+        metadata: { note: data.note, newQuantity },
+      });
+
       return row as StockEntry;
     },
     onSuccess: (row) => {
@@ -253,6 +263,14 @@ export function useUpdateStockEntry() {
           quantity: quantity,
           note: data?.note,
         });
+
+        logActivity({
+          action: `stock.${type}` as ActivityAction,
+          entityType: "stock",
+          entityId: existing.productId,
+          description: `Stock ${type} of ${quantity} for product ${existing.productId}`,
+          metadata: { note: data?.note, newQuantity },
+        });
       }
 
       const updated = await db.query.stockEntries.findFirst({
@@ -283,6 +301,12 @@ export function useDeleteStockEntry() {
       if (!existing) throw new Error("Stock entry not found");
 
       await db.delete(stockEntries).where(eq(stockEntries.id, id));
+      logActivity({
+        action: "stock.delete",
+        entityType: "stock",
+        entityId: existing.productId,
+        description: `Deleted stock entry for product ${existing.productId}`,
+      });
       return existing;
     },
     onSuccess: (row) => {

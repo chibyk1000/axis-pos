@@ -7,6 +7,8 @@ import {
   customers,
 } from "@/db/schema";
 import { and, or, like, gte, lte, eq, desc, count } from "drizzle-orm";
+import { logActivity } from "@/lib/activity-log";
+import { getCurrentUser } from "@/providers/auth-provider";
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
@@ -262,6 +264,9 @@ export function useCreateDocument() {
         const insertPayload = {
           ...data.document,
           id: docId,
+          // Attribute the sale to whoever is logged in when it isn't
+          // explicitly set by the caller (e.g. an Aronium import).
+          userId: data.document.userId ?? getCurrentUser()?.id ?? null,
           totalPaid, // Always use calculated value
           outstandingBalance: Math.max(0, docTotal - totalPaid), // Always recalculate
           paid: isPaid, // Update paid status based on totalPaid
@@ -328,6 +333,14 @@ export function useCreateDocument() {
         }
 
         console.log("useCreateDocument - COMPLETE: All inserts finished");
+
+        logActivity({
+          action: "document.create",
+          entityType: "document",
+          entityId: docId,
+          description: `Created document ${insertPayload.number} (total ${docTotal.toFixed(2)})`,
+          metadata: { status: insertPayload.status, total: docTotal, userId: insertPayload.userId },
+        });
       } catch (err) {
         console.error("useCreateDocument - CAUGHT ERROR:", err);
         throw err;
@@ -408,6 +421,13 @@ export function useUpdateDocument() {
           })),
         );
       }
+
+      logActivity({
+        action: "document.update",
+        entityType: "document",
+        entityId: data.id,
+        description: `Updated document ${currentDoc.number}`,
+      });
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["documents"] });
@@ -421,7 +441,18 @@ export function useDeleteDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const existing = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, id))
+        .get();
       await db.delete(documents).where(eq(documents.id, id));
+      logActivity({
+        action: "document.delete",
+        entityType: "document",
+        entityId: id,
+        description: `Deleted document ${existing?.number ?? id}`,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });

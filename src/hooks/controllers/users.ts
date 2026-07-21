@@ -3,6 +3,7 @@ import { db } from "@/db/database";
 import { and, count, eq, isNull, like, or } from "drizzle-orm";
 import { users } from "@/db/schema";
 import type { User, NewUser } from "@/db/schema";
+import { logActivity } from "@/lib/activity-log";
 
 export type { User, NewUser };
 
@@ -140,6 +141,12 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async (data: NewUser) => {
       await db.insert(users).values(data);
+      logActivity({
+        action: "user.create",
+        entityType: "user",
+        entityId: data.id != null ? String(data.id) : null,
+        description: `Created user "${data.name ?? data.email}" (access level ${data.accessLevel ?? 1})`,
+      });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.list() }),
@@ -165,6 +172,14 @@ export function useUpdateUser() {
         .set({ ...data, updated_at: new Date().toISOString() })
         .where(eq(users.id, id));
       const updated = await db.query.users.findFirst({ where: eq(users.id, id) });
+      const { passwordHash: _passwordHash, ...safeChanges } = data;
+      logActivity({
+        action: "user.update",
+        entityType: "user",
+        entityId: String(id),
+        description: `Updated user "${existing.name ?? existing.email}"`,
+        metadata: safeChanges,
+      });
       return updated as User;
     },
     onSuccess: (_, { id }) => {
@@ -191,6 +206,12 @@ export function useDeleteUser() {
         })
         .where(eq(users.id, id));
       const deleted = await db.query.users.findFirst({ where: eq(users.id, id) });
+      logActivity({
+        action: "user.delete",
+        entityType: "user",
+        entityId: String(id),
+        description: `Deactivated user "${existing.name ?? existing.email}"`,
+      });
       return deleted as User;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: userKeys.list() }),

@@ -26,6 +26,7 @@ export type PermissionId =
   | "import-stock"
   | "data-export"
   | "user-profile"
+  | "activity-log"
   | "dashboard-access"
   | "close-application"
   | "view-stock"
@@ -139,6 +140,14 @@ export const DEFAULT_SECURITY_SECTIONS: Section[] = [
       { id: "customers", label: "Customer & suppliers", value: 0 },
       { id: "promotions-mgmt", label: "Promotions", value: 0 },
       { id: "users-security", label: "Users & security", value: 0 },
+      {
+        id: "activity-log",
+        label: "Activity log",
+        value: 9,
+        hasHelp: true,
+        helpText:
+          "Level required to view the activity log — who added products, made sales, or changed users.",
+      },
       { id: "payment-types", label: "Payment types", value: 0 },
       { id: "countries", label: "Countries", value: 0 },
       { id: "taxes", label: "Tax rates", value: 0 },
@@ -189,6 +198,7 @@ export const PERMISSION_FOR_PATH: Record<string, PermissionId> = {
   "/dashboard/customer-supplies": "customers",
   "/dashboard/promotions": "promotions-mgmt",
   "/dashboard/users-security": "users-security",
+  "/dashboard/activity-log": "activity-log",
   "/dashboard/user-info": "user-profile",
   "/dashboard/payments": "payment-types",
   "/dashboard/countries": "countries",

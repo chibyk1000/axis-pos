@@ -197,6 +197,7 @@ const CustomerSupplies = lazy(
 );
 const Promotions = lazy(() => import("./pages/dashboard/promotions"));
 const UsersSecurity = lazy(() => import("./pages/dashboard/users-security"));
+const ActivityLog = lazy(() => import("./pages/dashboard/activity-log"));
 const PaymentTypes = lazy(() => import("./pages/dashboard/payment-types"));
 const Countries = lazy(() => import("./pages/dashboard/countries"));
 const Mycompany = lazy(() => import("./pages/dashboard/my-company"));
@@ -473,6 +474,14 @@ function App() {
                             element={
                               <RequirePermission permission="users-security">
                                 <UsersSecurity />
+                              </RequirePermission>
+                            }
+                          />
+                          <Route
+                            path="activity-log"
+                            element={
+                              <RequirePermission permission="activity-log">
+                                <ActivityLog />
                               </RequirePermission>
                             }
                           />

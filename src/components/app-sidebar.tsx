@@ -16,6 +16,7 @@ import {
   GalleryVerticalEnd,
   Gift,
   Globe,
+  History,
   LayoutDashboard,
   Shield,
   Tags,
@@ -122,6 +123,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/dashboard/users-security",
         icon: Shield,
         disabled: !canAccess("/dashboard/users-security"),
+      },
+      {
+        title: "Activity log",
+        url: "/dashboard/activity-log",
+        icon: History,
+        disabled: !canAccess("/dashboard/activity-log"),
       },
       {
         title: "Payment types",

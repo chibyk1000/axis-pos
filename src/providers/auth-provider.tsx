@@ -10,6 +10,7 @@ import { eq, or } from "drizzle-orm";
 import { verifyPassword } from "@/lib/auth";
 
 interface AuthUser {
+  id: number;
   username: string;
   accessLevel: number;
 }
@@ -30,6 +31,21 @@ export function useAuth() {
 }
 
 const SESSION_KEY = "axis_lite_session";
+
+/**
+ * Non-hook accessor for the logged-in user. Mutation functions (drizzle
+ * inserts/updates in hooks/controllers/*) run outside React's render tree
+ * and can't call useAuth(), but still need to know "who did this" to write
+ * activity-log entries.
+ */
+export function getCurrentUser(): AuthUser | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => {
@@ -57,13 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const valid = await verifyPassword(password, userRecord.passwordHash);
     if (!valid) throw new Error("Invalid credentials.");
 
-    const u = {
-      username: userRecord.name ?? userRecord.email,
+    const u: AuthUser = {
+      id: userRecord.id,
+      username: userRecord.name ?? userRecord.email ?? "",
       accessLevel: userRecord.accessLevel ?? 1,
     };
 
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    setUser(u as any);
+    setUser(u);
   };
 
   const logout = () => {

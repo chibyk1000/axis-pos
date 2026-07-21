@@ -31,8 +31,7 @@ import { useNavigate } from "react-router";
 import { useSettings } from "@/hooks/useSettings";
 import { useSync } from "@/hooks/useSync";
 import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import { copyFile } from "@tauri-apps/plugin-fs";
-import { appDataDir, join } from "@tauri-apps/api/path";
+import { appDataDir } from "@tauri-apps/api/path";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaxes } from "@/hooks/controllers/taxes";
@@ -264,9 +263,10 @@ export default function SettingsPage() {
       });
 
       if (savePath) {
-        const dataDir = await appDataDir();
-        const dbPath = await join(dataDir, "data.db");
-        await copyFile(dbPath, savePath);
+        // Backup runs in Rust (VACUUM INTO) so it produces a consistent
+        // snapshot and can write to any user-chosen location without fs
+        // capability-scope restrictions.
+        await invoke("export_database", { destPath: savePath });
         toast.success("Database exported successfully!");
       }
     } catch (err) {

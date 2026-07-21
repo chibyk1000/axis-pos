@@ -133,8 +133,12 @@ pub struct DiscoveredServer {
     pub store_id: String,
 }
 
-// Tables to exclude from snapshot (system/meta tables)
-const EXCLUDED_TABLES: &[&str] = &["sync_queue", "devices", "drizzle_migrations"];
+// Tables to exclude from snapshot (system/meta tables). `_sqlx_migrations` is
+// critical here: migration bookkeeping is strictly per-device — syncing it
+// across machines corrupts each device's view of which migrations have run
+// (and can leave `_sqlx_migrations` inconsistent with the actual schema).
+const EXCLUDED_TABLES: &[&str] =
+    &["sync_queue", "devices", "drizzle_migrations", "_sqlx_migrations"];
 
 fn describe_request_error(action: &str, url: &str, err: reqwest::Error) -> String {
     let hint = if err.is_timeout() {
@@ -397,10 +401,23 @@ fn apply_change(
 
 // Dynamic triggers setup for SQLite
 pub fn setup_database_triggers(conn: &Connection) -> Result<(), rusqlite::Error> {
+    // Installs prior to this fix put sync triggers on sqlx's own bookkeeping
+    // table. Its `checksum` column is a BLOB, and json_object() can't hold a
+    // BLOB, so every insert into `_sqlx_migrations` (i.e. every future
+    // migration) failed with "JSON cannot hold BLOB values". Drop any such
+    // triggers left behind by earlier runs — the loop below no longer
+    // recreates them.
+    for suffix in ["insert", "update", "delete"] {
+        let _ = conn.execute(
+            &format!("DROP TRIGGER IF EXISTS `sync__sqlx_migrations_{}`", suffix),
+            [],
+        );
+    }
+
     let mut stmt = conn.prepare(
         "SELECT name FROM sqlite_master \
          WHERE type='table' AND name NOT LIKE 'sqlite_%' \
-         AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations')",
+         AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations', '_sqlx_migrations')",
     )?;
     let tables: Vec<String> = stmt
         .query_map([], |row| row.get(0))?
@@ -858,7 +875,7 @@ async fn handle_snapshot(State(state): State<Arc<AxumState>>) -> impl IntoRespon
     let mut table_stmt = match conn.prepare(
         "SELECT name FROM sqlite_master \
          WHERE type='table' AND name NOT LIKE 'sqlite_%' \
-         AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations')",
+         AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations', '_sqlx_migrations')",
     ) {
         Ok(s) => s,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -1490,7 +1507,7 @@ pub async fn sync_push_snapshot(
             .prepare(
                 "SELECT name FROM sqlite_master \
                  WHERE type='table' AND name NOT LIKE 'sqlite_%' \
-                 AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations')",
+                 AND name NOT IN ('sync_queue', 'devices', 'drizzle_migrations', '_sqlx_migrations')",
             )
             .map_err(|e| e.to_string())?;
 
