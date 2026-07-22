@@ -1003,84 +1003,132 @@ pub async fn import_aronium_bak(app: AppHandle, file_path: String) -> Result<Str
 /// works with both go-sqlcmd and the classic ODBC sqlcmd.
 #[cfg(target_os = "windows")]
 fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
-    let quick_start = Command::new("SqlLocalDB")
-        .args(["start", instance])
-        .creation_flags(0x08000000)
-        .output();
+    // Attempt 1 — the common case: the instance already exists and just needs
+    // starting. A healthy instance publishes its pipe within a second or two,
+    // so this only ever waits the full minute on a machine that's genuinely
+    // struggling (slow disk, first start after a LocalDB install).
+    let quick_start = run_localdb(&["start", instance]);
     if matches!(&quick_start, Ok(o) if o.status.success()) {
-        return wait_for_localdb_pipe_ready(instance);
+        if let Some(pipe) = poll_localdb_pipe(instance, std::time::Duration::from_secs(60)) {
+            return Ok(pipe);
+        }
     }
 
-    // Fast path failed — the instance may not exist yet, or may be orphaned
-    // from a previous LocalDB install. Best-effort tear down, then recreate.
-    let _ = Command::new("SqlLocalDB")
-        .args(["stop", instance])
-        .creation_flags(0x08000000)
-        .output();
-    let _ = Command::new("SqlLocalDB")
-        .args(["delete", instance])
-        .creation_flags(0x08000000)
-        .output();
+    // Attempt 2 — rebuild the instance. We land here when it doesn't exist
+    // yet, OR when `start` "succeeded" but no pipe ever appeared. That second
+    // case is the important one: an instance created by an older LocalDB
+    // engine (e.g. before the user upgraded/reinstalled SQL Server) reports a
+    // successful start and then never comes up. Only a delete + recreate
+    // fixes it, so don't gate this on `start` having failed.
+    let _ = run_localdb(&["stop", instance]);
+    let _ = run_localdb(&["delete", instance]);
 
-    let create = Command::new("SqlLocalDB")
-        .args(["create", instance])
-        .creation_flags(0x08000000)
-        .output()
-        .map_err(|e| format!("Cannot run SqlLocalDB create: {e}"))?;
+    let create =
+        run_localdb(&["create", instance]).map_err(|e| format!("Cannot run SqlLocalDB create: {e}"))?;
     if !create.status.success() {
         return Err(format!(
             "Cannot create LocalDB instance '{instance}': {}",
-            String::from_utf8_lossy(&create.stderr)
+            command_output_text(&create)
         ));
     }
 
-    let start = Command::new("SqlLocalDB")
-        .args(["start", instance])
-        .creation_flags(0x08000000)
-        .output()
-        .map_err(|e| format!("Cannot run SqlLocalDB start: {e}"))?;
+    let start =
+        run_localdb(&["start", instance]).map_err(|e| format!("Cannot run SqlLocalDB start: {e}"))?;
     if !start.status.success() {
         return Err(format!(
             "Cannot start LocalDB instance '{instance}': {}",
-            String::from_utf8_lossy(&start.stderr)
+            command_output_text(&start)
         ));
     }
 
-    wait_for_localdb_pipe_ready(instance)
+    // A freshly created instance builds its system databases on first start,
+    // which is far slower than starting an existing one — especially on a slow
+    // disk right after a LocalDB install. Give it real time before giving up.
+    if let Some(pipe) = poll_localdb_pipe(instance, std::time::Duration::from_secs(90)) {
+        return Ok(pipe);
+    }
+
+    Err(format!(
+        "LocalDB instance '{instance}' started but never reported a connection pipe, \
+         even after being recreated. SQL Server LocalDB may be installed but not \
+         working correctly — try restarting the computer, then run the import again.\
+         \n\nDiagnostics (SqlLocalDB info {instance}):\n{}",
+        localdb_info_text(instance).unwrap_or_else(|e| e)
+    ))
 }
 
-/// `SqlLocalDB start` can report success before the engine has actually
-/// finished initializing its named-pipe endpoint — most noticeably on the
-/// very first startup after a fresh (re)install, which has extra system-
-/// database setup to do. Racing straight into a query then fails with "no
-/// named pipe instance matching '{instance}'" even though `start` itself
-/// "succeeded". Poll `SqlLocalDB info` for a non-empty "Instance pipe name"
-/// line for a few seconds, and return that pipe address once it appears.
 #[cfg(target_os = "windows")]
-fn wait_for_localdb_pipe_ready(instance: &str) -> Result<String, String> {
-    for _ in 0..30 {
-        let output = Command::new("SqlLocalDB")
-            .args(["info", instance])
-            .creation_flags(0x08000000)
-            .output()
-            .map_err(|e| format!("Cannot query SqlLocalDB info: {e}"))?;
-        let text = String::from_utf8_lossy(&output.stdout);
-        let pipe = text.lines().find_map(|l| {
-            l.trim()
-                .strip_prefix("Instance pipe name:")
-                .map(|rest| rest.trim())
-                .filter(|rest| !rest.is_empty())
-        });
-        if let Some(pipe) = pipe {
-            return Ok(pipe.to_string());
+fn run_localdb(args: &[&str]) -> std::io::Result<std::process::Output> {
+    Command::new("SqlLocalDB")
+        .args(args)
+        .creation_flags(0x08000000)
+        .output()
+}
+
+/// stderr if present, otherwise stdout — SqlLocalDB reports some failures on
+/// stdout only.
+#[cfg(target_os = "windows")]
+fn command_output_text(out: &std::process::Output) -> String {
+    let stderr = decode_console_output(&out.stderr);
+    if stderr.trim().is_empty() {
+        decode_console_output(&out.stdout)
+    } else {
+        stderr
+    }
+}
+
+/// Some Windows builds emit UTF-16LE from console tools; dropping NUL bytes
+/// makes the ASCII payload readable either way.
+#[cfg(target_os = "windows")]
+fn decode_console_output(bytes: &[u8]) -> String {
+    let filtered: Vec<u8> = bytes.iter().copied().filter(|b| *b != 0).collect();
+    String::from_utf8_lossy(&filtered).into_owned()
+}
+
+#[cfg(target_os = "windows")]
+fn localdb_info_text(instance: &str) -> Result<String, String> {
+    let out = run_localdb(&["info", instance])
+        .map_err(|e| format!("Cannot query SqlLocalDB info: {e}"))?;
+    Ok(decode_console_output(&out.stdout))
+}
+
+/// Finds the instance's named-pipe address in `SqlLocalDB info` output.
+///
+/// Located by its `np:\` prefix rather than the "Instance pipe name:" label so
+/// this keeps working on non-English Windows, where SqlLocalDB translates its
+/// output labels and a label-based match would never fire (leaving the caller
+/// to time out as if the engine were broken).
+#[cfg(target_os = "windows")]
+fn extract_localdb_pipe(text: &str) -> Option<String> {
+    text.lines().find_map(|line| {
+        let idx = line.find("np:\\")?;
+        let pipe = line[idx..].trim();
+        if pipe.is_empty() {
+            None
+        } else {
+            Some(pipe.to_string())
+        }
+    })
+}
+
+/// Polls `SqlLocalDB info` until the instance publishes its named pipe, up to
+/// `timeout`. `SqlLocalDB start` returns as soon as the service is asked to
+/// start, well before the engine is actually accepting connections, so
+/// querying immediately fails with "no named pipe instance matching ...".
+#[cfg(target_os = "windows")]
+fn poll_localdb_pipe(instance: &str, timeout: std::time::Duration) -> Option<String> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if let Ok(text) = localdb_info_text(instance) {
+            if let Some(pipe) = extract_localdb_pipe(&text) {
+                return Some(pipe);
+            }
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
         }
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
-    Err(format!(
-        "LocalDB instance '{instance}' started but never finished initializing its \
-         connection pipe. This can happen right after installing/reinstalling SQL \
-         Server LocalDB — try running the import again."
-    ))
 }
 
 fn import_aronium_bak_blocking(
