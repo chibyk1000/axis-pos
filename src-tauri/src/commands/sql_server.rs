@@ -1001,8 +1001,53 @@ pub async fn import_aronium_bak(app: AppHandle, file_path: String) -> Result<Str
 /// ships fails to resolve that shorthand ("no named pipe instance matching
 /// 'INSTANCE' returned from host '(localdb)'"), whereas the explicit pipe
 /// works with both go-sqlcmd and the classic ODBC sqlcmd.
+/// LocalDB's built-in automatic instance. It is created and started on demand
+/// by the engine itself and is the most reliable instance to fall back to when
+/// a custom instance won't come up.
+#[cfg(target_os = "windows")]
+const DEFAULT_LOCALDB_INSTANCE: &str = "MSSQLLocalDB";
+
 #[cfg(target_os = "windows")]
 fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
+    // Prefer our dedicated instance (isolated from anything else the user's
+    // tools may keep in the default one).
+    let first_err = match bring_up_instance(instance, true) {
+        Ok(pipe) => return Ok(pipe),
+        Err(e) => e,
+    };
+
+    // Fall back to the engine's automatic instance. If `instance` is corrupt
+    // (a real possibility after a LocalDB reinstall) but the engine itself is
+    // healthy, `MSSQLLocalDB` comes up cleanly and the import proceeds. We
+    // don't delete/recreate the default instance — it belongs to the whole
+    // machine, and if it's stale the engine auto-heals it on start.
+    if instance != DEFAULT_LOCALDB_INSTANCE {
+        if let Ok(pipe) = bring_up_instance(DEFAULT_LOCALDB_INSTANCE, false) {
+            return Ok(pipe);
+        }
+    }
+
+    // Both failed — the LocalDB engine itself isn't producing a working
+    // instance, which is an environment problem the app can't force past.
+    Err(format!(
+        "SQL Server LocalDB is installed but could not start a working database \
+         instance, so the backup can't be restored on this PC.\n\n\
+         Try: (1) restart the computer and run the import again; (2) reinstall \
+         SQL Server LocalDB; (3) if antivirus is active, allow SQL Server \
+         (sqlservr.exe) to run.\n\n\
+         Details: {first_err}\n\nDiagnostics (SqlLocalDB info {instance}):\n{}",
+        localdb_info_text(instance).unwrap_or_else(|e| e)
+    ))
+}
+
+/// Brings a single LocalDB instance up and returns its named-pipe address.
+///
+/// `allow_recreate` controls the recovery step: for our own instance we
+/// delete + recreate it when `start` "succeeds" but no pipe appears (the
+/// classic stale-instance-after-engine-upgrade case); for the shared default
+/// instance we never delete it — we only create it if it's missing.
+#[cfg(target_os = "windows")]
+fn bring_up_instance(instance: &str, allow_recreate: bool) -> Result<String, String> {
     // Attempt 1 — the common case: the instance already exists and just needs
     // starting. A healthy instance publishes its pipe within a second or two,
     // so this only ever waits the full minute on a machine that's genuinely
@@ -1014,18 +1059,20 @@ fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
         }
     }
 
-    // Attempt 2 — rebuild the instance. We land here when it doesn't exist
-    // yet, OR when `start` "succeeded" but no pipe ever appeared. That second
-    // case is the important one: an instance created by an older LocalDB
-    // engine (e.g. before the user upgraded/reinstalled SQL Server) reports a
-    // successful start and then never comes up. Only a delete + recreate
-    // fixes it, so don't gate this on `start` having failed.
-    let _ = run_localdb(&["stop", instance]);
-    let _ = run_localdb(&["delete", instance]);
+    // Attempt 2 — recover. We land here when the instance doesn't exist yet,
+    // or when `start` "succeeded" but no pipe ever appeared. For our own
+    // instance, an orphan left by an older engine only recovers via delete +
+    // recreate; for the shared default we just ensure it exists.
+    if allow_recreate {
+        let _ = run_localdb(&["stop", instance]);
+        let _ = run_localdb(&["delete", instance]);
+    }
 
+    // create is idempotent-ish: harmless "already exists" error when the
+    // default instance is present, which we ignore by re-checking for a pipe.
     let create =
         run_localdb(&["create", instance]).map_err(|e| format!("Cannot run SqlLocalDB create: {e}"))?;
-    if !create.status.success() {
+    if allow_recreate && !create.status.success() {
         return Err(format!(
             "Cannot create LocalDB instance '{instance}': {}",
             command_output_text(&create)
@@ -1049,11 +1096,7 @@ fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
     }
 
     Err(format!(
-        "LocalDB instance '{instance}' started but never reported a connection pipe, \
-         even after being recreated. SQL Server LocalDB may be installed but not \
-         working correctly — try restarting the computer, then run the import again.\
-         \n\nDiagnostics (SqlLocalDB info {instance}):\n{}",
-        localdb_info_text(instance).unwrap_or_else(|e| e)
+        "LocalDB instance '{instance}' started but never reported a connection pipe."
     ))
 }
 
