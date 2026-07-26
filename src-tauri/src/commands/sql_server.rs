@@ -1047,6 +1047,56 @@ fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
 /// classic stale-instance-after-engine-upgrade case); for the shared default
 /// instance we never delete it — we only create it if it's missing.
 #[cfg(target_os = "windows")]
+fn read_instance_error_log(instance: &str) -> Option<String> {
+    let local_app_data = std::env::var("LOCALAPPDATA").ok()?;
+    let log_path = PathBuf::from(local_app_data)
+        .join("Microsoft")
+        .join("Microsoft SQL Server Local DB")
+        .join("Instances")
+        .join(instance)
+        .join("error.log");
+
+    if !log_path.exists() {
+        return None;
+    }
+
+    let bytes = std::fs::read(&log_path).ok()?;
+    let text = if bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
+        let units: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16_lossy(&units)
+    } else {
+        String::from_utf8_lossy(&bytes).into_owned()
+    };
+
+    let lines: Vec<&str> = text.lines().collect();
+    let start = lines.len().saturating_sub(25);
+    Some(lines[start..].join("\n"))
+}
+
+#[cfg(target_os = "windows")]
+fn delete_instance_folder(instance: &str) {
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        let folder = PathBuf::from(local_app_data)
+            .join("Microsoft")
+            .join("Microsoft SQL Server Local DB")
+            .join("Instances")
+            .join(instance);
+        if folder.exists() {
+            let _ = std::fs::remove_dir_all(&folder);
+        }
+    }
+}
+
+/// Brings a single LocalDB instance up and returns its named-pipe address.
+///
+/// `allow_recreate` controls the recovery step: for our own instance we
+/// delete + recreate it when `start` "succeeds" but no pipe appears (the
+/// classic stale-instance-after-engine-upgrade case); for the shared default
+/// instance we never delete it — we only create it if it's missing.
+#[cfg(target_os = "windows")]
 fn bring_up_instance(instance: &str, allow_recreate: bool) -> Result<String, String> {
     // Attempt 1 — the common case: the instance already exists and just needs
     // starting. A healthy instance publishes its pipe within a second or two,
@@ -1066,6 +1116,7 @@ fn bring_up_instance(instance: &str, allow_recreate: bool) -> Result<String, Str
     if allow_recreate {
         let _ = run_localdb(&["stop", instance]);
         let _ = run_localdb(&["delete", instance]);
+        delete_instance_folder(instance);
     }
 
     // create is idempotent-ish: harmless "already exists" error when the
@@ -1095,8 +1146,25 @@ fn bring_up_instance(instance: &str, allow_recreate: bool) -> Result<String, Str
         return Ok(pipe);
     }
 
+    let mut extra_diag = String::new();
+    if let Some(log_tail) = read_instance_error_log(instance) {
+        if log_tail.contains("misaligned log IOs")
+            || log_tail.contains("Operating system error 87")
+            || log_tail.contains("Error: 87")
+        {
+            extra_diag = "\n\nDIAGNOSIS: Windows NVMe SSD sector size incompatibility detected (OS Error 87 / misaligned IOs).\n\
+            SQL Server LocalDB cannot start on SSDs reporting physical sector size > 4096 bytes without a registry override.\n\n\
+            HOW TO FIX:\n\
+            1. Open Command Prompt or PowerShell as Administrator.\n\
+            2. Run: REG ADD HKLM\\SYSTEM\\CurrentControlSet\\Services\\stornvme\\Parameters\\Device /v ForcedPhysicalSectorSizeInBytes /t REG_MULTI_SZ /d \"* 4095\" /f\n\
+            3. Restart your computer and try importing again.".to_string();
+        } else {
+            extra_diag = format!("\n\nLocalDB Error Log Tail:\n{log_tail}");
+        }
+    }
+
     Err(format!(
-        "LocalDB instance '{instance}' started but never reported a connection pipe."
+        "LocalDB instance '{instance}' started but never reported a connection pipe.{extra_diag}"
     ))
 }
 
@@ -1160,11 +1228,18 @@ fn extract_localdb_pipe(text: &str) -> Option<String> {
 /// querying immediately fails with "no named pipe instance matching ...".
 #[cfg(target_os = "windows")]
 fn poll_localdb_pipe(instance: &str, timeout: std::time::Duration) -> Option<String> {
-    let deadline = std::time::Instant::now() + timeout;
+    let start_time = std::time::Instant::now();
+    let deadline = start_time + timeout;
     loop {
         if let Ok(text) = localdb_info_text(instance) {
             if let Some(pipe) = extract_localdb_pipe(&text) {
                 return Some(pipe);
+            }
+            // If 4+ seconds have elapsed and the instance reports State: Stopped, sqlservr exited/crashed.
+            if start_time.elapsed() >= std::time::Duration::from_secs(4) {
+                if text.lines().any(|l| l.contains("State:") && l.contains("Stopped")) {
+                    return None;
+                }
             }
         }
         if std::time::Instant::now() >= deadline {
