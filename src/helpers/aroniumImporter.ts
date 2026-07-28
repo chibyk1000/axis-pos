@@ -124,18 +124,23 @@ function parseSqlDump(sql: string): ParsedDumpTables {
     columnMap[m[1]] = cols;
   }
 
-  const insertRe =
-    /INSERT\s+INTO\s+["`\[]?(\w+)["`\]]?\s*(?:\(([^)]+)\)\s*)?VALUES\s*([\s\S]+?);/gi;
-  while ((m = insertRe.exec(sql)) !== null) {
+  // Match only the INSERT header (up to VALUES); the value tuples that follow
+  // are scanned quote-aware by scanValueTuples, because a regex can't reliably
+  // find tuple/statement boundaries when a string value itself contains ')',
+  // ';' or an escaped ''  — all of which occur in real product/customer names.
+  const insertHeadRe =
+    /INSERT\s+INTO\s+["`\[]?(\w+)["`\]]?\s*(?:\(([^)]+)\)\s*)?VALUES\s*/gi;
+  while ((m = insertHeadRe.exec(sql)) !== null) {
     const tableName = m[1];
+    const { tuples, endIndex } = scanValueTuples(sql, insertHeadRe.lastIndex);
+    // Resume scanning after this statement's terminating ';'.
+    insertHeadRe.lastIndex = endIndex;
     if (!(tableName in tables)) continue;
     const columns = m[2]
       ? m[2].split(",").map((c) => c.trim().replace(/["`\[\]]/g, ""))
       : (columnMap[tableName] ?? []);
-    const tupleRe = /\(([^)]*(?:'[^']*'[^)]*)*)\)/g;
-    let tm: RegExpExecArray | null;
-    while ((tm = tupleRe.exec(m[3])) !== null) {
-      const values = parseValuesList(tm[1]);
+    for (const tuple of tuples) {
+      const values = parseValuesList(tuple);
       const row: Record<string, any> = {};
       columns.forEach((col, i) => {
         row[col] = i < values.length ? values[i] : null;
@@ -144,6 +149,63 @@ function parseSqlDump(sql: string): ParsedDumpTables {
     }
   }
   return tables as unknown as ParsedDumpTables;
+}
+
+/**
+ * Scans the value list of an INSERT … VALUES statement starting at `start`,
+ * returning each tuple's inner text and the index just past the terminating
+ * `;`. String-aware: single quotes toggle string mode and `''` is an escaped
+ * quote, so `)`, `;` and `,` inside string literals don't end a tuple or the
+ * statement early.
+ */
+function scanValueTuples(
+  sql: string,
+  start: number,
+): { tuples: string[]; endIndex: number } {
+  const tuples: string[] = [];
+  const n = sql.length;
+  let i = start;
+  while (i < n) {
+    while (i < n && /\s/.test(sql[i])) i++;
+    if (i >= n || sql[i] === ";") {
+      if (i < n) i++; // consume ';'
+      break;
+    }
+    if (sql[i] !== "(") break; // malformed — stop rather than loop forever
+    i++; // skip '('
+    const tupleStart = i;
+    let inString = false;
+    while (i < n) {
+      const ch = sql[i];
+      if (inString) {
+        if (ch === "'") {
+          if (sql[i + 1] === "'") {
+            i += 2;
+            continue;
+          }
+          inString = false;
+        }
+        i++;
+      } else if (ch === "'") {
+        inString = true;
+        i++;
+      } else if (ch === ")") {
+        break;
+      } else {
+        i++;
+      }
+    }
+    tuples.push(sql.slice(tupleStart, i));
+    i++; // skip ')'
+    while (i < n && /\s/.test(sql[i])) i++;
+    if (i < n && sql[i] === ",") {
+      i++;
+      continue;
+    }
+    if (i < n && sql[i] === ";") i++;
+    break;
+  }
+  return { tuples, endIndex: i };
 }
 
 function parseValuesList(raw: string): any[] {
@@ -1141,6 +1203,118 @@ async function runImport(
       stockEntries: stockEntryCount,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// .bak → .sql conversion
+// ---------------------------------------------------------------------------
+
+/** Aronium tables emitted, in FK-friendly-ish order. Kept in sync with the
+ * table list read by `import_aronium_bak` (Rust) and consumed by
+ * `parseSqlDump` above. */
+const BAK_SQL_TABLE_ORDER = [
+  "Tax",
+  "ProductGroup",
+  "Product",
+  "Barcode",
+  "ProductTax",
+  "Stock",
+  "StockEntry",
+  "StockControl",
+  "Customer",
+  "Country",
+  "PaymentType",
+  "Payment",
+  "Document",
+  "DocumentItem",
+  "DocumentItemTax",
+  "DocumentType",
+] as const;
+
+/** Formats one value as a SQL literal that `parseValuesList` reads back
+ * losslessly: NULL, 1/0 for booleans, bare finite numbers, and single-quoted
+ * strings with '' escaping for everything else. */
+function toSqlLiteral(v: any): string {
+  if (v === null || v === undefined) return "NULL";
+  if (typeof v === "boolean") return v ? "1" : "0";
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : "NULL";
+  return "'" + String(v).replace(/'/g, "''") + "'";
+}
+
+/** Builds a portable `.sql` dump from the table map that `import_aronium_bak`
+ * returns, in exactly the `INSERT INTO "T" (...) VALUES (...),(...);` shape
+ * `parseSqlDump` expects. */
+export function buildAroniumSqlDump(
+  tables: Record<string, any[]>,
+): string {
+  const out: string[] = [
+    "-- Aronium data exported from a SQL Server .bak by Axis Lite.",
+    "-- Import on any PC via Settings → Database → Import Aronium Database.",
+    "-- No SQL Server / LocalDB required to import this file.",
+    "",
+  ];
+
+  for (const table of BAK_SQL_TABLE_ORDER) {
+    const rows = tables[table];
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+
+    // FOR JSON AUTO omits null-valued properties, so different rows can carry
+    // different key sets — take the union so every column is represented.
+    const colSet = new Set<string>();
+    for (const r of rows) for (const k of Object.keys(r)) colSet.add(k);
+    const columns = [...colSet];
+    if (columns.length === 0) continue;
+
+    const colList = columns.map((c) => `"${c}"`).join(",");
+    const CHUNK = 500;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const values = rows
+        .slice(i, i + CHUNK)
+        .map(
+          (r) => "(" + columns.map((c) => toSqlLiteral(r[c])).join(",") + ")",
+        )
+        .join(",\n");
+      out.push(`INSERT INTO "${table}" (${colList}) VALUES\n${values};`);
+    }
+    out.push("");
+  }
+
+  return out.join("\n");
+}
+
+/**
+ * Converts a SQL Server `.bak` into a portable `.sql` dump.
+ *
+ * The `.bak` restore itself still needs a working SQL Server engine (LocalDB),
+ * so this runs on a machine that has one — but the `.sql` it produces imports
+ * on ANY machine with no SQL Server at all. That's the point: convert once on a
+ * capable PC, hand the `.sql` to users whose LocalDB won't cooperate.
+ */
+export async function convertBakToSql(
+  bakPath: string,
+  sqlPath: string,
+  onProgress: (stage: string) => void = () => {},
+): Promise<{ tableCounts: Record<string, number> }> {
+  onProgress("Preparing SQL command-line tools…");
+  await invoke<void>("ensure_sqlcmd_available");
+
+  onProgress("Restoring and reading the backup (this can take a minute)…");
+  const json = await invoke<string>("import_aronium_bak", {
+    filePath: bakPath,
+  });
+  const tables: Record<string, any[]> = JSON.parse(json);
+
+  onProgress("Generating .sql…");
+  const sql = buildAroniumSqlDump(tables);
+
+  onProgress("Saving file…");
+  await invoke<void>("write_text_file", { destPath: sqlPath, contents: sql });
+
+  const tableCounts: Record<string, number> = {};
+  for (const [k, v] of Object.entries(tables)) {
+    if (k !== "_ImportErrors" && Array.isArray(v)) tableCounts[k] = v.length;
+  }
+  return { tableCounts };
 }
 
 // ---------------------------------------------------------------------------

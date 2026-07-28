@@ -22,6 +22,7 @@ import {
   HardDrive,
   Info,
   AlertCircle,
+  CheckCircle,
   Upload,
   Radio,
   Trash2,
@@ -35,7 +36,10 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
 import { useTaxes } from "@/hooks/controllers/taxes";
-import { importAroniumDatabase } from "../../helpers/aroniumImporter";
+import {
+  importAroniumDatabase,
+  convertBakToSql,
+} from "../../helpers/aroniumImporter";
 import {
   resetDatabase,
   previewResetTables,
@@ -87,6 +91,52 @@ export default function SettingsPage() {
   } | null>(null);
   const [isCheckingSqlServer, setIsCheckingSqlServer] = useState(false);
 
+  // LocalDB self-test ("Test SQL Server") state.
+  type DiagStep = { name: string; ok: boolean | null; detail: string };
+  type LocalDbDiagnostics = {
+    ok: boolean;
+    summary: string;
+    steps: DiagStep[];
+  };
+  const [diag, setDiag] = useState<LocalDbDiagnostics | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+
+  const handleTestSqlServer = async () => {
+    setIsDiagnosing(true);
+    setDiag(null);
+    try {
+      const result = await invoke<LocalDbDiagnostics>("diagnose_localdb");
+      setDiag(result);
+    } catch (err) {
+      setDiag({
+        ok: false,
+        summary: "The diagnostic could not run: " + String(err),
+        steps: [],
+      });
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
+  const copyDiagnostics = async () => {
+    if (!diag) return;
+    const lines = [
+      `Result: ${diag.ok ? "WORKING" : "FAILED"}`,
+      diag.summary,
+      "",
+      ...diag.steps.map(
+        (s) =>
+          `[${s.ok === null ? "info" : s.ok ? "pass" : "FAIL"}] ${s.name}\n${s.detail}`,
+      ),
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Diagnostics copied to clipboard");
+    } catch {
+      toast.error("Could not copy to clipboard");
+    }
+  };
+
   // Official Microsoft download URL for the en-US, x64 SqlLocalDB.msi
   // installer — kept in sync with src-tauri/src/commands/sql_server.rs.
   const SQL_LOCALDB_DOWNLOAD_URL =
@@ -131,6 +181,43 @@ export default function SettingsPage() {
       checkSqlServer();
     }
   }, [activeTab]);
+
+  const [isConvertingBak, setIsConvertingBak] = useState(false);
+
+  const handleConvertBakToSql = async () => {
+    if (isConvertingBak) return;
+    try {
+      const bakPath = await dialogOpen({
+        multiple: false,
+        filters: [{ name: "SQL Server backup", extensions: ["bak"] }],
+      });
+      if (!bakPath || typeof bakPath !== "string") return;
+
+      const sqlPath = await save({
+        filters: [{ name: "SQL dump", extensions: ["sql"] }],
+        defaultPath: "aronium-export.sql",
+      });
+      if (!sqlPath) return;
+
+      setIsConvertingBak(true);
+      const toastId = toast.loading("Converting .bak to .sql…");
+      const { tableCounts } = await convertBakToSql(bakPath, sqlPath, (stage) =>
+        toast.update(toastId, { render: stage, isLoading: true }),
+      );
+      const total = Object.values(tableCounts).reduce((a, b) => a + b, 0);
+      toast.update(toastId, {
+        render: `Saved ${sqlPath.split(/[\\/]/).pop()} — ${total.toLocaleString()} rows across ${Object.keys(tableCounts).length} tables. It imports on any PC with no SQL Server needed.`,
+        type: "success",
+        isLoading: false,
+        autoClose: 10000,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Conversion failed: " + String(err));
+    } finally {
+      setIsConvertingBak(false);
+    }
+  };
 
   const handleImportAroniumDb = async () => {
     try {
@@ -1534,16 +1621,29 @@ export default function SettingsPage() {
                     Checking SQL Server...
                   </div>
                 ) : sqlServerStatus?.installed ? (
-                  <button
-                    className="flex items-center gap-3 px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed border border-orange-500 rounded text-white font-medium transition-colors"
-                    onClick={handleImportAroniumDb}
-                    disabled={isImportingAronium}
-                  >
-                    <Upload className="w-5 h-5" />
-                    {isImportingAronium
-                      ? "Importing Aronium..."
-                      : "Import Aronium Database"}
-                  </button>
+                  <>
+                    <button
+                      className="flex items-center gap-3 px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed border border-orange-500 rounded text-white font-medium transition-colors"
+                      onClick={handleImportAroniumDb}
+                      disabled={isImportingAronium}
+                    >
+                      <Upload className="w-5 h-5" />
+                      {isImportingAronium
+                        ? "Importing Aronium..."
+                        : "Import Aronium Database"}
+                    </button>
+                    <button
+                      className="flex items-center gap-3 px-6 py-3 bg-stone-800 hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed border border-stone-700 rounded text-stone-100 font-medium transition-colors"
+                      onClick={handleConvertBakToSql}
+                      disabled={isConvertingBak}
+                      title="Restore a .bak here and save it as a portable .sql that imports on any PC without SQL Server."
+                    >
+                      <FileText className="w-5 h-5" />
+                      {isConvertingBak
+                        ? "Converting…"
+                        : "Convert .bak to .sql"}
+                    </button>
+                  </>
                 ) : (
                   <div className="flex flex-col gap-2 w-full max-w-md">
                     <div className="flex items-start gap-2 px-4 py-3 bg-amber-950/40 border border-amber-700/50 rounded text-sm max-w-md">
@@ -1569,12 +1669,89 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              <button
-                className="text-sm text-amber-500 hover:text-amber-400 mt-4 block"
-                onClick={handleOpenDbLocation}
-              >
-                Open database location
-              </button>
+              <div className="flex items-center gap-4 mt-4">
+                <button
+                  className="text-sm text-amber-500 hover:text-amber-400 block"
+                  onClick={handleOpenDbLocation}
+                >
+                  Open database location
+                </button>
+                <button
+                  className="text-sm text-amber-500 hover:text-amber-400 block disabled:opacity-50"
+                  onClick={handleTestSqlServer}
+                  disabled={isDiagnosing}
+                >
+                  {isDiagnosing ? "Testing SQL Server…" : "Test SQL Server"}
+                </button>
+              </div>
+
+              {/* LocalDB self-test results */}
+              {diag && (
+                <div
+                  className={`mt-4 max-w-2xl rounded border p-4 ${
+                    diag.ok
+                      ? "bg-emerald-950/30 border-emerald-700/50"
+                      : "bg-amber-950/30 border-amber-700/50"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    {diag.ok ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p
+                        className={`text-sm font-medium ${
+                          diag.ok ? "text-emerald-200" : "text-amber-200"
+                        }`}
+                      >
+                        {diag.summary}
+                      </p>
+                    </div>
+                  </div>
+
+                  {diag.steps.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {diag.steps.map((s, i) => (
+                        <div
+                          key={i}
+                          className="text-xs border-t border-stone-700/50 pt-2 first:border-t-0 first:pt-0"
+                        >
+                          <div className="flex items-center gap-1.5 font-medium text-stone-200">
+                            <span>
+                              {s.ok === null ? "•" : s.ok ? "✓" : "✗"}
+                            </span>
+                            <span
+                              className={
+                                s.ok === false
+                                  ? "text-amber-300"
+                                  : s.ok
+                                    ? "text-emerald-300"
+                                    : "text-stone-300"
+                              }
+                            >
+                              {s.name}
+                            </span>
+                          </div>
+                          {s.detail && (
+                            <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] text-stone-400 pl-4">
+                              {s.detail}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    className="mt-3 text-xs text-amber-500 hover:text-amber-400"
+                    onClick={copyDiagnostics}
+                  >
+                    Copy diagnostics
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Auto backup section */}

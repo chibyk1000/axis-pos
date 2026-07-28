@@ -120,6 +120,205 @@ pub async fn ensure_sqlcmd_available(app: AppHandle) -> Result<(), String> {
     }
 }
 
+// ─── Command: diagnose_localdb ───────────────────────────────────────────────
+
+/// One step of the LocalDB self-test, surfaced to the user.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiagStep {
+    pub name: String,
+    /// true = passed, false = failed, None = informational only
+    pub ok: Option<bool>,
+    pub detail: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LocalDbDiagnostics {
+    /// Overall verdict: is LocalDB actually able to run a query on this PC?
+    pub ok: bool,
+    /// One-line, user-facing conclusion.
+    pub summary: String,
+    pub steps: Vec<DiagStep>,
+}
+
+/// Runs a full LocalDB health check and reports exactly where it breaks, so a
+/// user hitting "never reported a connection pipe" (and the developer helping
+/// them) can see the real cause instead of guessing. Tests both the app's own
+/// `axis_import` instance — using the same delete+recreate recovery an import
+/// performs, so the result matches reality — and the built-in `MSSQLLocalDB`
+/// fallback. The `axis_import` instance is disposable (it only ever holds a
+/// temporary restore that's dropped after each import), so recreating it here
+/// is safe and touches no real data.
+///
+/// TypeScript:
+/// ```ts
+/// const diag = await invoke<LocalDbDiagnostics>("diagnose_localdb");
+/// ```
+#[tauri::command]
+pub async fn diagnose_localdb(app: AppHandle) -> LocalDbDiagnostics {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        return LocalDbDiagnostics {
+            ok: false,
+            summary: "SQL Server LocalDB is only available on Windows.".into(),
+            steps: vec![],
+        };
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let mut steps: Vec<DiagStep> = Vec::new();
+
+        // 1. Is the SqlLocalDB CLI present at all?
+        match run_localdb(&["versions"]) {
+            Ok(out) => {
+                let text = decode_console_output(&out.stdout);
+                let installed = !text.trim().is_empty();
+                steps.push(DiagStep {
+                    name: "SQL Server LocalDB installed".into(),
+                    ok: Some(installed),
+                    detail: if installed {
+                        text.trim().to_string()
+                    } else {
+                        "SqlLocalDB ran but reported no installed versions.".into()
+                    },
+                });
+                if !installed {
+                    return LocalDbDiagnostics {
+                        ok: false,
+                        summary: "SQL Server LocalDB does not appear to be installed. Install it \
+                                  from the Database settings page, then run this test again."
+                            .into(),
+                        steps,
+                    };
+                }
+            }
+            Err(e) => {
+                steps.push(DiagStep {
+                    name: "SQL Server LocalDB installed".into(),
+                    ok: Some(false),
+                    detail: format!("Could not run 'SqlLocalDB': {e}"),
+                });
+                return LocalDbDiagnostics {
+                    ok: false,
+                    summary: "SQL Server LocalDB is not installed (or not on PATH). Install it \
+                              from the Database settings page, then run this test again."
+                        .into(),
+                    steps,
+                };
+            }
+        }
+
+        // 2. What instances exist right now? (informational)
+        if let Ok(out) = run_localdb(&["info"]) {
+            steps.push(DiagStep {
+                name: "LocalDB instances".into(),
+                ok: None,
+                detail: decode_console_output(&out.stdout).trim().to_string(),
+            });
+        }
+
+        // 3. The app's own instance — the one .bak imports actually use. Tested
+        //    with the same delete+recreate recovery the real import performs, so
+        //    the result matches what an import will do.
+        let (app_pipe, app_detail) =
+            diag_test_instance(APP_LOCALDB_INSTANCE, true);
+        steps.push(DiagStep {
+            name: format!("App import instance '{APP_LOCALDB_INSTANCE}'"),
+            ok: Some(app_pipe.is_some()),
+            detail: app_detail,
+        });
+
+        // 4. The built-in fallback instance the import drops back to. Tested
+        //    gently (never deleted — it belongs to the whole machine).
+        let (fallback_pipe, fallback_detail) =
+            diag_test_instance(DEFAULT_LOCALDB_INSTANCE, false);
+        steps.push(DiagStep {
+            name: format!("Fallback instance '{DEFAULT_LOCALDB_INSTANCE}'"),
+            ok: Some(fallback_pipe.is_some()),
+            detail: fallback_detail,
+        });
+
+        // The import prefers the app instance, then the fallback.
+        let pipe = match app_pipe.clone().or_else(|| fallback_pipe.clone()) {
+            Some(p) => p,
+            None => {
+                return LocalDbDiagnostics {
+                    ok: false,
+                    summary: "Neither the app's LocalDB instance nor the built-in fallback would \
+                              start on this PC, so .bak imports can't work here. Try: restart the \
+                              computer; reinstall SQL Server LocalDB; and if antivirus is active, \
+                              allow SQL Server (sqlservr.exe) to run."
+                        .into(),
+                    steps,
+                };
+            }
+        };
+
+        // 5. Is sqlcmd available (on PATH, cached, or downloadable)?
+        let sqlcmd_path = match resolve_sqlcmd_exe(&app).await {
+            Ok(p) => {
+                steps.push(DiagStep {
+                    name: "Command-line tools (sqlcmd)".into(),
+                    ok: Some(true),
+                    detail: p.display().to_string(),
+                });
+                Some(p)
+            }
+            Err(e) => {
+                steps.push(DiagStep {
+                    name: "Command-line tools (sqlcmd)".into(),
+                    ok: Some(false),
+                    detail: e,
+                });
+                None
+            }
+        };
+
+        // 6. Can we actually run a query against the running engine?
+        let mut query_ok = false;
+        if let Some(sqlcmd_path) = &sqlcmd_path {
+            match run_sqlcmd(sqlcmd_path, &pipe, "master", "SELECT 1 AS ok") {
+                Ok(out) => {
+                    query_ok = out.contains('1');
+                    steps.push(DiagStep {
+                        name: "Test query".into(),
+                        ok: Some(query_ok),
+                        detail: out.trim().to_string(),
+                    });
+                }
+                Err(e) => steps.push(DiagStep {
+                    name: "Test query".into(),
+                    ok: Some(false),
+                    detail: e,
+                }),
+            }
+        }
+
+        let ok = query_ok;
+        let summary = if ok {
+            if app_pipe.is_some() {
+                "SQL Server LocalDB is working correctly on this PC — .bak imports should \
+                 succeed."
+                    .into()
+            } else {
+                "The app's own instance wouldn't start, but the built-in fallback \
+                 (MSSQLLocalDB) works — .bak imports should still succeed through it."
+                    .into()
+            }
+        } else {
+            "An engine instance started but a test query failed — the command-line tools \
+             couldn't talk to it. Retry the import; if it persists, reinstall SQL Server \
+             LocalDB."
+                .into()
+        };
+        LocalDbDiagnostics {
+            ok,
+            summary,
+            steps,
+        }
+    }
+}
+
 // ─── Logging helper ───────────────────────────────────────────────────────────
 
 /// Emits a status line to the frontend on the `sql-install-log` event, and
@@ -1007,6 +1206,10 @@ pub async fn import_aronium_bak(app: AppHandle, file_path: String) -> Result<Str
 #[cfg(target_os = "windows")]
 const DEFAULT_LOCALDB_INSTANCE: &str = "MSSQLLocalDB";
 
+/// The app's own dedicated LocalDB instance used to restore .bak imports.
+#[cfg(target_os = "windows")]
+const APP_LOCALDB_INSTANCE: &str = "axis_import";
+
 #[cfg(target_os = "windows")]
 fn ensure_localdb_instance_running(instance: &str) -> Result<String, String> {
     // Prefer our dedicated instance (isolated from anything else the user's
@@ -1249,6 +1452,65 @@ fn poll_localdb_pipe(instance: &str, timeout: std::time::Duration) -> Option<Str
     }
 }
 
+/// Diagnostic-only: brings one instance up and reports whether it published a
+/// pipe, with human-readable detail. `allow_recreate` mirrors the real import
+/// — the app's own instance is delete+recreated when a plain start yields no
+/// pipe, the shared default instance is only started. Returns `(pipe, detail)`.
+#[cfg(target_os = "windows")]
+fn diag_test_instance(instance: &str, allow_recreate: bool) -> (Option<String>, String) {
+    let start = run_localdb(&["start", instance]);
+    let start_line = match &start {
+        Ok(o) => {
+            let t = command_output_text(o);
+            if t.trim().is_empty() {
+                format!("start: exit {:?}", o.status.code())
+            } else {
+                format!("start: {}", t.trim())
+            }
+        }
+        Err(e) => format!("start could not run: {e}"),
+    };
+
+    if let Some(pipe) = poll_localdb_pipe(instance, std::time::Duration::from_secs(30)) {
+        return (Some(pipe.clone()), format!("{start_line}\npipe: {pipe}"));
+    }
+
+    if !allow_recreate {
+        let info = localdb_info_text(instance).unwrap_or_else(|e| e);
+        return (
+            None,
+            format!("{start_line}\nNo connection pipe within 30s.\nSqlLocalDB info {instance}:\n{info}"),
+        );
+    }
+
+    // Recreate — same recovery the real import runs for its own instance.
+    let _ = run_localdb(&["stop", instance]);
+    let _ = run_localdb(&["delete", instance]);
+    delete_instance_folder(instance);
+    let _ = run_localdb(&["create", instance]);
+    let restart = run_localdb(&["start", instance]);
+    let restart_line = match &restart {
+        Ok(o) => format!("recreate + start: exit {:?}", o.status.code()),
+        Err(e) => format!("recreate start could not run: {e}"),
+    };
+
+    if let Some(pipe) = poll_localdb_pipe(instance, std::time::Duration::from_secs(60)) {
+        return (
+            Some(pipe.clone()),
+            format!("{start_line}\n{restart_line}\npipe (after recreate): {pipe}"),
+        );
+    }
+
+    let info = localdb_info_text(instance).unwrap_or_else(|e| e);
+    (
+        None,
+        format!(
+            "{start_line}\n{restart_line}\nStill no connection pipe after recreate — the engine \
+             starts but never comes up.\nSqlLocalDB info {instance}:\n{info}"
+        ),
+    )
+}
+
 fn import_aronium_bak_blocking(
     file_path: String,
     sqlcmd_path: std::path::PathBuf,
@@ -1272,7 +1534,7 @@ fn import_aronium_bak_blocking(
                 .to_string()
         })?;
 
-        const INSTANCE: &str = "axis_import";
+        const INSTANCE: &str = APP_LOCALDB_INSTANCE;
         const DB_NAME: &str = "AroniumImport";
 
         // ── 1. Ensure the LocalDB instance exists and is running ───────────────

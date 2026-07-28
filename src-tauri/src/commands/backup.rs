@@ -43,3 +43,13 @@ pub fn export_database(app: AppHandle, dest_path: String) -> Result<(), String> 
 
     Ok(())
 }
+
+/// Write UTF-8 text to a user-chosen path. Used by the .bak→.sql converter to
+/// save the generated dump. In Rust (not the fs plugin's writeFile) so an
+/// arbitrary destination — Documents, a USB drive, anywhere the native save
+/// dialog allows — works without fs capability-scope restrictions.
+#[tauri::command]
+pub fn write_text_file(dest_path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&dest_path, contents.as_bytes())
+        .map_err(|e| format!("Cannot write file: {e}"))
+}

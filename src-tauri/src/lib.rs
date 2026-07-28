@@ -8,6 +8,8 @@ use crate::commands::{
     import_aronium_bak,
     ensure_sqlcmd_available,
     export_database,
+    write_text_file,
+    diagnose_localdb,
 };
 use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha384};
@@ -206,6 +208,8 @@ pub fn run() {
             import_aronium_bak,
             ensure_sqlcmd_available,
             export_database,
+            write_text_file,
+            diagnose_localdb,
             // ── LAN Sync ──────────────────────────────────────────────────
             sync_server::start_sync_server,
             sync_server::stop_sync_server,
