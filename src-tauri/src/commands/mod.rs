@@ -10,4 +10,5 @@ pub use sql_server::{
     import_aronium_bak,
     ensure_sqlcmd_available,
     diagnose_localdb,
+    install_vc_redist,
 };

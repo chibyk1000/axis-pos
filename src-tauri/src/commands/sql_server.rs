@@ -120,6 +120,30 @@ pub async fn ensure_sqlcmd_available(app: AppHandle) -> Result<(), String> {
     }
 }
 
+// ─── Command: install_vc_redist ──────────────────────────────────────────────
+
+/// Downloads and installs the Microsoft Visual C++ 2015-2022 x64
+/// redistributable — the fix when `diagnose_localdb` reports VCRUNTIME140_1.dll
+/// missing. The installer self-elevates (its own UAC prompt), so this works
+/// from a non-elevated app.
+///
+/// TypeScript:
+/// ```ts
+/// await invoke<void>("install_vc_redist");
+/// ```
+#[tauri::command]
+pub async fn install_vc_redist(app: AppHandle) -> Result<(), String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        return Err("The Visual C++ runtime is only needed on Windows.".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        install_vcredist(&app).await
+    }
+}
+
 // ─── Command: diagnose_localdb ───────────────────────────────────────────────
 
 /// One step of the LocalDB self-test, surfaced to the user.
@@ -208,7 +232,25 @@ pub async fn diagnose_localdb(app: AppHandle) -> LocalDbDiagnostics {
             }
         }
 
-        // 2. What instances exist right now? (informational)
+        // 2. Visual C++ runtime — the engine (sqlservr.exe) can't load without
+        //    VCRUNTIME140_1.dll, and its absence is the single most common cause
+        //    of "started but no pipe". Checked explicitly so it's obvious.
+        let vcrt_ok = vcruntime140_1_present();
+        steps.push(DiagStep {
+            name: "Visual C++ runtime (VCRUNTIME140_1.dll)".into(),
+            ok: Some(vcrt_ok),
+            detail: if vcrt_ok {
+                "Present.".into()
+            } else {
+                "MISSING. SQL Server's database engine can't start without this file, so LocalDB \
+                 reports 'started' but never comes up. Fix: install the Microsoft Visual C++ \
+                 2015-2022 Redistributable (x64) — use the button below, or download \
+                 https://aka.ms/vs/17/release/vc_redist.x64.exe and run it."
+                    .into()
+            },
+        });
+
+        // 3. What instances exist right now? (informational)
         if let Ok(out) = run_localdb(&["info"]) {
             steps.push(DiagStep {
                 name: "LocalDB instances".into(),
@@ -244,11 +286,19 @@ pub async fn diagnose_localdb(app: AppHandle) -> LocalDbDiagnostics {
             None => {
                 return LocalDbDiagnostics {
                     ok: false,
-                    summary: "Neither the app's LocalDB instance nor the built-in fallback would \
-                              start on this PC, so .bak imports can't work here. Try: restart the \
-                              computer; reinstall SQL Server LocalDB; and if antivirus is active, \
-                              allow SQL Server (sqlservr.exe) to run."
-                        .into(),
+                    summary: if !vcrt_ok {
+                        "The database engine can't start because the Microsoft Visual C++ \
+                         Redistributable (VCRUNTIME140_1.dll) is missing — that's the root cause. \
+                         Install it with the button below (or from \
+                         https://aka.ms/vs/17/release/vc_redist.x64.exe), then run this test again."
+                            .into()
+                    } else {
+                        "Neither the app's LocalDB instance nor the built-in fallback would start \
+                         on this PC, so .bak imports can't work here. Try: restart the computer; \
+                         reinstall SQL Server LocalDB; and if antivirus is active, allow SQL \
+                         Server (sqlservr.exe) to run."
+                            .into()
+                    },
                     steps,
                 };
             }
@@ -461,6 +511,21 @@ fn run_msiexec_elevated(args: &str) -> Result<u32, String> {
     unsafe { CloseHandle(process) };
 
     Ok(exit_code)
+}
+
+/// True when `VCRUNTIME140_1.dll` is present in the system directory. This is
+/// the exact DLL SQL Server's engine (`sqlservr.exe`) needs — it shipped with
+/// the VC++ 2019 redistributable, so a machine that only has the older 2015
+/// redist passes `vcredist_installed()`'s registry flag yet is still missing
+/// this file, and the engine fails to start with "VCRUNTIME140_1.dll was not
+/// found". Checking the file directly is the ground truth for that failure.
+#[cfg(target_os = "windows")]
+fn vcruntime140_1_present() -> bool {
+    let sysroot = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string());
+    std::path::Path::new(&sysroot)
+        .join("System32")
+        .join("VCRUNTIME140_1.dll")
+        .exists()
 }
 
 /// Guard 3 — checks for the VC++ 2015-2022 x64 redistributable.

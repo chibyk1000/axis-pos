@@ -10,6 +10,7 @@ use crate::commands::{
     export_database,
     write_text_file,
     diagnose_localdb,
+    install_vc_redist,
 };
 use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha384};
@@ -210,6 +211,7 @@ pub fn run() {
             export_database,
             write_text_file,
             diagnose_localdb,
+            install_vc_redist,
             // ── LAN Sync ──────────────────────────────────────────────────
             sync_server::start_sync_server,
             sync_server::stop_sync_server,

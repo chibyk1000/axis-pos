@@ -118,6 +118,41 @@ export default function SettingsPage() {
     }
   };
 
+  const [isInstallingVcRedist, setIsInstallingVcRedist] = useState(false);
+  // True when the diagnostic flagged the VC++ runtime step as failing.
+  const vcRuntimeMissing =
+    diag?.steps.some(
+      (s) => s.ok === false && /visual c\+\+/i.test(s.name),
+    ) ?? false;
+
+  const handleInstallVcRedist = async () => {
+    if (isInstallingVcRedist) return;
+    setIsInstallingVcRedist(true);
+    const toastId = toast.loading(
+      "Installing Visual C++ runtime… (approve the Windows prompt if it appears)",
+    );
+    try {
+      await invoke("install_vc_redist");
+      toast.update(toastId, {
+        render: "Visual C++ runtime installed. Run 'Test SQL Server' again.",
+        type: "success",
+        isLoading: false,
+        autoClose: 8000,
+      });
+      // Re-run the diagnostic so the user immediately sees the new state.
+      handleTestSqlServer();
+    } catch (err) {
+      toast.update(toastId, {
+        render: "Install failed: " + String(err),
+        type: "error",
+        isLoading: false,
+        autoClose: 10000,
+      });
+    } finally {
+      setIsInstallingVcRedist(false);
+    }
+  };
+
   const copyDiagnostics = async () => {
     if (!diag) return;
     const lines = [
@@ -1744,12 +1779,26 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <button
-                    className="mt-3 text-xs text-amber-500 hover:text-amber-400"
-                    onClick={copyDiagnostics}
-                  >
-                    Copy diagnostics
-                  </button>
+                  <div className="mt-3 flex items-center gap-4">
+                    {vcRuntimeMissing && (
+                      <button
+                        className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-xs font-medium transition-colors"
+                        onClick={handleInstallVcRedist}
+                        disabled={isInstallingVcRedist}
+                      >
+                        <Database className="w-3.5 h-3.5" />
+                        {isInstallingVcRedist
+                          ? "Installing…"
+                          : "Install Visual C++ runtime"}
+                      </button>
+                    )}
+                    <button
+                      className="text-xs text-amber-500 hover:text-amber-400"
+                      onClick={copyDiagnostics}
+                    >
+                      Copy diagnostics
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
