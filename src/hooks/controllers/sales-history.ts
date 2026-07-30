@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/db/database";
-import { documents, documentItems } from "@/db/schema";
+import { documents, documentItems, stockLogs } from "@/db/schema";
 import { and, gte, lte, eq, like, sql, desc, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -205,6 +205,13 @@ export function useDeleteDocument() {
         where: eq(documents.id, id),
       });
       if (!existing) throw new Error("Document not found");
+      // `stock_logs.document_id` has no ON DELETE action in the DB (added by
+      // migration 0002), so with foreign_keys ON the delete below fails for
+      // any document that moved stock. Drop the link, keep the log.
+      await db
+        .update(stockLogs)
+        .set({ documentId: null })
+        .where(eq(stockLogs.documentId, id));
       // cascade deletes documentItems via FK
       await db.delete(documents).where(eq(documents.id, id));
       return existing;

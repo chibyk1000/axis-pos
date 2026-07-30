@@ -278,7 +278,7 @@ export function DocumentsView() {
 
   // ── DB-level pagination ───────────────────────────────────────────────────
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize, setPageSize] = useState(20);
 
   const listFilters: DocumentListFilters = useMemo(() => {
     let toMs: number | null = null;

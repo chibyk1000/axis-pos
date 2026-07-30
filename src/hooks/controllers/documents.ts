@@ -5,6 +5,7 @@ import {
   documentItems,
   documentPayments,
   customers,
+  stockLogs,
 } from "@/db/schema";
 import { and, or, like, gte, lte, eq, desc, count } from "drizzle-orm";
 import { logActivity } from "@/lib/activity-log";
@@ -446,6 +447,20 @@ export function useDeleteDocument() {
         .from(documents)
         .where(eq(documents.id, id))
         .get();
+
+      // `stock_logs.document_id` was added in migration 0002 as a plain
+      // `REFERENCES documents(id)` — no ON DELETE action — so with
+      // `PRAGMA foreign_keys = ON` (see db/database.ts) deleting a document
+      // that moved stock fails with SQLITE_CONSTRAINT_FOREIGNKEY. The schema
+      // declares `set null`, so do that explicitly here: the stock movement
+      // still happened and its note records the document number, so the log
+      // is kept and only the link is dropped.
+      await db
+        .update(stockLogs)
+        .set({ documentId: null })
+        .where(eq(stockLogs.documentId, id));
+
+      // document_items and docmentPayments both cascade.
       await db.delete(documents).where(eq(documents.id, id));
       logActivity({
         action: "document.delete",

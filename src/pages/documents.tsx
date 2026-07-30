@@ -40,7 +40,7 @@ import {
   Percent,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useDocuments } from "@/hooks/controllers/documents";
+import { useDocuments, useDeleteDocument } from "@/hooks/controllers/documents";
 import { useCreateDocument } from "@/hooks/controllers/documents";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "react-toastify";
@@ -1185,6 +1185,7 @@ function SidePanel({
   onPrint,
   onDuplicate,
   onContinuePayment,
+  onDelete,
 }: {
   doc: Document;
   isRefunded?: boolean;
@@ -1194,6 +1195,7 @@ function SidePanel({
   onPrint: (doc: Document) => void;
   onDuplicate: (doc: Document) => void;
   onContinuePayment: (doc: Document) => void;
+  onDelete: (doc: Document) => void;
 }) {
   const items = doc.items ?? [];
   const payments = doc.payments ?? [];
@@ -1440,6 +1442,13 @@ function SidePanel({
             Void
           </button>
         )}
+        <button
+          onClick={() => onDelete(doc)}
+          className="col-span-2 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-500 border border-red-700 rounded-lg py-2 text-xs text-white font-medium transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete document
+        </button>
       </div>
     </div>
   );
@@ -1454,6 +1463,7 @@ export default function DocumentsPage() {
   const documentsQuery = useDocuments();
 
   const createDocument = useCreateDocument();
+  const deleteDocument = useDeleteDocument();
   const { user } = useAuth();
   const docs: Document[] = (documentsQuery.data as any) ?? [];
 
@@ -1677,6 +1687,65 @@ export default function DocumentsPage() {
 
     // In a real app, call update mutation to set status: "void"
     // For now, just refresh
+    documentsQuery.refetch?.();
+  };
+
+  const handleDelete = async (doc: SliceDocument) => {
+    try {
+      await deleteDocument.mutateAsync(doc.id);
+      toast.success(`Deleted ${doc.number}`);
+      if (selectedDoc?.id === doc.id) setSelectedDoc(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(doc.id);
+        return next;
+      });
+      documentsQuery.refetch?.();
+    } catch (err) {
+      console.error("Delete document failed", err);
+      toast.error(`Could not delete ${doc.number}.`);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    // Sequential rather than Promise.all: these are writes on one SQLite
+    // connection, and a partial failure should still leave the rest deleted
+    // and be reported honestly.
+    const failedIds: string[] = [];
+    for (const id of ids) {
+      try {
+        await deleteDocument.mutateAsync(id);
+      } catch (err) {
+        console.error("Delete document failed", id, err);
+        failedIds.push(id);
+      }
+    }
+
+    const deleted = ids.length - failedIds.length;
+    if (deleted > 0)
+      toast.success(`Deleted ${deleted} document${deleted === 1 ? "" : "s"}`);
+    if (failedIds.length > 0) {
+      const names = failedIds.map(
+        (id) => docs.find((d) => d.id === id)?.number ?? id,
+      );
+      toast.error(
+        `Could not delete ${failedIds.length}: ${names.slice(0, 3).join(", ")}${
+          names.length > 3 ? "…" : ""
+        }`,
+      );
+    }
+
+    // Keep whatever failed selected so it can be retried or inspected.
+    setSelectedIds(new Set(failedIds));
+    if (
+      selectedDoc &&
+      ids.includes(selectedDoc.id) &&
+      !failedIds.includes(selectedDoc.id)
+    )
+      setSelectedDoc(null);
     documentsQuery.refetch?.();
   };
 
@@ -2022,6 +2091,26 @@ export default function DocumentsPage() {
           onClose={() => setConfirmModal(null)}
         />
       )}
+      {confirmModal?.type === "delete" && confirmModal.doc && (
+        <ConfirmModal
+          title="Delete document?"
+          message={`${confirmModal.doc.number} and its items and payments will be permanently removed. Stock is not returned — use Refund for that. This cannot be undone.`}
+          confirmLabel="Delete"
+          confirmCls="bg-red-600 hover:bg-red-500"
+          onConfirm={() => handleDelete(confirmModal.doc!)}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
+      {confirmModal?.type === "bulkDelete" && (
+        <ConfirmModal
+          title={`Delete ${selectedIds.size} document${selectedIds.size === 1 ? "" : "s"}?`}
+          message={`The selected document${selectedIds.size === 1 ? "" : "s"} and their items and payments will be permanently removed. Stock is not returned — use Refund for that. This cannot be undone.`}
+          confirmLabel={`Delete ${selectedIds.size}`}
+          confirmCls="bg-red-600 hover:bg-red-500"
+          onConfirm={handleBulkDelete}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
       {confirmModal?.type === "refund" && confirmModal.doc && (
         <ConfirmModal
           title="Process refund?"
@@ -2083,9 +2172,24 @@ export default function DocumentsPage() {
             </div>
           )}
           {selectedIds.size > 0 && (
-            <span className="text-xs text-amber-400 font-medium">
-              {selectedIds.size} selected
-            </span>
+            <>
+              <span className="text-xs text-amber-400 font-medium">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={() => setConfirmModal({ type: "bulkDelete" })}
+                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 border border-red-700 rounded-lg px-3 py-1.5 text-xs text-white font-medium transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete {selectedIds.size}
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200"
+              >
+                Clear
+              </button>
+            </>
           )}
           <button
             onClick={handleExportCSV}
@@ -2460,6 +2564,7 @@ export default function DocumentsPage() {
               onPrint={handlePrint}
               onDuplicate={handleDuplicate}
               onContinuePayment={handleContinuePayment}
+              onDelete={(doc) => setConfirmModal({ type: "delete", doc })}
             />
           </div>
         )}

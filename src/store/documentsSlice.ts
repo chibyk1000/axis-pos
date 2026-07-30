@@ -62,7 +62,7 @@ export interface DocumentsState {
   page: number;
   selectedIds: string[];
   confirmModal: {
-    type: "void" | "refund" | "bulkVoid";
+    type: "void" | "refund" | "bulkVoid" | "delete" | "bulkDelete";
     doc?: Document;
   } | null;
   splitPaymentDoc: Document | null;
@@ -125,7 +125,10 @@ const documentsSlice = createSlice({
     },
     setConfirmModal(
       state,
-      action: PayloadAction<{ type: "void" | "refund" | "bulkVoid"; doc?: Document } | null>,
+      action: PayloadAction<{
+        type: "void" | "refund" | "bulkVoid" | "delete" | "bulkDelete";
+        doc?: Document;
+      } | null>,
     ) {
       state.confirmModal = action.payload;
     },
