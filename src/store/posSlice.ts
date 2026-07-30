@@ -15,6 +15,7 @@ export interface CartItem {
 
 export type ModalKind =
   | "none"
+  | "price"
   | "qty"
   | "discount"
   | "customer"

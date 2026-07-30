@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect, useRef, useCallback } from "react";
+import { useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "../store";
 import {
@@ -78,7 +78,7 @@ import {
 import { BsThreeDots } from "react-icons/bs";
 import { TbBasketPlus } from "react-icons/tb";
 import { ImDrawer } from "react-icons/im";
-import Select from "react-select";
+import Select, { components as selectComponents } from "react-select";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { SidebarDrawer } from "@/components/sidebar-drawer";
 import { ResponsiveIcon } from "@/components/responsive-icon";
@@ -114,6 +114,7 @@ interface CartItem {
 
 type ModalKind =
   | "none"
+  | "price"
   | "qty"
   | "discount"
   | "customer"
@@ -165,6 +166,152 @@ function Modal({
   );
 }
 
+// ─── Product search menu ──────────────────────────────────────────────────────
+
+const MENU_CHUNK = 40;
+
+/**
+ * react-select renders every filtered option at once, which stalls the UI on
+ * catalogues with thousands of products (an empty search matches all of them).
+ * This renders the first `MENU_CHUNK` rows and reveals the next chunk as the
+ * menu is scrolled — the same approach as [useInfiniteRows] for tables.
+ */
+function ChunkedMenuList(props: any) {
+  const { children, focusedOption, selectProps, innerProps } = props;
+  // Options come through as an array; the "no options" notice comes through
+  // as a lone element.
+  const items: any[] = Array.isArray(children)
+    ? children
+    : children
+      ? [children]
+      : [];
+
+  const [visible, setVisible] = useState(MENU_CHUNK);
+
+  // A new search is a new result set — start from the top again.
+  useEffect(() => setVisible(MENU_CHUNK), [selectProps.inputValue]);
+
+  // Arrow-key navigation can move focus past the rendered window, and
+  // react-select can only scroll to an option that is actually mounted.
+  const focusedIndex = focusedOption
+    ? items.findIndex((c) => c?.props?.data === focusedOption)
+    : -1;
+  const count = Math.max(visible, focusedIndex + 1);
+
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    innerProps?.onScroll?.(e);
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+      setVisible((v) => Math.min(v + MENU_CHUNK, items.length));
+    }
+  };
+
+  return (
+    <selectComponents.MenuList
+      {...props}
+      innerProps={{ ...innerProps, onScroll }}
+    >
+      {count < items.length ? items.slice(0, count) : children}
+    </selectComponents.MenuList>
+  );
+}
+
+// ─── Price Modal ──────────────────────────────────────────────────────────────
+
+/**
+ * Step 1 of adding a searched product: pick which price label to sell at.
+ * Only shown when the product actually has more than one price row — with a
+ * single price there is nothing to choose, so the caller goes straight to qty.
+ */
+function PriceModal({
+  product,
+  onConfirm,
+  onClose,
+}: {
+  product: CartItem;
+  onConfirm: (price: { label: "Retail" | "Wholesale"; price: number }) => void;
+  onClose: () => void;
+}) {
+  const prices = product.availablePrices;
+  const [index, setIndex] = useState(() => {
+    const i = prices.findIndex((p) => p.label === product.priceLabel);
+    return i === -1 ? 0 : i;
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setIndex((i) => (i + 1) % prices.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setIndex((i) => (i - 1 + prices.length) % prices.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm(prices[index]);
+      } else if (e.key === "Escape") {
+        onClose();
+      } else if (e.key >= "1" && e.key <= String(Math.min(9, prices.length))) {
+        onConfirm(prices[Number(e.key) - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [prices, index, onConfirm, onClose]);
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-80 shadow-2xl overflow-hidden">
+        <div className="px-4 pt-4 pb-3">
+          <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
+            Price
+          </p>
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+            {product.title}
+          </p>
+        </div>
+        <div className="px-3 pb-3 space-y-2">
+          {prices.map((p, i) => (
+            <button
+              key={`${p.label}-${i}`}
+              onClick={() => onConfirm(p)}
+              onMouseEnter={() => setIndex(i)}
+              className={`w-full flex items-center justify-between gap-3 rounded-xl px-4 h-14 border transition-colors text-left ${
+                i === index
+                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600"
+                  : "bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700"
+              }`}
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-mono text-stone-500 dark:text-stone-400 border border-stone-300 dark:border-stone-600 rounded px-1.5 py-0.5 shrink-0">
+                  {i + 1}
+                </span>
+                <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
+                  {p.label}
+                </span>
+              </span>
+              <span className="text-sm font-mono font-semibold text-stone-900 dark:text-stone-100 shrink-0">
+                ₦{formatPrice(p.price)}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="px-4 py-2.5 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
+          <span className="text-[11px] text-stone-500 dark:text-stone-400">
+            ↑↓ / 1-{prices.length} · Enter to continue
+          </span>
+          <button
+            onClick={onClose}
+            className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Calculator / Qty Modal ───────────────────────────────────────────────────
 
 function CalcModal({
@@ -179,7 +326,11 @@ function CalcModal({
   setHasResult,
 }: {
   product: CartItem | null;
-  onConfirm: (qty: number) => void;
+  onConfirm: (
+    qty: number,
+    price: number,
+    label: "Retail" | "Wholesale",
+  ) => void;
   onClose: () => void;
   display: string;
   expr: string;
@@ -188,6 +339,28 @@ function CalcModal({
   setExpr: (val: string) => void;
   setHasResult: (val: boolean) => void;
 }) {
+  // Price lives here rather than in the cart so the cashier can switch label
+  // or type an override without touching the line until they confirm.
+  const [priceLabel, setPriceLabel] = useState<"Retail" | "Wholesale">(
+    product?.priceLabel ?? "Retail",
+  );
+  const [priceInput, setPriceInput] = useState(() =>
+    product ? String(product.cost) : "0",
+  );
+  const priceRef = useRef<HTMLInputElement>(null);
+  const price = parseFloat(priceInput);
+  const priceValid = !isNaN(price) && price > 0;
+  // What the selected label is worth in the catalogue — switching labels isn't
+  // an edit, typing a different amount is.
+  const catalogPrice =
+    product?.availablePrices.find((p) => p.label === priceLabel)?.price ??
+    product?.cost;
+
+  const pickLabel = (label: "Retail" | "Wholesale", value: number) => {
+    setPriceLabel(label);
+    setPriceInput(String(value));
+  };
+
   const handle = React.useCallback(
     (val: string) => {
       if (val === "C") {
@@ -252,11 +425,18 @@ function CalcModal({
 
   const confirm = React.useCallback(() => {
     const qty = parseFloat(display);
-    if (!isNaN(qty) && qty > 0) onConfirm(qty);
-  }, [display, onConfirm]);
+    if (!isNaN(qty) && qty > 0 && priceValid) onConfirm(qty, price, priceLabel);
+  }, [display, onConfirm, price, priceValid, priceLabel]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // The calculator listens on `window`, so keystrokes meant for the price
+      // field would otherwise also drive the keypad.
+      if (e.target instanceof HTMLInputElement) {
+        if (e.key === "Enter") confirm();
+        else if (e.key === "Escape") priceRef.current?.blur();
+        return;
+      }
       if (e.key >= "0" && e.key <= "9") handle(e.key);
       else if (e.key === ".") handle(".");
       else if (e.key === "+") handle("+");
@@ -290,12 +470,82 @@ function CalcModal({
       <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-80 shadow-2xl overflow-hidden">
         <div className="px-4 pt-4 pb-2">
           <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
-            Quantity
+            Item
           </p>
           <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
             {product?.title}
           </p>
         </div>
+
+        {/* Price — switch label or type an override */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
+              Unit price
+            </p>
+            {priceValid && catalogPrice !== undefined && price !== catalogPrice && (
+              <button
+                onClick={() => setPriceInput(String(catalogPrice))}
+                title={`Reset to ₦${formatPrice(catalogPrice)}`}
+                className="text-[10px] uppercase tracking-wide font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+              >
+                Edited · reset
+              </button>
+            )}
+          </div>
+
+          {(product?.availablePrices?.length ?? 0) > 1 && (
+            <div className="flex gap-1.5 mb-2">
+              {product!.availablePrices.map((p) => (
+                <button
+                  key={p.label}
+                  onClick={() => pickLabel(p.label, p.price)}
+                  className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-medium border transition-colors ${
+                    priceLabel === p.label
+                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600 text-stone-900 dark:text-stone-100"
+                      : "bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700"
+                  }`}
+                >
+                  {p.label}
+                  <span className="block font-mono text-[11px] opacity-70">
+                    ₦{formatPrice(p.price)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div
+            className={`flex items-center gap-1.5 rounded-lg border px-3 h-10 bg-stone-50 dark:bg-stone-800 focus-within:border-amber-400 dark:focus-within:border-amber-600 ${
+              priceValid
+                ? "border-stone-300 dark:border-stone-700"
+                : "border-red-400 dark:border-red-700"
+            }`}
+          >
+            <span className="text-sm text-stone-500 dark:text-stone-400">₦</span>
+            <input
+              ref={priceRef}
+              value={priceInput}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^0-9.]/g, "");
+                // Keep at most one decimal point.
+                const parts = v.split(".");
+                setPriceInput(
+                  parts.length > 2
+                    ? `${parts[0]}.${parts.slice(1).join("")}`
+                    : v,
+                );
+              }}
+              onFocus={(e) => e.target.select()}
+              inputMode="decimal"
+              aria-label="Unit price"
+              className="flex-1 min-w-0 bg-transparent outline-none text-right font-mono text-base font-semibold text-stone-900 dark:text-stone-100"
+            />
+          </div>
+        </div>
+        <p className="px-4 pb-1.5 text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
+          Quantity
+        </p>
         <div className="mx-4 mb-3 bg-stone-100 dark:bg-stone-950 rounded-xl px-4 py-3 border border-stone-300 dark:border-stone-800">
           {expr && (
             <div className="text-stone-500 text-sm text-right h-5 truncate">
@@ -362,7 +612,8 @@ function CalcModal({
             ))}
             <button
               onClick={confirm}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold text-xl transition-colors"
+              disabled={!priceValid}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-stone-900 dark:text-white font-bold text-xl transition-colors"
               style={{ gridRow: "span 2", minHeight: "116px" }}
             >
               ✓
@@ -378,6 +629,16 @@ function CalcModal({
             ))}
           </div>
         </div>
+        {priceValid && /^[0-9.]+$/.test(display) && (
+          <div className="px-4 pb-2 flex items-center justify-between text-xs">
+            <span className="text-stone-500 dark:text-stone-400">
+              {display} × ₦{formatPrice(price)}
+            </span>
+            <span className="font-mono font-semibold text-stone-900 dark:text-stone-100">
+              ₦{formatPrice((parseFloat(display) || 0) * price)}
+            </span>
+          </div>
+        )}
         <div className="px-3 pb-4">
           <button
             onClick={onClose}
@@ -2887,6 +3148,7 @@ export default function AroniumLite() {
     transferStageSel,
     transferTargetDocId,
     showOrderPicker,
+    calcInitialQty,
     calcDisplay,
     calcExpr,
     calcHasResult,
@@ -3093,16 +3355,52 @@ export default function AroniumLite() {
   );
   const total = subtotal + taxTotal;
 
-  const productOptions = useMemo(
-    () =>
-      (priceList?.data || []).map((p) => ({
-        value: p.id,
-        label: `${p.product.title} — ₦${formatPrice(p.salePrice)} (${p.wholeSale ? "Wholesale" : "Retail"})`,
-        product: p.product,
-        priceOption: p,
-      })),
-    [priceList?.data],
-  );
+  /**
+   * Stock warning for a product, or null when it is comfortably in stock.
+   * Mirrors the checks addOrUpdateItem runs on add, so what the cashier sees
+   * in the search list is what they will be told after picking.
+   */
+  const stockState = (productId: string) => {
+    const entry = stockLevels[productId];
+    const qty = entry?.quantity ?? 0;
+    if (qty <= 0) return { tone: "out" as const, text: "Out of stock" };
+    if (entry?.lowStockWarning && qty <= (entry.lowStockWarningQuantity ?? 0))
+      return { tone: "low" as const, text: `Low · ${qty} left` };
+    return null;
+  };
+
+  /**
+   * One option per product, not per price row. The price label is now picked
+   * in a dedicated step after search, so listing the same product once per
+   * price would just duplicate every result.
+   */
+  const productOptions = useMemo(() => {
+    const byProduct = new Map<
+      string,
+      {
+        value: string;
+        label: string;
+        product: any;
+        prices: { label: "Retail" | "Wholesale"; price: number }[];
+      }
+    >();
+
+    for (const row of priceList?.data || []) {
+      const entry = byProduct.get(row.product.id) ?? {
+        value: row.product.id,
+        label: row.product.title,
+        product: row.product,
+        prices: [],
+      };
+      entry.prices.push({
+        label: row.wholeSale ? "Wholesale" : "Retail",
+        price: row.salePrice,
+      });
+      byProduct.set(row.product.id, entry);
+    }
+
+    return [...byProduct.values()];
+  }, [priceList?.data]);
 
   // ── Cart helpers ──
 
@@ -3110,6 +3408,20 @@ export default function AroniumLite() {
     setCalcProduct(product);
     setCalcInitialQty(currentQty);
     setModal("qty");
+  };
+
+  /**
+   * Searched products go through price selection first, then quantity. With a
+   * single price there is nothing to pick, so that step is skipped.
+   */
+  const openPriceModal = (product: CartItem, currentQty = 1) => {
+    if (product.availablePrices.length < 2) {
+      openQtyModal(product, currentQty);
+      return;
+    }
+    setCalcProduct(product);
+    setCalcInitialQty(currentQty);
+    setModal("price");
   };
 
   const addOrUpdateItem = (product: any, qty: number) => {
@@ -3138,8 +3450,19 @@ export default function AroniumLite() {
     const taxRate = product.taxes?.[0]?.tax?.rate ?? 0;
     setItems((prev) => {
       const existing = prev.find((i) => i.id === product.id);
+      // The qty modal can also change price/label, so carry those onto the
+      // existing line rather than only bumping the quantity.
       if (existing)
-        return prev.map((i) => (i.id === product.id ? { ...i, qty } : i));
+        return prev.map((i) =>
+          i.id === product.id
+            ? {
+                ...i,
+                qty,
+                cost: product.cost,
+                priceLabel: product.priceLabel ?? i.priceLabel,
+              }
+            : i,
+        );
       return [
         ...prev,
         {
@@ -3335,6 +3658,11 @@ export default function AroniumLite() {
       continuePaymentDoc: continuePaymentDoc?.id,
     });
 
+    // NOTE: buildDocumentPayload mints a new document id/number on every call,
+    // so it must be invoked exactly once — the stock logs below reference this
+    // document by id and would otherwise hit a FK failure.
+    let savedDoc: { id: string; number: string };
+
     if (continuePaymentDoc) {
       // Update existing split payment document
       const existingPayments = continuePaymentDoc.payments || [];
@@ -3376,6 +3704,10 @@ export default function AroniumLite() {
       };
 
       await createDocument.mutateAsync(updatedPayload);
+      savedDoc = {
+        id: continuePaymentDoc.id,
+        number: continuePaymentDoc.number,
+      };
       setContinuePaymentDoc(null);
     } else {
       // Create new document
@@ -3385,15 +3717,14 @@ export default function AroniumLite() {
       });
 
       await createDocument.mutateAsync(payload);
+      savedDoc = { id: payload.document.id, number: payload.document.number };
     }
 
     // Update stock for each item (sale decreases stock, refund increases stock)
     // Also create detailed stock logs with purchase information
     for (const item of items) {
       const isRefund = item.qty < 0;
-      const documentId =
-        continuePaymentDoc?.id ||
-        buildDocumentPayload("posted", payments).document.id;
+      const documentId = savedDoc.id;
 
       // Get current stock level before the change
       const currentStock = stockLevels[item.id]?.quantity ?? 0;
@@ -3425,9 +3756,7 @@ export default function AroniumLite() {
         note: isRefund ? "Refund" : "Sale",
         transactionDetails: {
           reason: isRefund ? "Refund" : "Sale",
-          documentNumber:
-            continuePaymentDoc?.number ||
-            buildDocumentPayload("posted", payments).document.number,
+          documentNumber: savedDoc.number,
           customerName: selectedCustomer?.name,
           customerId: selectedCustomer?.id,
           productTitle: item.title,
@@ -3558,6 +3887,18 @@ export default function AroniumLite() {
       )}
 
       {/* Modals */}
+      {modal === "price" && calcProduct && (
+        <PriceModal
+          product={calcProduct}
+          onConfirm={(price) => {
+            openQtyModal(
+              { ...calcProduct, priceLabel: price.label, cost: price.price },
+              calcInitialQty,
+            );
+          }}
+          onClose={() => setModal("none")}
+        />
+      )}
       {modal === "qty" && calcProduct && (
         <CalcModal
           product={calcProduct}
@@ -3567,8 +3908,11 @@ export default function AroniumLite() {
           setDisplay={setCalcDisplay}
           setExpr={setCalcExprFromState}
           setHasResult={setCalcHasResultFromState}
-          onConfirm={(qty) => {
-            addOrUpdateItem(calcProduct, qty);
+          onConfirm={(qty, price, label) => {
+            addOrUpdateItem(
+              { ...calcProduct, cost: price, priceLabel: label },
+              qty,
+            );
             setModal("none");
           }}
           onClose={() => setModal("none")}
@@ -3698,11 +4042,11 @@ export default function AroniumLite() {
               placeholder="Search or scan product…"
               isSearchable
               value={null}
+              maxMenuHeight={288}
+              components={{ MenuList: ChunkedMenuList }}
               onChange={async (option: any) => {
                 if (!option) return;
                 const p = option.product;
-                const selectedPriceOption = option.priceOption;
-                const isSelectedWholesale = selectedPriceOption.wholeSale;
 
                 // Immediate stock check
                 const stock = stockLevels[p.id];
@@ -3720,42 +4064,99 @@ export default function AroniumLite() {
                   label: pr.wholeSale ? "Wholesale" : "Retail",
                   price: pr.salePrice,
                 }));
+                if (availablePrices.length === 0) {
+                  toast.error(`${p.title} has no price set.`);
+                  return;
+                }
                 const existing = items.find((i) => i.id === p.id);
 
-                openQtyModal(
-                  existing ?? {
-                    id: p.id,
-                    title: p.title,
-                    cost: selectedPriceOption.salePrice,
-                    unit: p.unit ?? "",
-                    qty: 1,
-                    discount: 0,
-                    taxRate: p.taxes?.[0]?.tax?.rate ?? 0,
-                    priceLabel: isSelectedWholesale ? "Wholesale" : "Retail",
-                    availablePrices,
-                  },
+                openPriceModal(
+                  existing
+                    ? { ...existing, availablePrices }
+                    : {
+                        id: p.id,
+                        title: p.title,
+                        cost: availablePrices[0].price,
+                        unit: p.unit ?? "",
+                        qty: 1,
+                        discount: 0,
+                        taxRate: p.taxes?.[0]?.tax?.rate ?? 0,
+                        priceLabel: availablePrices[0].label,
+                        availablePrices,
+                      },
                   existing?.qty ?? 1,
                 );
               }}
               className="text-sm"
+              unstyled
+              // `unstyled` still emits these two from the base theme, so they
+              // have to be overridden here rather than with a Tailwind class.
               styles={{
-                control: (b) => ({
-                  ...b,
-                  backgroundColor: "#1c1917",
-                  borderColor: "#44403c",
-                  minHeight: "34px",
-                  boxShadow: "none",
-                }),
-                menu: (b) => ({ ...b, backgroundColor: "#0f172a", zIndex: 99 }),
-                option: (b, s) => ({
-                  ...b,
-                  backgroundColor: s.isFocused ? "#1e293b" : "#0f172a",
-                  color: "#e2e8f0",
-                  cursor: "pointer",
-                }),
-                singleValue: (b) => ({ ...b, color: "#e2e8f0" }),
-                input: (b) => ({ ...b, color: "#e2e8f0" }),
-                placeholder: (b) => ({ ...b, color: "#64748b" }),
+                control: (b) => ({ ...b, minHeight: 34 }),
+                menu: (b) => ({ ...b, zIndex: 99 }),
+              }}
+              formatOptionLabel={(option: any) => {
+                const stock = stockState(option.value);
+                return (
+                  <div
+                    className={`flex items-center justify-between gap-3 min-w-0 ${
+                      stock?.tone === "out" ? "opacity-60" : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="truncate">{option.label}</span>
+                      {stock && (
+                        <span
+                          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${
+                            stock.tone === "out"
+                              ? "bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300"
+                              : "bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300"
+                          }`}
+                        >
+                          {stock.text}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs font-mono text-stone-500 dark:text-stone-400">
+                      {option.prices
+                        .map(
+                          (pr: any) =>
+                            `${pr.label[0]} ₦${formatPrice(pr.price)}`,
+                        )
+                        .join("  ·  ")}
+                    </span>
+                  </div>
+                );
+              }}
+              classNames={{
+                control: ({ isFocused }) =>
+                  `bg-stone-50 dark:bg-stone-800 border rounded-lg px-2.5 cursor-text transition-colors ${
+                    isFocused
+                      ? "border-amber-400 dark:border-amber-600"
+                      : "border-stone-300 dark:border-stone-700 hover:border-stone-400 dark:hover:border-stone-600"
+                  }`,
+                valueContainer: () => "gap-1",
+                placeholder: () => "text-stone-400 dark:text-stone-500",
+                input: () => "text-stone-900 dark:text-stone-100",
+                singleValue: () => "text-stone-900 dark:text-stone-100",
+                indicatorsContainer: () => "gap-1 text-stone-400",
+                dropdownIndicator: () =>
+                  "px-1 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300",
+                indicatorSeparator: () =>
+                  "bg-stone-300 dark:bg-stone-700 my-2 w-px",
+                menu: () =>
+                  "mt-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-2xl overflow-hidden",
+                // maxHeight comes from the `maxMenuHeight` prop — react-select
+                // emits it inline even when unstyled, so a class can't set it.
+                menuList: () => "py-1",
+                option: ({ isFocused, isSelected }) =>
+                  `px-3 py-2 cursor-pointer text-stone-900 dark:text-stone-100 ${
+                    isFocused || isSelected
+                      ? "bg-stone-100 dark:bg-stone-800"
+                      : ""
+                  }`,
+                noOptionsMessage: () =>
+                  "px-3 py-3 text-sm text-stone-500 dark:text-stone-400",
               }}
             />
           </div>
