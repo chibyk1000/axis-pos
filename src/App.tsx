@@ -108,7 +108,7 @@ function Unauthorized({
       </p>
       <div className="mt-6 flex flex-col sm:flex-row gap-3">
         <a
-          href="/"
+          href="/pos"
           className="inline-flex items-center justify-center rounded-full bg-stone-900 text-white px-5 py-2 text-sm hover:bg-stone-700 transition-colors"
         >
           Back to home
@@ -126,15 +126,16 @@ function LoginScreen() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname ?? "/";
+  const from = (location.state as any)?.from?.pathname;
+  const target = from && from !== "/" && from !== "/login" ? from : "/pos";
 
-  if (isAuthenticated) return <Navigate to={from} replace />;
+  if (isAuthenticated) return <Navigate to={target} replace />;
 
   return (
     <LoginPage
       onLogin={async ({ username, password }) => {
         await login(username, password);
-        navigate(from, { replace: true });
+        navigate(target, { replace: true });
       }}
     />
   );
@@ -156,12 +157,13 @@ function CustomerSetupScreen() {
       isDefault: data.isDefault,
       createdAt: new Date(),
     });
+    navigate("/pos", { replace: true });
   };
 
   return (
     <CreateCustomerPage
       onCreateCustomer={handleCreate}
-      onSkip={() => navigate("/", { replace: true })}
+      onSkip={() => navigate("/pos", { replace: true })}
     />
   );
 }
@@ -297,21 +299,23 @@ function App() {
                   <RequireAuth>
                     <RequireCustomers>
                       <Routes>
-                        {/* Home / Documents */}
-                        <Route
-                          path="/"
-                          element={
-                            <RequirePermission permission="documents">
-                              <DocumentsPage />
-                            </RequirePermission>
-                          }
-                        />
+                        {/* Home redirects to POS */}
+                        <Route path="/" element={<Navigate to="/pos" replace />} />
                         {/* POS */}
                         <Route
                           path="/pos"
                           element={
                             <RequirePermission permission="pos">
                               <Pos />
+                            </RequirePermission>
+                          }
+                        />
+                        {/* Documents */}
+                        <Route
+                          path="/documents"
+                          element={
+                            <RequirePermission permission="documents">
+                              <DocumentsPage />
                             </RequirePermission>
                           }
                         />
@@ -529,7 +533,7 @@ function App() {
                         </Route>
 
                         {/* Fallback */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
+                        <Route path="*" element={<Navigate to="/pos" replace />} />
                       </Routes>
                     </RequireCustomers>
                   </RequireAuth>

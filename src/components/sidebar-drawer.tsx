@@ -94,7 +94,7 @@ export function SidebarDrawer({ isOpen, onClose }: SidebarDrawerProps) {
             </div>
 
             {[
-              { icon: "📄", label: "Documents", action: () => { navigate("/"); onClose(); } },
+              { icon: "📄", label: "Documents", action: () => { navigate("/documents"); onClose(); } },
               { icon: "🛒", label: "POS", action: () => { navigate("/pos"); onClose(); } },
               { icon: "👤", label: "User info", action: () => { navigate("/user-info"); onClose(); } },
               { icon: "🚪", label: "Sign out", action: () => { logout(); onClose(); } },

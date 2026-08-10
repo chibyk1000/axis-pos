@@ -10,6 +10,7 @@ import {
 import { and, or, like, gte, lte, eq, desc, count } from "drizzle-orm";
 import { logActivity } from "@/lib/activity-log";
 import { getCurrentUser } from "@/providers/auth-provider";
+import { getOrCreateWalkInCustomer } from "./customers";
 
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
@@ -75,7 +76,7 @@ export function useDocuments() {
         createDocumentWithComputed(
           doc,
           paymentsByDoc.get(doc.id) ?? [],
-          customerMap.get(doc.customerId) ?? null,
+          doc.customerId ? customerMap.get(doc.customerId) ?? null : null,
           itemsByDoc.get(doc.id) ?? [],
         ),
       );
@@ -131,7 +132,7 @@ export type DocumentPageRow = {
   id: string;
   number: string;
   externalNumber: string | null;
-  customerId: string;
+  customerId: string | null;
   customerName: string | null;
   userId: number | null;
   date: Date;
@@ -262,9 +263,21 @@ export function useCreateDocument() {
           outstandingBalance: Math.max(0, docTotal - totalPaid),
         });
 
+        let customerId =
+          data.document.customerId &&
+          String(data.document.customerId).trim() !== ""
+            ? String(data.document.customerId)
+            : null;
+
+        if (!customerId) {
+          const walkIn = await getOrCreateWalkInCustomer();
+          customerId = walkIn.id;
+        }
+
         const insertPayload = {
           ...data.document,
           id: docId,
+          customerId,
           // Attribute the sale to whoever is logged in when it isn't
           // explicitly set by the caller (e.g. an Aronium import).
           userId: data.document.userId ?? getCurrentUser()?.id ?? null,

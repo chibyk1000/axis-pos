@@ -164,7 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           variant={"secondary"}
           className="rounded-2xl"
           onClick={() => {
-            navigate("/");
+            navigate("/pos");
           }}
         >
           <ArrowLeft />

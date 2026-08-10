@@ -311,3 +311,50 @@ export function useDeleteCustomerDiscount(customerId: string) {
     },
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/*                        WALK-IN / UNKNOWN CUSTOMER                          */
+/* -------------------------------------------------------------------------- */
+
+export const WALK_IN_CUSTOMER_ID = "walk-in-customer-default";
+
+export async function getOrCreateWalkInCustomer(): Promise<{ id: string; name: string }> {
+  try {
+    const existing = await db.query.customers.findFirst({
+      where: (c, { or, eq }) =>
+        or(
+          eq(c.id, WALK_IN_CUSTOMER_ID),
+          eq(c.name, "Walk-in Customer"),
+          eq(c.name, "Walk-in"),
+          eq(c.name, "Unknown Customer"),
+        ),
+    });
+
+    if (existing) {
+      return { id: existing.id, name: existing.name };
+    }
+
+    const newWalkIn = {
+      id: WALK_IN_CUSTOMER_ID,
+      name: "Walk-in Customer",
+      code: "WALK-IN",
+      active: true,
+      customer: true,
+      taxExempt: false,
+      position: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await db.insert(customers).values(newWalkIn);
+    return { id: newWalkIn.id, name: newWalkIn.name };
+  } catch (e) {
+    console.warn("getOrCreateWalkInCustomer caught fallback:", e);
+    const anyCustomer = await db.query.customers.findFirst();
+    if (anyCustomer) {
+      return { id: anyCustomer.id, name: anyCustomer.name };
+    }
+    return { id: WALK_IN_CUSTOMER_ID, name: "Walk-in Customer" };
+  }
+}
+

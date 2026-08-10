@@ -205,7 +205,10 @@ export function useUpsertProductPrice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      data: Omit<NewProductPrice, "wholeSale"> & { label: PriceLabel },
+      data: Omit<NewProductPrice, "wholeSale" | "id"> & {
+        id?: string;
+        label: PriceLabel;
+      },
     ) => {
       const { label, ...rest } = data;
       const wholeSale = labelToWholeSale(label);

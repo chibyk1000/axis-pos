@@ -38,12 +38,6 @@ import {
   setRefundReceipt as setRefundReceiptAction,
   setRefundPaymentType as setRefundPaymentTypeAction,
   setRefundError as setRefundErrorAction,
-  setTransferSource as setTransferSourceAction,
-  setTransferStaged as setTransferStagedAction,
-  setTransferSrcSel as setTransferSrcSelAction,
-  setTransferStageSel as setTransferStageSelAction,
-  setTransferTargetDocId as setTransferTargetDocIdAction,
-  setShowOrderPicker as setShowOrderPickerAction,
   setCalcDisplay as setCalcDisplayAction,
   setCalcExpr,
   setCalcHasResult,
@@ -60,7 +54,6 @@ import {
   Save,
   RefreshCw,
   Lock,
-  Copy,
   Trash2,
   Hash,
   Accessibility,
@@ -74,7 +67,20 @@ import {
   Unlock,
   Users,
   Receipt,
+  ChevronDown,
+  Printer,
+  Mail,
+  FileText,
+  Coins,
+  ArrowRightLeft,
+  LayoutGrid,
+  Pencil,
+  ArrowRight,
+  ArrowLeft,
+  Layers,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import { format } from "date-fns";
 import { BsThreeDots } from "react-icons/bs";
 import { TbBasketPlus } from "react-icons/tb";
 import { ImDrawer } from "react-icons/im";
@@ -84,10 +90,23 @@ import { SidebarDrawer } from "@/components/sidebar-drawer";
 import { ResponsiveIcon } from "@/components/responsive-icon";
 import { useAuth } from "@/providers/auth-provider";
 import { useCustomers } from "@/hooks/controllers/customers";
+import { useCompanies } from "@/hooks/controllers/company";
+import { useUsers } from "@/hooks/controllers/users";
 import { usePaymentTypes } from "@/hooks/controllers/paymentTypes";
-import { useCreateDocument, useDocuments } from "@/hooks/controllers/documents";
+import {
+  useCreateDocument,
+  useUpdateDocument,
+  useDocuments,
+} from "@/hooks/controllers/documents";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { useNavigate } from "react-router";
-import { getProductPrices, useAllPrices } from "@/hooks/controllers/priceLists";
+import {
+  getProductPrices,
+  useAllPrices,
+  useUpsertProductPrice,
+} from "@/hooks/controllers/priceLists";
 import {
   useUpdateStockEntry,
   useStockLevels,
@@ -216,12 +235,10 @@ function ChunkedMenuList(props: any) {
   );
 }
 
-// ─── Price Modal ──────────────────────────────────────────────────────────────
+// ─── Price Modal (Mini Calculator) ────────────────────────────────────────────
 
 /**
- * Step 1 of adding a searched product: pick which price label to sell at.
- * Only shown when the product actually has more than one price row — with a
- * single price there is nothing to choose, so the caller goes straight to qty.
+ * Step 1 of adding a searched product: mini calculator to pick and edit retail/wholesale price.
  */
 function PriceModal({
   product,
@@ -229,83 +246,467 @@ function PriceModal({
   onClose,
 }: {
   product: CartItem;
-  onConfirm: (price: { label: "Retail" | "Wholesale"; price: number }) => void;
+  onConfirm: (result: {
+    label: "Retail" | "Wholesale";
+    price: number;
+    availablePrices: { label: "Retail" | "Wholesale"; price: number }[];
+    isEdited: boolean;
+  }) => void;
   onClose: () => void;
 }) {
-  const prices = product.availablePrices;
-  const [index, setIndex] = useState(() => {
-    const i = prices.findIndex((p) => p.label === product.priceLabel);
-    return i === -1 ? 0 : i;
+  const initialLabel: "Retail" | "Wholesale" =
+    product.priceLabel === "Wholesale" ? "Wholesale" : "Retail";
+  const [selectedLabel, setSelectedLabel] =
+    useState<"Retail" | "Wholesale">(initialLabel);
+
+  const retailCatalogPrice =
+    product.availablePrices.find((p) => p.label === "Retail")?.price ??
+    (product.priceLabel === "Retail" ? product.cost : 0);
+  const wholesaleCatalogPrice =
+    product.availablePrices.find((p) => p.label === "Wholesale")?.price ??
+    (product.priceLabel === "Wholesale" ? product.cost : retailCatalogPrice);
+
+  const [pricesState, setPricesState] = useState<
+    Record<"Retail" | "Wholesale", string>
+  >({
+    Retail: String(retailCatalogPrice),
+    Wholesale: String(wholesaleCatalogPrice),
   });
+
+  const [display, setDisplay] = useState<string>(
+    String(initialLabel === "Retail" ? retailCatalogPrice : wholesaleCatalogPrice),
+  );
+  const [expr, setExpr] = useState<string>("");
+  const [hasResult, setHasResult] = useState<boolean>(true);
+
+  const catalogPrice =
+    selectedLabel === "Retail" ? retailCatalogPrice : wholesaleCatalogPrice;
+
+  function evaluateExpression(val: string): number {
+    try {
+      const sanitized = val.replace(/×/g, "*").replace(/÷/g, "/");
+      const clean = sanitized.replace(/[+\-*/]+$/, "");
+      if (!clean) return 0;
+      // eslint-disable-next-line no-eval
+      const res = eval(clean);
+      return typeof res === "number" && !isNaN(res) && isFinite(res)
+        ? parseFloat(res.toFixed(4))
+        : 0;
+    } catch {
+      return parseFloat(val) || 0;
+    }
+  }
+
+  // Sync display with pricesState when switching labels
+  const handleLabelChange = (newLabel: "Retail" | "Wholesale") => {
+    const currentNum = evaluateExpression(display);
+    setPricesState((prev) => ({
+      ...prev,
+      [selectedLabel]: String(currentNum),
+    }));
+
+    setSelectedLabel(newLabel);
+    const targetVal =
+      pricesState[newLabel] ||
+      String(newLabel === "Retail" ? retailCatalogPrice : wholesaleCatalogPrice);
+    setDisplay(targetVal);
+    setExpr("");
+    setHasResult(true);
+  };
+
+  const currentPrice = evaluateExpression(display);
+  const isPriceValid = !isNaN(currentPrice) && currentPrice >= 0;
+  const isEdited = isPriceValid && currentPrice !== catalogPrice;
+
+  const handle = React.useCallback(
+    (val: string) => {
+      if (val === "C") {
+        setDisplay("0");
+        setExpr("");
+        setHasResult(false);
+        return;
+      }
+      if (val === "⌫") {
+        if (hasResult) {
+          setDisplay("0");
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0"));
+        return;
+      }
+      if (val === "=") {
+        try {
+          const sanitized = display.replace(/×/g, "*").replace(/÷/g, "/");
+          // eslint-disable-next-line no-eval
+          const result = eval(sanitized);
+          setExpr(display + " =");
+          setDisplay(String(parseFloat(Number(result).toFixed(4))));
+          setHasResult(true);
+        } catch {
+          setDisplay("Error");
+          setHasResult(true);
+        }
+        return;
+      }
+      if (["+", "-", "×", "÷"].includes(val)) {
+        if (hasResult) {
+          setDisplay(display + val);
+          setExpr("");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((prev) =>
+          ["+", "-", "×", "÷"].includes(prev.slice(-1))
+            ? prev.slice(0, -1) + val
+            : prev + val,
+        );
+        return;
+      }
+      if (val === ".") {
+        const parts = display.split(/[+\-×÷]/);
+        if (parts[parts.length - 1].includes(".")) return;
+        setDisplay((prev) => (hasResult ? "0." : prev + "."));
+        setHasResult(false);
+        return;
+      }
+      if (val === "00") {
+        if (hasResult || display === "0") {
+          setDisplay("0");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((prev) => prev + "00");
+        return;
+      }
+      if (hasResult) {
+        setDisplay(val);
+        setExpr("");
+        setHasResult(false);
+        return;
+      }
+      setDisplay((prev) => (prev === "0" ? val : prev + val));
+    },
+    [display, hasResult],
+  );
+
+  const handleReset = () => {
+    setDisplay(String(catalogPrice));
+    setExpr("");
+    setHasResult(true);
+  };
+
+  const handleAddQuick = (amount: number) => {
+    const base = evaluateExpression(display);
+    const next = Math.max(0, base + amount);
+    setDisplay(String(next));
+    setExpr("");
+    setHasResult(true);
+  };
+
+  const handleConfirm = React.useCallback(() => {
+    const finalPrice = evaluateExpression(display);
+    if (isNaN(finalPrice) || finalPrice < 0) return;
+
+    const finalRetail =
+      selectedLabel === "Retail"
+        ? finalPrice
+        : parseFloat(pricesState.Retail) || retailCatalogPrice;
+    const finalWholesale =
+      selectedLabel === "Wholesale"
+        ? finalPrice
+        : parseFloat(pricesState.Wholesale) || wholesaleCatalogPrice;
+
+    const updatedAvailablePrices: {
+      label: "Retail" | "Wholesale";
+      price: number;
+    }[] = [
+      { label: "Retail", price: finalRetail },
+      { label: "Wholesale", price: finalWholesale },
+    ];
+
+    const edited = finalPrice !== catalogPrice;
+
+    onConfirm({
+      label: selectedLabel,
+      price: finalPrice,
+      availablePrices: updatedAvailablePrices,
+      isEdited: edited,
+    });
+  }, [
+    display,
+    selectedLabel,
+    pricesState,
+    retailCatalogPrice,
+    wholesaleCatalogPrice,
+    catalogPrice,
+    onConfirm,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setIndex((i) => (i + 1) % prices.length);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setIndex((i) => (i - 1 + prices.length) % prices.length);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        onConfirm(prices[index]);
-      } else if (e.key === "Escape") {
-        onClose();
-      } else if (e.key >= "1" && e.key <= String(Math.min(9, prices.length))) {
-        onConfirm(prices[Number(e.key) - 1]);
-      }
+      if (e.key >= "0" && e.key <= "9") handle(e.key);
+      else if (e.key === ".") handle(".");
+      else if (e.key === "+") handle("+");
+      else if (e.key === "-") handle("-");
+      else if (e.key === "*") handle("×");
+      else if (e.key === "/") handle("÷");
+      else if (e.key === "Enter") {
+        const hasOp = /[+−×÷]/.test(display);
+        if (hasResult || !hasOp) handleConfirm();
+        else handle("=");
+      } else if (e.key === "Backspace") handle("⌫");
+      else if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "c") handle("C");
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [prices, index, onConfirm, onClose]);
+  }, [handle, handleConfirm, onClose, display, hasResult]);
+
+  const btnCls = (v: string) => {
+    if (v === "C")
+      return "bg-red-600/80 hover:bg-red-500 text-white font-semibold shadow-sm";
+    if (v === "⌫")
+      return "bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 text-amber-600 dark:text-amber-400 font-semibold text-base shadow-sm";
+    if (["+", "-", "×", "÷", "="].includes(v))
+      return "bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 text-amber-700 dark:text-amber-300 font-bold text-base shadow-sm";
+    return "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-900 dark:text-stone-100 font-medium text-base border border-stone-200 dark:border-stone-700/80 shadow-sm";
+  };
+
+  const retailVal =
+    selectedLabel === "Retail"
+      ? currentPrice
+      : parseFloat(pricesState.Retail) || retailCatalogPrice;
+  const wholesaleVal =
+    selectedLabel === "Wholesale"
+      ? currentPrice
+      : parseFloat(pricesState.Wholesale) || wholesaleCatalogPrice;
 
   return (
     <Modal onClose={onClose}>
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-80 shadow-2xl overflow-hidden">
-        <div className="px-4 pt-4 pb-3">
-          <p className="text-xs text-stone-600 dark:text-stone-400 uppercase tracking-widest font-semibold">
-            Price
-          </p>
-          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
-            {product.title}
-          </p>
-        </div>
-        <div className="px-3 pb-3 space-y-2">
-          {prices.map((p, i) => (
-            <button
-              key={`${p.label}-${i}`}
-              onClick={() => onConfirm(p)}
-              onMouseEnter={() => setIndex(i)}
-              className={`w-full flex items-center justify-between gap-3 rounded-xl px-4 h-14 border transition-colors text-left ${
-                i === index
-                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-600"
-                  : "bg-stone-50 dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-700"
-              }`}
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] font-mono text-stone-500 dark:text-stone-400 border border-stone-300 dark:border-stone-600 rounded px-1.5 py-0.5 shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
-                  {p.label}
-                </span>
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl w-84 shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-4 pt-4 pb-2.5 border-b border-stone-200 dark:border-stone-800 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] uppercase font-bold tracking-wider text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5">
+                Price Calculator
               </span>
-              <span className="text-sm font-mono font-semibold text-stone-900 dark:text-stone-100 shrink-0">
-                ₦{formatPrice(p.price)}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="px-4 py-2.5 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between">
-          <span className="text-[11px] text-stone-500 dark:text-stone-400">
-            ↑↓ / 1-{prices.length} · Enter to continue
-          </span>
+              {product.unit && (
+                <span className="text-[9px] text-stone-500 font-medium bg-stone-100 dark:bg-stone-800 rounded px-1.5 py-0.5">
+                  Unit: {product.unit}
+                </span>
+              )}
+            </div>
+            <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+              {product.title}
+            </h3>
+          </div>
           <button
             onClick={onClose}
-            className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+            className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors shrink-0"
           >
-            Cancel
+            <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-3.5 pt-3 pb-3 space-y-2.5">
+          {/* Price Type Dropdown + Quick Pills */}
+          <div>
+            <div className="relative mb-1.5">
+              <select
+                value={selectedLabel}
+                onChange={(e) =>
+                  handleLabelChange(e.target.value as "Retail" | "Wholesale")
+                }
+                className="w-full appearance-none bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl px-3 py-2 text-xs font-semibold text-stone-900 dark:text-stone-100 pr-8 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-colors cursor-pointer"
+              >
+                <option value="Retail">
+                  🏷️ Retail Price (₦{formatPrice(retailVal)})
+                </option>
+                <option value="Wholesale">
+                  📦 Wholesale Price (₦{formatPrice(wholesaleVal)})
+                </option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              {(["Retail", "Wholesale"] as const).map((label) => {
+                const isSelected = selectedLabel === label;
+                const priceVal = label === "Retail" ? retailVal : wholesaleVal;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => handleLabelChange(label)}
+                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? "bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-500 shadow-sm"
+                        : "bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800"
+                    }`}
+                  >
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        isSelected
+                          ? "text-amber-700 dark:text-amber-300"
+                          : "text-stone-700 dark:text-stone-300"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                    <span className="text-[11px] font-mono font-medium text-stone-500 dark:text-stone-400">
+                      ₦{formatPrice(priceVal)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Calculator Screen Display */}
+          <div className="bg-stone-100 dark:bg-stone-950 rounded-xl px-3.5 py-2.5 border border-stone-300 dark:border-stone-800 flex flex-col justify-between min-h-[64px]">
+            <div className="flex items-center justify-between text-[11px] text-stone-500 h-4">
+              <span className="truncate">
+                {expr || (isEdited ? `Catalog: ₦${formatPrice(catalogPrice)}` : `${selectedLabel} Price`)}
+              </span>
+              {isEdited && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline uppercase tracking-wide shrink-0 ml-1"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="flex items-baseline justify-end gap-1 overflow-hidden mt-0.5">
+              <span className="text-sm font-semibold text-stone-400">₦</span>
+              <span
+                className={`font-mono font-bold tracking-tight truncate leading-none ${
+                  display.length > 10
+                    ? "text-lg"
+                    : display.length > 7
+                      ? "text-xl"
+                      : "text-2xl"
+                } ${
+                  display === "Error"
+                    ? "text-red-500"
+                    : "text-stone-900 dark:text-stone-100"
+                }`}
+              >
+                {display}
+              </span>
+            </div>
+          </div>
+
+          {/* Quick Increments */}
+          <div className="flex gap-1">
+            {[100, 500, 1000, 5000].map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                onClick={() => handleAddQuick(delta)}
+                className="flex-1 py-1 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-[10px] font-mono text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
+              >
+                +{delta >= 1000 ? `${delta / 1000}k` : delta}
+              </button>
+            ))}
+          </div>
+
+          {/* Calculator Keypad */}
+          <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+            {["C", "⌫", "÷", "×"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handle(v)}
+                className={`rounded-xl h-11 transition-all active:scale-95 ${btnCls(v)}`}
+              >
+                {v}
+              </button>
+            ))}
+            {["7", "8", "9", "-"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handle(v)}
+                className={`rounded-xl h-11 transition-all active:scale-95 ${btnCls(v)}`}
+              >
+                {v}
+              </button>
+            ))}
+            {["4", "5", "6", "+"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handle(v)}
+                className={`rounded-xl h-11 transition-all active:scale-95 ${btnCls(v)}`}
+              >
+                {v}
+              </button>
+            ))}
+            {["1", "2", "3", "="].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handle(v)}
+                className={`rounded-xl h-11 transition-all active:scale-95 ${btnCls(v)}`}
+              >
+                {v}
+              </button>
+            ))}
+            {["0", "00", "."].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handle(v)}
+                className={`rounded-xl h-11 transition-all active:scale-95 ${btnCls(v)}`}
+              >
+                {v}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleReset}
+              title={`Reset to catalog price (₦${formatPrice(catalogPrice)})`}
+              className="rounded-xl h-11 transition-all active:scale-95 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 font-semibold text-xs border border-stone-200 dark:border-stone-700 shadow-sm"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 bg-stone-50 dark:bg-stone-800/50 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between gap-2">
+          {isEdited ? (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium truncate max-w-[140px]">
+              ⚠️ Updates catalog
+            </span>
+          ) : (
+            <span className="text-[10px] text-stone-400">
+              Standard price
+            </span>
+          )}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-2 text-xs font-medium rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!isPriceValid}
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-amber-500 hover:bg-amber-400 text-black disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-amber-500/20 active:scale-[0.98]"
+            >
+              Add to Sale
+            </button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -861,18 +1262,282 @@ function CustomerModal({
   );
 }
 
+// ─── Split Payment Amount Calculator Modal ─────────────────────────────────────
+
+function SplitAmountModal({
+  paymentType,
+  defaultAmount,
+  remainingAmount,
+  onConfirm,
+  onClose,
+}: {
+  paymentType: { id: string; name: string };
+  defaultAmount: number;
+  remainingAmount: number;
+  onConfirm: (amount: number) => void;
+  onClose: () => void;
+}) {
+  const [display, setDisplay] = useState<string>(String(defaultAmount > 0 ? defaultAmount : ""));
+  const [hasResult, setHasResult] = useState<boolean>(true);
+
+  const currentAmount = parseFloat(display) || 0;
+  const isValid = currentAmount > 0;
+
+  const handleKey = React.useCallback(
+    (val: string) => {
+      if (val === "C") {
+        setDisplay("0");
+        setHasResult(false);
+        return;
+      }
+      if (val === "⌫") {
+        if (hasResult) {
+          setDisplay("0");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0"));
+        return;
+      }
+      if (val === ".") {
+        if (display.includes(".")) return;
+        setDisplay((prev) => (hasResult ? "0." : prev + "."));
+        setHasResult(false);
+        return;
+      }
+      if (val === "00") {
+        if (hasResult || display === "0" || display === "") {
+          setDisplay("0");
+          setHasResult(false);
+          return;
+        }
+        setDisplay((prev) => prev + "00");
+        return;
+      }
+      if (hasResult) {
+        setDisplay(val);
+        setHasResult(false);
+        return;
+      }
+      setDisplay((prev) => (prev === "0" ? val : prev + val));
+    },
+    [display, hasResult],
+  );
+
+  const handleSetExact = () => {
+    setDisplay(String(remainingAmount > 0 ? remainingAmount : defaultAmount));
+    setHasResult(true);
+  };
+
+  const handleAddQuick = (delta: number) => {
+    const base = parseFloat(display) || 0;
+    setDisplay(String(Math.max(0, base + delta)));
+    setHasResult(true);
+  };
+
+  const handleConfirm = React.useCallback(() => {
+    if (isValid) {
+      onConfirm(currentAmount);
+    }
+  }, [isValid, currentAmount, onConfirm]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= "0" && e.key <= "9") handleKey(e.key);
+      else if (e.key === ".") handleKey(".");
+      else if (e.key === "Enter") handleConfirm();
+      else if (e.key === "Backspace") handleKey("⌫");
+      else if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "c") handleKey("C");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleKey, handleConfirm, onClose]);
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="bg-[#242424] text-white border border-stone-700 rounded-2xl w-88 shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-3 border-b border-stone-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase font-bold tracking-wider text-amber-400 bg-amber-950/60 border border-amber-800 rounded px-2 py-0.5">
+              Split Payment
+            </span>
+            <span className="text-sm font-semibold text-stone-200">
+              {paymentType.name}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 space-y-3">
+          {/* LCD Screen Display */}
+          <div className="bg-[#181818] rounded-xl px-4 py-3 border border-stone-800 flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-xs text-stone-400">
+              <span>Remaining balance</span>
+              <span className="font-mono text-amber-400 font-semibold">
+                ₦{formatPrice(remainingAmount)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-end gap-1.5 overflow-hidden mt-1">
+              <span className="text-base font-semibold text-stone-500">₦</span>
+              <span
+                className={`font-mono font-bold tracking-tight truncate leading-none ${
+                  display.length > 10
+                    ? "text-xl"
+                    : display.length > 7
+                      ? "text-2xl"
+                      : "text-3xl"
+                } text-white`}
+              >
+                {display || "0.00"}
+              </span>
+            </div>
+          </div>
+
+          {/* Quick Increments */}
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={handleSetExact}
+              className="flex-1 py-1.5 rounded-lg border border-amber-600/60 bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 text-xs font-semibold transition-colors"
+            >
+              Exact (₦{formatPrice(remainingAmount)})
+            </button>
+            {[500, 1000, 5000].map((delta) => (
+              <button
+                key={delta}
+                type="button"
+                onClick={() => handleAddQuick(delta)}
+                className="px-2.5 py-1.5 rounded-lg border border-stone-700 bg-stone-800 text-xs font-mono text-stone-300 hover:bg-stone-700 transition-colors"
+              >
+                +{delta >= 1000 ? `${delta / 1000}k` : delta}
+              </button>
+            ))}
+          </div>
+
+          {/* Keypad */}
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            {["7", "8", "9"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handleKey(v)}
+                className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-white font-semibold text-lg border border-stone-700 transition-all shadow-sm"
+              >
+                {v}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleKey("⌫")}
+              className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-amber-400 font-semibold text-lg border border-stone-700 transition-all shadow-sm flex items-center justify-center"
+            >
+              ⌫
+            </button>
+
+            {["4", "5", "6"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handleKey(v)}
+                className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-white font-semibold text-lg border border-stone-700 transition-all shadow-sm"
+              >
+                {v}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleKey("C")}
+              className="rounded-xl h-12 bg-red-900/60 hover:bg-red-800/80 active:scale-95 text-red-200 font-semibold text-base border border-red-800 transition-all shadow-sm flex items-center justify-center"
+            >
+              C
+            </button>
+
+            {["1", "2", "3"].map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => handleKey(v)}
+                className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-white font-semibold text-lg border border-stone-700 transition-all shadow-sm"
+              >
+                {v}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleKey("00")}
+              className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-300 font-semibold text-sm border border-stone-700 transition-all shadow-sm"
+            >
+              00
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleKey("0")}
+              className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-white font-semibold text-lg border border-stone-700 transition-all shadow-sm"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              onClick={() => handleKey(".")}
+              className="rounded-xl h-12 bg-stone-800 hover:bg-stone-700 active:scale-95 text-white font-semibold text-lg border border-stone-700 transition-all shadow-sm"
+            >
+              .
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!isValid}
+              className="col-span-2 rounded-xl h-12 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-1"
+            >
+              <Check className="w-4 h-4" /> Add Payment
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 bg-[#1e1e1e] border-t border-stone-800 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-700 text-stone-300 hover:bg-stone-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={!isValid}
+            className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all shadow-md"
+          >
+            Add ₦{formatPrice(currentAmount)}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Split Payment Screen ───────────────────────────────────────────────────────
 
 function SplitPaymentScreen({
   total,
-  subtotal,
-  taxTotal,
-  items,
+  subtotal: _subtotal,
+  taxTotal: _taxTotal,
+  items: _items,
   paymentTypes,
-  customer,
-  paidInput,
-  selectedTypeId,
-  setPaidInput,
+  customer: _customer,
+  paidInput: _paidInput,
+  selectedTypeId: _selectedTypeId,
+  setPaidInput: _setPaidInput,
   setSelectedTypeId,
   onConfirm,
   onClose,
@@ -892,256 +1557,1118 @@ function SplitPaymentScreen({
   ) => void;
   onClose: () => void;
 }) {
-  const router = useNavigate();
   const enabled = paymentTypes.filter((p) => p.enabled && p.id !== "split");
   const displayTypes =
     enabled.length > 0
       ? enabled
       : [
-          { id: "cash", name: "Cash", changeAllowed: true },
-          { id: "card", name: "Card", changeAllowed: false },
-          { id: "check", name: "Check", changeAllowed: false },
+          { id: "cash", name: "Cash", position: 1 },
+          { id: "card", name: "Credit Card", position: 2 },
+          { id: "debit", name: "Debit Card", position: 3 },
+          { id: "check", name: "Check", position: 4 },
+          { id: "voucher", name: "Voucher", position: 5 },
+          { id: "gift", name: "Gift Card", position: 6 },
         ];
 
-  const selectedType = displayTypes.find((p) => p.id === selectedTypeId);
-  const paidAmount = parseFloat(paidInput) || 0;
-  const remaining = Math.max(0, total - paidAmount);
+  // List of added split payment rows
+  const [selectedPayments, setSelectedPayments] = useState<
+    { id: string; paymentId: string; paymentType: string; amount: number }[]
+  >([]);
 
-  const handleKey = React.useCallback(
-    (val: string) => {
-      if (val === "⌫") {
-        setPaidInput(paidInput.length > 1 ? paidInput.slice(0, -1) : "0");
-      } else if (val === "C") {
-        setPaidInput("0");
-      } else if (val === ".") {
-        if (!paidInput.includes(".")) setPaidInput(paidInput + ".");
-      } else if (val === "-") {
-        setPaidInput(total.toFixed(2));
-      } else {
-        setPaidInput(paidInput === "0" ? val : paidInput + val);
-      }
-    },
-    [total],
-  );
+  // Which payment type is currently open in the calculator modal
+  const [calcPaymentType, setCalcPaymentType] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
-  const KEYS = [
-    "1",
-    "2",
-    "3",
-    "⌫",
-    "4",
-    "5",
-    "6",
-    "C",
-    "7",
-    "8",
-    "9",
-    "↵",
-    "-",
-    "0",
-    ".",
-    "",
-  ];
+  const paidTotal = selectedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const remainingBalance = Math.max(0, total - paidTotal);
+  const changeAmount = Math.max(0, paidTotal - total);
 
-  const handleSave = () => {
-    console.log("SplitPaymentScreen handleSave called");
-    if (!selectedType || paidAmount <= 0) return;
-
-    const paymentData = [
-      {
-        paymentId: selectedType.id,
-        paymentType: selectedType.name,
-        amount: paidAmount,
-      },
-    ];
-
-    console.log("SplitPaymentScreen calling onConfirm with:", paymentData);
-    onConfirm(paymentData);
-    // Navigate to documents page after saving
-    setTimeout(() => {
-      console.log("SplitPaymentScreen redirecting to documents");
-      router("/documents");
-    }, 100);
+  const handleOpenCalc = (pt: { id: string; name: string }) => {
+    setCalcPaymentType(pt);
   };
 
-  console.log("SplitPaymentScreen rendering with total:", total);
+  const handleAddSplitPayment = (amount: number) => {
+    if (!calcPaymentType || amount <= 0) return;
+    setSelectedPayments((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        paymentId: calcPaymentType.id,
+        paymentType: calcPaymentType.name,
+        amount,
+      },
+    ]);
+    setCalcPaymentType(null);
+  };
+
+  const handleRemovePayment = (id: string) => {
+    setSelectedPayments((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleConfirmOK = () => {
+    if (selectedPayments.length === 0) {
+      toast.warn("Add at least one payment method before confirming.");
+      return;
+    }
+    onConfirm(
+      selectedPayments.map(({ paymentId, paymentType, amount }) => ({
+        paymentId,
+        paymentType,
+        amount,
+      })),
+    );
+  };
+
+  const handleCancel = () => {
+    setSelectedTypeId(displayTypes[0]?.id ?? "cash");
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
-      <div className="w-1/3 border-r border-stone-300 dark:border-stone-700 flex flex-col">
-        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
-              Split Payment
-            </p>
-            {customer && (
-              <p className="text-xs text-amber-400 mt-0.5">{customer.name}</p>
-            )}
-          </div>
+    <div className="fixed inset-0 z-50 flex h-screen bg-[#242424] text-white select-none">
+      {/* ── Left Column: Add payment type ── */}
+      <div className="w-64 border-r border-[#383838] bg-[#1e1e1e] flex flex-col shrink-0">
+        <div className="px-5 py-3.5 border-b border-[#383838]">
+          <h2 className="text-base font-semibold text-stone-100">
+            Add payment type
+          </h2>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-[#333333]">
+          {displayTypes.map((pt) => (
+            <button
+              key={pt.id}
+              type="button"
+              onClick={() => handleOpenCalc(pt)}
+              className="w-full h-13 px-5 flex items-center justify-center text-sm font-medium text-stone-200 hover:bg-[#2e2e2e] active:bg-[#383838] transition-colors text-center"
+            >
+              {pt.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right Column: Selected payment type ── */}
+      <div className="flex-1 flex flex-col bg-[#242424] min-w-0">
+        {/* Header */}
+        <div className="px-6 py-3.5 border-b border-[#383838] flex items-center justify-between">
+          <h2 className="text-base font-semibold text-stone-100">
+            Selected payment type
+          </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-stone-500 hover:text-stone-900 dark:text-white transition-colors"
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-auto px-5 py-3 space-y-2">
-          <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
-            Items
-          </p>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex justify-between text-sm border-b border-stone-300 dark:border-stone-800 pb-2"
-            >
-              <span className="text-stone-700 dark:text-stone-300 truncate max-w-[65%]">
-                {item.qty !== 1 && (
-                  <span className="text-stone-500 mr-1">{item.qty}×</span>
-                )}
-                {item.title}
-              </span>
-              <span className="tabular-nums text-stone-800 dark:text-stone-200">
-                ₦
-                {itemTotal(item).toLocaleString("en-NG", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="px-5 py-4 border-t border-stone-200 dark:border-stone-700 space-y-1.5 text-sm">
-          <div className="flex justify-between text-stone-500 dark:text-stone-400">
-            <span>Subtotal</span>
-            <span>
-              ₦{subtotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div className="flex justify-between text-stone-500 dark:text-stone-400">
-            <span>Tax</span>
-            <span>
-              ₦{taxTotal.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div className="flex justify-between font-bold text-xl text-amber-400 pt-2 border-t border-stone-200 dark:border-stone-700">
-            <span>Total</span>
-            <span>₦{formatPrice(total)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-semibold text-emerald-400">
-            <span>Paid</span>
-            <span>₦{formatPrice(paidAmount)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-semibold text-red-400">
-            <span>Remaining</span>
-            <span>₦{formatPrice(remaining)}</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex-1 flex flex-col">
-        <div className="px-5 py-4 border-b border-stone-300 dark:border-stone-700 flex items-center justify-between">
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto px-8 pt-4 pb-6 flex flex-col justify-between">
           <div>
-            <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
-              Payment Methods
+            <p className="text-xs text-stone-400 mb-6 flex items-center gap-2">
+              Choose payment types and amounts required for the current sale
             </p>
-          </div>
-        </div>
 
-        <div className="flex-1 overflow-auto p-5">
-          <div className="space-y-4">
-            {/* Payment Type Selection */}
-            <div className="bg-stone-50 dark:bg-stone-800 rounded-lg p-4 border border-stone-200 dark:border-stone-700">
-              <label className="text-xs text-stone-500 mb-2 block">
-                Payment Type
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {displayTypes.map((pt) => (
-                  <button
-                    key={pt.id}
-                    onClick={() => setSelectedTypeId(pt.id)}
-                    className={`py-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
-                      selectedTypeId === pt.id
-                        ? "bg-amber-900 border-amber-500 text-amber-200"
-                        : "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300"
-                    }`}
-                  >
-                    {pt.name.toLowerCase().includes("card") ? (
-                      <CreditCard className="w-4 h-4" />
-                    ) : (
-                      <Banknote className="w-4 h-4" />
-                    )}
-                    {pt.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Calculator Interface */}
-            <div className="flex-1 flex flex-col justify-between min-h-0">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-stone-500 mb-0.5">Amount</p>
-                  <input
-                    type="text"
-                    value={paidInput}
-                    onChange={(e) => setPaidInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSave();
-                    }}
-                    className="w-full bg-transparent border-b-2 border-amber-500 pb-1 text-3xl text-amber-300 font-mono tabular-nums text-right outline-none focus:border-amber-400 transition-colors"
-                    placeholder="0.00"
-                  />
+            {/* List of Added Payment Rows */}
+            <div className="space-y-4 max-w-xl">
+              {selectedPayments.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between py-1 border-b border-[#383838]/60 group"
+                >
+                  <span className="text-base font-bold text-white tracking-wide">
+                    {p.paymentType}
+                  </span>
+                  <div className="flex items-center gap-6">
+                    <span className="text-base font-bold text-white font-mono tracking-wide">
+                      {formatPrice(p.amount)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePayment(p.id)}
+                      className="text-stone-400 hover:text-white p-1 rounded transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-stone-500 mb-0.5">Remaining</p>
-                  <p className="text-2xl font-bold tabular-nums text-red-400">
-                    ₦{formatPrice(remaining)}
-                    {remaining > 0 && (
-                      <span className="text-sm ml-1">(owed)</span>
-                    )}
+              ))}
+
+              {selectedPayments.length === 0 && (
+                <div className="py-12 flex flex-col items-center justify-center text-stone-500 border border-dashed border-[#383838] rounded-xl">
+                  <p className="text-sm">
+                    No payment types selected yet
+                  </p>
+                  <p className="text-xs text-stone-600 mt-1">
+                    Click any payment type on the left to add an amount
                   </p>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Right Summary and Action Buttons */}
+          <div className="pt-6 mt-auto border-t border-[#383838] flex flex-col items-end gap-5">
+            {/* Totals Summary */}
+            <div className="w-80 space-y-1.5 text-right font-mono">
+              <div className="flex items-baseline justify-between text-base">
+                <span className="text-stone-400 font-sans text-sm">Total:</span>
+                <span className="text-sky-400 font-bold text-2xl tracking-tight">
+                  {formatPrice(total)}
+                </span>
               </div>
 
-              <div className="grid grid-cols-4 gap-2.5">
-                {KEYS.map((key, i) => {
-                  if (key === "") return <div key={i} />;
-                  const isBackspace = key === "⌫";
-                  const isEnter = key === "↵";
-                  const isDash = key === "-";
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => handleKey(key)}
-                      className={`py-4 rounded text-lg font-medium transition-colors ${
-                        isBackspace
-                          ? "bg-red-700 hover:bg-red-600 text-stone-900 dark:text-white"
-                          : isEnter
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900 dark:text-white font-bold"
-                            : isDash
-                              ? "bg-stone-100 dark:bg-stone-700 hover:bg-stone-600 text-amber-300 text-sm"
-                              : "bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
-                      }`}
-                      title={isDash ? "Set to exact total" : undefined}
-                    >
-                      {isDash ? "Exact" : key}
-                    </button>
-                  );
-                })}
+              <div className="flex items-baseline justify-between text-base">
+                <span className="text-stone-400 font-sans text-sm">Paid:</span>
+                <span className="text-white font-bold text-3xl tracking-tight">
+                  {formatPrice(paidTotal)}
+                </span>
               </div>
 
+              <div className="flex items-baseline justify-between text-base pt-0.5">
+                {paidTotal >= total ? (
+                  <>
+                    <span className="text-stone-400 font-sans text-sm">
+                      Change:
+                    </span>
+                    <span className="text-emerald-400 font-bold text-2xl tracking-tight">
+                      {formatPrice(changeAmount)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-stone-400 font-sans text-sm">
+                      Remaining:
+                    </span>
+                    <span className="text-red-400 font-bold text-2xl tracking-tight">
+                      {formatPrice(remainingBalance)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
               <button
-                onClick={handleSave}
-                disabled={!selectedType || paidAmount <= 0}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white text-lg font-bold rounded transition-colors"
+                type="button"
+                onClick={handleConfirmOK}
+                disabled={selectedPayments.length === 0}
+                className="bg-[#2e7d32] hover:bg-[#388e3c] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-10 py-2.5 rounded text-sm transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
               >
-                Save · ₦
-                {paidAmount.toLocaleString("en-NG", {
-                  minimumFractionDigits: 2,
-                })}
+                <Check className="w-4 h-4" /> OK
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="bg-[#c62828] hover:bg-[#d32f2f] text-white font-bold px-8 py-2.5 rounded text-sm transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+              >
+                <X className="w-4 h-4" /> Cancel
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── Calculator Modal for Amount ── */}
+      {calcPaymentType && (
+        <SplitAmountModal
+          paymentType={calcPaymentType}
+          defaultAmount={remainingBalance > 0 ? remainingBalance : total}
+          remainingAmount={remainingBalance}
+          onConfirm={handleAddSplitPayment}
+          onClose={() => setCalcPaymentType(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Payment Summary Screen (After Successful Payment) ─────────────────────────
+
+export interface CompletedSaleData {
+  docNumber: string;
+  docId: string;
+  items: CartItem[];
+  subtotal: number;
+  taxTotal: number;
+  total: number;
+  payments: { paymentId: string; paymentType: string; amount: number }[];
+  totalPaid: number;
+  change: number;
+  customer?: any | null;
+  date: Date;
+}
+
+function buildSaleReceiptPdf(sale: CompletedSaleData): jsPDF {
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [80, 220],
+  });
+  const W = 80;
+  let y = 8;
+
+  const center = (text: string, size = 9, bold = false) => {
+    pdf.setFontSize(size).setFont("helvetica", bold ? "bold" : "normal");
+    pdf.text(text, W / 2, y, { align: "center" });
+    y += size * 0.45;
+  };
+
+  const line = () => {
+    pdf.setDrawColor(180);
+    pdf.line(4, y, W - 4, y);
+    y += 3;
+  };
+
+  const row = (left: string, right: string, bold = false) => {
+    pdf
+      .setFontSize(8)
+      .setFont("helvetica", bold ? "bold" : "normal")
+      .setTextColor(0);
+    pdf.text(left, 4, y);
+    pdf.text(right, W - 4, y, { align: "right" });
+    y += 4;
+  };
+
+  center("RECEIPT", 13, true);
+  y += 1;
+  center(sale.docNumber, 9);
+  center(format(sale.date, "dd/MM/yyyy HH:mm"), 8);
+  if (sale.customer?.name) center(sale.customer.name, 8);
+  y += 2;
+  line();
+
+  sale.items.forEach((item) => {
+    pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(0);
+    pdf.text(item.title.slice(0, 30), 4, y);
+    y += 4;
+    row(
+      `  ${item.qty} × ${item.cost.toFixed(2)}`,
+      (item.qty * item.cost).toFixed(2),
+    );
+  });
+
+  line();
+  row("Subtotal", sale.subtotal.toFixed(2));
+  row("Tax", sale.taxTotal.toFixed(2));
+  row("TOTAL", sale.total.toFixed(2), true);
+
+  sale.payments.forEach((p) => {
+    row(p.paymentType, p.amount.toFixed(2));
+  });
+
+  if (sale.change > 0) {
+    row("Change", sale.change.toFixed(2));
+  }
+
+  y += 3;
+  line();
+
+  pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(130);
+  pdf.text("Thank you for your purchase!", W / 2, y + 4, { align: "center" });
+
+  return pdf;
+}
+
+function printHtmlContent(html: string) {
+  try {
+    let iframe = document.getElementById("pos-print-frame") as HTMLIFrameElement | null;
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "pos-print-frame";
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.style.visibility = "hidden";
+      document.body.appendChild(iframe);
+    }
+
+    const frameDoc = iframe.contentWindow?.document;
+    if (frameDoc) {
+      frameDoc.open();
+      frameDoc.write(html);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          iframe?.contentWindow?.focus();
+          iframe?.contentWindow?.print();
+        } catch {
+          window.print();
+        }
+      }, 250);
+    } else {
+      window.print();
+    }
+  } catch (err) {
+    console.error("Print error, fallback to window.print():", err);
+    window.print();
+  }
+}
+
+function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
+  const companyName = company?.name || "AXIS POS";
+  const companyAddress = [company?.streetName, company?.city, company?.stateProvince]
+    .filter(Boolean)
+    .join(", ");
+  const companyPhone = company?.phoneNumber ? `Tel: ${company.phoneNumber}` : "";
+  const companyTax = company?.taxNumber ? `Tax No: ${company.taxNumber}` : "";
+
+  const itemsHtml = sale.items
+    .map(
+      (i) => `
+    <tr>
+      <td style="padding: 3px 0; font-weight: 600;">${i.title}</td>
+      <td style="padding: 3px 0; text-align: center;">${i.qty}</td>
+      <td style="padding: 3px 0; text-align: right;">₦${formatPrice(i.cost)}</td>
+      <td style="padding: 3px 0; text-align: right; font-weight: 700;">₦${formatPrice(i.qty * i.cost)}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  const paymentsHtml = sale.payments
+    .map(
+      (p) => `
+    <div style="display: flex; justify-content: space-between; font-size: 11px; margin: 2px 0;">
+      <span>${p.paymentType}:</span>
+      <span style="font-weight: 600;">₦${formatPrice(p.amount)}</span>
+    </div>
+  `,
+    )
+    .join("");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Receipt ${sale.docNumber}</title>
+      <style>
+        @page { size: 80mm auto; margin: 2mm 3mm; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          width: 74mm;
+          margin: 0 auto;
+          padding: 4px 0;
+          color: #000;
+          font-size: 12px;
+          line-height: 1.3;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: 700; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .divider-solid { border-top: 1px solid #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
+        th { border-bottom: 1px solid #000; padding: 3px 0; text-align: left; font-size: 11px; }
+      </style>
+    </head>
+    <body>
+      <div class="text-center">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 800; text-transform: uppercase;">${companyName}</h2>
+        ${companyAddress ? `<p style="margin: 2px 0; font-size: 10px;">${companyAddress}</p>` : ""}
+        ${companyPhone ? `<p style="margin: 2px 0; font-size: 10px;">${companyPhone}</p>` : ""}
+        ${companyTax ? `<p style="margin: 2px 0; font-size: 10px;">${companyTax}</p>` : ""}
+        <div class="divider-solid"></div>
+        <p style="margin: 2px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;">SALES RECEIPT</p>
+      </div>
+
+      <div style="font-size: 11px; margin-top: 4px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span>Receipt #: <strong>${sale.docNumber}</strong></span>
+          <span>${format(sale.date, "dd/MM/yyyy HH:mm")}</span>
+        </div>
+        ${
+          sale.customer?.name
+            ? `<div>Customer: <strong>${sale.customer.name}</strong></div>`
+            : "<div>Customer: <strong>Walk-in</strong></div>"
+        }
+      </div>
+
+      <div class="divider"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 42%;">Item</th>
+            <th style="width: 14%; text-align: center;">Qty</th>
+            <th style="width: 22%; text-align: right;">Price</th>
+            <th style="width: 22%; text-align: right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+
+      <div style="font-size: 11px;">
+        <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+          <span>Subtotal:</span>
+          <span>₦${formatPrice(sale.subtotal)}</span>
+        </div>
+        ${
+          sale.taxTotal > 0
+            ? `
+          <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>Tax:</span>
+            <span>₦${formatPrice(sale.taxTotal)}</span>
+          </div>
+        `
+            : ""
+        }
+        <div class="divider-solid"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 800; margin: 4px 0;">
+          <span>TOTAL:</span>
+          <span>₦${formatPrice(sale.total)}</span>
+        </div>
+        <div class="divider"></div>
+        <div style="margin: 4px 0;">
+          <div style="font-weight: 700; font-size: 11px; margin-bottom: 2px;">TENDER:</div>
+          ${paymentsHtml}
+        </div>
+        ${
+          sale.change > 0
+            ? `
+          <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-top: 4px; color: #000;">
+            <span>CHANGE:</span>
+            <span>₦${formatPrice(sale.change)}</span>
+          </div>
+        `
+            : ""
+        }
+      </div>
+
+      <div class="divider-solid"></div>
+      <div class="text-center" style="font-size: 11px; margin-top: 6px;">
+        <p style="margin: 2px 0; font-weight: 600;">Thank you for your business!</p>
+        <p style="margin: 2px 0; font-size: 9px; color: #555;">Goods sold in good condition are not returnable</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.focus();
+          window.print();
+        };
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
+  const companyName = company?.name || "AXIS POS";
+  const companyAddress = [
+    company?.streetName,
+    company?.city,
+    company?.stateProvince,
+    company?.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const companyPhone = company?.phoneNumber ? `Phone: ${company.phoneNumber}` : "";
+  const companyEmail = company?.email ? `Email: ${company.email}` : "";
+  const companyTax = company?.taxNumber ? `Tax ID: ${company.taxNumber}` : "";
+
+  const itemsRows = sale.items
+    .map(
+      (i, idx) => `
+    <tr style="border-bottom: 1px solid #e5e7eb;">
+      <td style="padding: 10px 12px; text-align: center; color: #6b7280;">${idx + 1}</td>
+      <td style="padding: 10px 12px; font-weight: 600; color: #111827;">${i.title}</td>
+      <td style="padding: 10px 12px; text-align: center; color: #374151;">${i.qty}</td>
+      <td style="padding: 10px 12px; text-align: right; color: #374151;">₦${formatPrice(i.cost)}</td>
+      <td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #111827;">₦${formatPrice(i.qty * i.cost)}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Invoice #${sale.docNumber}</title>
+      <style>
+        @page { size: A4 portrait; margin: 15mm; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          color: #1f2937;
+          margin: 0;
+          padding: 20px;
+          background: #fff;
+          font-size: 13px;
+        }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 16px; margin-bottom: 24px; }
+        .company-title { font-size: 24px; font-weight: 800; color: #1e3a8a; margin: 0; }
+        .invoice-badge { font-size: 28px; font-weight: 900; color: #2563eb; letter-spacing: 1px; margin: 0; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #f3f4f6; color: #374151; font-weight: 700; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <h1 class="company-title">${companyName}</h1>
+          ${companyAddress ? `<p style="margin: 4px 0; color: #4b5563;">${companyAddress}</p>` : ""}
+          ${companyPhone ? `<p style="margin: 2px 0; color: #4b5563;">${companyPhone}</p>` : ""}
+          ${companyEmail ? `<p style="margin: 2px 0; color: #4b5563;">${companyEmail}</p>` : ""}
+          ${companyTax ? `<p style="margin: 2px 0; color: #4b5563;">${companyTax}</p>` : ""}
+        </div>
+        <div style="text-align: right;">
+          <h2 class="invoice-badge">INVOICE</h2>
+          <p style="margin: 4px 0; font-weight: 700; color: #1f2937;">#${sale.docNumber}</p>
+          <p style="margin: 2px 0; color: #6b7280;">Date: ${format(sale.date, "dd MMM yyyy, HH:mm")}</p>
+          <div style="display: inline-block; background: #dcfce7; color: #166534; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 9999px; margin-top: 6px;">PAID</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px; background: #f9fafb; padding: 14px 18px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <h3 style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 700;">Billed To:</h3>
+        <p style="margin: 0; font-size: 15px; font-weight: 700; color: #111827;">${sale.customer?.name ?? "Walk-in Customer"}</p>
+        ${sale.customer?.phoneNumber ? `<p style="margin: 2px 0; color: #4b5563;">Phone: ${sale.customer.phoneNumber}</p>` : ""}
+        ${sale.customer?.email ? `<p style="margin: 2px 0; color: #4b5563;">Email: ${sale.customer.email}</p>` : ""}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 8%; text-align: center;">#</th>
+            <th style="width: 47%; text-align: left;">Item Description</th>
+            <th style="width: 15%; text-align: center;">Quantity</th>
+            <th style="width: 15%; text-align: right;">Unit Price</th>
+            <th style="width: 15%; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsRows}
+        </tbody>
+      </table>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <div style="width: 280px; background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: #6b7280;">Subtotal:</span>
+            <span style="font-weight: 600;">₦${formatPrice(sale.subtotal)}</span>
+          </div>
+          ${
+            sale.taxTotal > 0
+              ? `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <span style="color: #6b7280;">Tax:</span>
+              <span style="font-weight: 600;">₦${formatPrice(sale.taxTotal)}</span>
+            </div>
+          `
+              : ""
+          }
+          <div style="border-top: 2px solid #d1d5db; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: #1e3a8a;">
+            <span>Total:</span>
+            <span>₦${formatPrice(sale.total)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #059669; font-weight: 700;">
+            <span>Total Paid:</span>
+            <span>₦${formatPrice(sale.totalPaid)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center; color: #9ca3af; font-size: 11px;">
+        <p style="margin: 2px 0;">Thank you for your business!</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.focus();
+          window.print();
+        };
+      </script>
+    </body>
+    </html>
+  `;
+}
+
+function PrintReceiptOverlay({
+  sale,
+  company,
+}: {
+  sale: CompletedSaleData | null;
+  company?: any;
+}) {
+  if (!sale) return null;
+  const companyName = company?.name || "AXIS POS";
+  const companyAddress = [company?.streetName, company?.city, company?.stateProvince]
+    .filter(Boolean)
+    .join(", ");
+  const companyPhone = company?.phoneNumber ? `Tel: ${company.phoneNumber}` : "";
+  const companyTax = company?.taxNumber ? `Tax No: ${company.taxNumber}` : "";
+
+  return (
+    <div
+      id="pos-print-receipt-overlay"
+      className="hidden print:block fixed inset-0 bg-white z-[99999] p-6 text-stone-950 font-sans"
+    >
+      <div className="max-w-[340px] mx-auto text-black text-xs leading-normal">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-bold uppercase tracking-wider m-0">
+            {companyName}
+          </h2>
+          {companyAddress && (
+            <p className="text-[11px] text-stone-600 m-0.5">{companyAddress}</p>
+          )}
+          {companyPhone && (
+            <p className="text-[11px] text-stone-600 m-0.5">{companyPhone}</p>
+          )}
+          {companyTax && (
+            <p className="text-[11px] text-stone-600 m-0.5">{companyTax}</p>
+          )}
+          <div className="border-b border-black my-2"></div>
+          <p className="font-bold text-sm tracking-wide m-0">SALES RECEIPT</p>
+        </div>
+
+        <div className="border-y border-dashed border-stone-400 py-2 mb-3 text-[11px] space-y-1">
+          <div className="flex justify-between">
+            <span>
+              Receipt #: <strong>{sale.docNumber}</strong>
+            </span>
+            <span>{format(sale.date, "dd/MM/yyyy HH:mm")}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>
+              Customer: <strong>{sale.customer?.name ?? "Walk-in"}</strong>
+            </span>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse mb-3 text-[11px]">
+          <thead>
+            <tr className="border-b border-black text-left">
+              <th className="pb-1 font-bold">Item</th>
+              <th className="pb-1 text-center font-bold">Qty</th>
+              <th className="pb-1 text-right font-bold">Price</th>
+              <th className="pb-1 text-right font-bold">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sale.items.map((item) => (
+              <tr key={item.id} className="border-b border-stone-200">
+                <td className="py-1 font-semibold">{item.title}</td>
+                <td className="py-1 text-center">{item.qty}</td>
+                <td className="py-1 text-right">₦{formatPrice(item.cost)}</td>
+                <td className="py-1 text-right font-bold">
+                  ₦{formatPrice(item.qty * item.cost)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="border-t border-black pt-2 space-y-1 text-[11px]">
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>₦{formatPrice(sale.subtotal)}</span>
+          </div>
+          {sale.taxTotal > 0 && (
+            <div className="flex justify-between">
+              <span>Tax:</span>
+              <span>₦{formatPrice(sale.taxTotal)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-black border-t border-black pt-1 mt-1">
+            <span>TOTAL:</span>
+            <span>₦{formatPrice(sale.total)}</span>
+          </div>
+        </div>
+
+        <div className="border-t border-dashed border-stone-400 my-2 pt-1 text-[11px]">
+          <div className="font-bold mb-1">Tender:</div>
+          {sale.payments.map((p, idx) => (
+            <div key={idx} className="flex justify-between">
+              <span>{p.paymentType}:</span>
+              <span className="font-semibold">₦{formatPrice(p.amount)}</span>
+            </div>
+          ))}
+          {sale.change > 0 && (
+            <div className="flex justify-between font-bold mt-1 text-xs">
+              <span>Change:</span>
+              <span>₦{formatPrice(sale.change)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="text-center mt-6 pt-2 border-t border-black text-[10px] text-stone-600">
+          <p className="font-semibold">Thank you for your business!</p>
+          <p className="m-0 text-[9px]">Goods sold in good condition are not returnable</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentSummaryScreen({
+  sale,
+  onDone,
+}: {
+  sale: CompletedSaleData;
+  onDone: () => void;
+}) {
+  const companiesQuery = useCompanies();
+  const company = companiesQuery.data?.[0];
+
+  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
+  const [emailInput, setEmailInput] = useState<string>(sale.customer?.email || "");
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+
+  const [dontShowAgain, setDontShowAgain] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pos_skip_receipt_summary") === "true";
+    }
+    return false;
+  });
+
+  const handleToggleDontShow = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.checked;
+    setDontShowAgain(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pos_skip_receipt_summary", val ? "true" : "false");
+    }
+  };
+
+  const handlePrintReceipt = () => {
+    try {
+      const html = getThermalReceiptHtml(sale, company);
+      printHtmlContent(html);
+      toast.info("Sending receipt to printer...");
+    } catch (e) {
+      console.error(e);
+      window.print();
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    try {
+      const html = getInvoiceHtml(sale, company);
+      printHtmlContent(html);
+      toast.info("Opening invoice for printing...");
+    } catch (e) {
+      console.error(e);
+      window.print();
+    }
+  };
+
+  const handleSavePdf = async () => {
+    try {
+      const pdf = buildSaleReceiptPdf(sale);
+      const defaultFileName = `Receipt-${sale.docNumber.replace(/\//g, "-")}.pdf`;
+
+      try {
+        const filePath = await save({
+          defaultPath: defaultFileName,
+          filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+        if (filePath) {
+          const arrayBuffer = pdf.output("arraybuffer");
+          await writeFile(filePath, new Uint8Array(arrayBuffer));
+          await openPath(filePath);
+          toast.success("Receipt PDF saved and opened");
+          return;
+        }
+      } catch (tauriErr) {
+        console.log("Fallback to browser download:", tauriErr);
+        pdf.save(defaultFileName);
+        toast.success(`Receipt saved as ${defaultFileName}`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save PDF");
+    }
+  };
+
+  const handleConfirmSendEmail = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = emailInput.trim();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setIsSendingEmail(true);
+    setTimeout(() => {
+      setIsSendingEmail(false);
+      setShowEmailModal(false);
+      toast.success(`Receipt #${sale.docNumber} sent to ${cleanEmail}`);
+    }, 600);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (showEmailModal) return;
+      if (e.key === "Enter" || e.key === "Escape") {
+        onDone();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onDone, showEmailModal]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex h-screen bg-[#242424] text-white select-none">
+      {/* ── In-DOM Print Overlay for direct window.print() ── */}
+      <PrintReceiptOverlay sale={sale} company={company} />
+
+      {/* ── Left Column: Items & Payment Breakdown ── */}
+      <div className="w-80 border-r border-[#383838] bg-[#1e1e1e] flex flex-col justify-between shrink-0 print:hidden">
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="px-5 py-3.5 border-b border-[#383838]">
+            <h2 className="text-base font-semibold text-stone-100">Items</h2>
+          </div>
+
+          <div className="p-4 flex-1 overflow-y-auto space-y-3">
+            {sale.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex justify-between items-start text-xs border-b border-[#383838]/40 pb-2.5"
+              >
+                <div>
+                  <p className="font-bold text-white text-sm">{item.title}</p>
+                  <p className="text-stone-400 mt-0.5 font-mono">
+                    {item.qty} × {formatPrice(item.cost)}
+                  </p>
+                </div>
+                <span className="font-bold text-white font-mono text-sm">
+                  {formatPrice(item.qty * item.cost)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-[#383838] space-y-2 bg-[#181818]">
+          <div className="flex justify-between text-xs text-stone-400">
+            <span>Subtotal</span>
+            <span className="font-mono">{formatPrice(sale.subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-xs text-stone-400">
+            <span>Tax</span>
+            <span className="font-mono">{formatPrice(sale.taxTotal)}</span>
+          </div>
+
+          <div className="pt-2 border-t border-[#383838] flex justify-between items-baseline">
+            <span className="text-sm font-bold text-white">Total</span>
+            <span className="text-xl font-bold text-white font-mono">
+              {formatPrice(sale.total)}
+            </span>
+          </div>
+
+          <div className="pt-2 border-t border-dashed border-[#383838] space-y-1 text-xs">
+            {sale.payments.map((p, idx) => (
+              <div key={idx} className="flex justify-between text-stone-300">
+                <span>{p.paymentType}:</span>
+                <span className="font-mono font-semibold">
+                  {formatPrice(p.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right Main Area: Actions ── */}
+      <div className="flex-1 flex flex-col bg-[#242424] min-w-0 print:hidden">
+        {/* Header */}
+        <div className="px-6 py-3.5 border-b border-[#383838] flex items-center justify-between">
+          <h2 className="text-base font-semibold text-stone-100">Actions</h2>
+          <button
+            type="button"
+            onClick={onDone}
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content Body */}
+        <div className="flex-1 overflow-y-auto px-8 py-5 flex flex-col justify-between">
+          <div>
+            {/* Change Banner */}
+            <div className="flex items-center justify-center gap-3 py-3">
+              <div className="bg-[#181818] p-2 rounded-lg border border-stone-700">
+                <Coins className="w-6 h-6 text-emerald-400" />
+              </div>
+              <span className="text-xl font-medium text-stone-300">Change:</span>
+              <span className="text-3xl font-bold text-emerald-400 font-mono tracking-tight">
+                {formatPrice(sale.change)}
+              </span>
+            </div>
+
+            {/* Receipt printer warning alert (matching Aronium layout) */}
+            <div className="my-3 p-3 rounded-lg bg-amber-950/40 border border-amber-600/50 flex items-start justify-between gap-3 text-xs text-amber-200">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-300">
+                    Receipt printer is not configured. To be able to print receipts, you need to set up receipt printer.
+                  </p>
+                  <p className="text-amber-400/80 mt-0.5 underline cursor-pointer hover:text-amber-300">
+                    Learn more about configuring receipt printer
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="text-amber-400 hover:text-amber-200"
+                onClick={(e) => {
+                  (e.currentTarget.parentElement as HTMLElement)?.classList.add("hidden");
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Prompt */}
+            <h2 className="text-3xl font-light text-stone-100 tracking-wide text-center my-8">
+              How would the customer like their receipt?
+            </h2>
+
+            {/* 4 Action Cards Grid */}
+            <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
+              <button
+                type="button"
+                onClick={handlePrintReceipt}
+                className="flex flex-col items-center justify-center p-6 rounded-xl border border-sky-500/80 bg-sky-950/20 hover:bg-sky-900/30 text-white transition-all group shadow-md active:scale-95 min-h-[140px]"
+              >
+                <Receipt className="w-10 h-10 text-sky-400 mb-3 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold tracking-wide">Print receipt</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrintInvoice}
+                className="flex flex-col items-center justify-center p-6 rounded-xl border border-stone-700 bg-stone-800/60 hover:bg-stone-800 text-stone-200 hover:text-white transition-all group shadow-md active:scale-95 min-h-[140px]"
+              >
+                <Printer className="w-10 h-10 text-stone-400 group-hover:text-stone-200 mb-3 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold tracking-wide">Print invoice</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(true)}
+                className="flex flex-col items-center justify-center p-6 rounded-xl border border-stone-700 bg-stone-800/60 hover:bg-stone-800 text-stone-200 hover:text-white transition-all group shadow-md active:scale-95 min-h-[140px]"
+              >
+                <Mail className="w-10 h-10 text-stone-400 group-hover:text-stone-200 mb-3 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold tracking-wide">Send email</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSavePdf}
+                className="flex flex-col items-center justify-center p-6 rounded-xl border border-stone-700 bg-stone-800/60 hover:bg-stone-800 text-stone-200 hover:text-white transition-all group shadow-md active:scale-95 min-h-[140px]"
+              >
+                <FileText className="w-10 h-10 text-stone-400 group-hover:text-stone-200 mb-3 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold tracking-wide">Save as PDF</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Controls */}
+          <div className="pt-6 border-t border-[#383838] flex items-center justify-between">
+            <label className="flex items-center gap-2.5 text-xs text-stone-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={dontShowAgain}
+                onChange={handleToggleDontShow}
+                className="rounded border-stone-700 bg-stone-800 text-emerald-500 focus:ring-0 w-4 h-4 cursor-pointer"
+              />
+              <span>Don't show this again</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={onDone}
+              className="bg-[#2e7d32] hover:bg-[#388e3c] text-white font-bold px-12 py-2.5 rounded text-sm transition-all active:scale-95 shadow-md flex items-center justify-center"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Send Email Dialog ── */}
+      {showEmailModal && (
+        <Modal onClose={() => setShowEmailModal(false)}>
+          <form
+            onSubmit={handleConfirmSendEmail}
+            className="bg-[#242424] text-white border border-stone-700 rounded-2xl w-96 shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="px-5 py-4 border-b border-stone-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-sky-400" />
+                <span className="text-sm font-semibold text-stone-100">
+                  Send Receipt via Email
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(false)}
+                className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">
+                  Customer Email
+                </label>
+                <input
+                  type="email"
+                  autoFocus
+                  required
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="customer@example.com"
+                  className="w-full bg-[#181818] border border-stone-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-stone-500 outline-none focus:border-sky-500 transition-colors"
+                />
+              </div>
+
+              <div className="bg-[#181818] p-3 rounded-xl border border-stone-800 text-xs text-stone-400 space-y-1">
+                <p>
+                  Receipt: <strong>#{sale.docNumber}</strong>
+                </p>
+                <p>
+                  Total: <strong>₦{formatPrice(sale.total)}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-[#1e1e1e] border-t border-stone-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(false)}
+                className="px-4 py-2 text-xs font-medium rounded-xl border border-stone-700 text-stone-300 hover:bg-stone-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSendingEmail || !emailInput.trim()}
+                className="px-5 py-2 text-xs font-bold rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all shadow-md flex items-center gap-1.5"
+              >
+                {isSendingEmail ? "Sending..." : "Send Receipt"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1791,7 +3318,7 @@ function PaymentScreen({
     email: string;
     phone: string;
   }) => posDispatch(setNewCustomerDataAction(val));
-  const enabled = paymentTypes.filter((p) => p.enabled);
+  const enabled = paymentTypes.filter((p) => p.enabled && p.id !== "split");
   const displayTypes =
     enabled.length > 0
       ? enabled
@@ -1799,7 +3326,6 @@ function PaymentScreen({
           { id: "cash", name: "Cash", changeAllowed: true },
           { id: "card", name: "Card", changeAllowed: false },
           { id: "check", name: "Check", changeAllowed: false },
-          { id: "split", name: "Split Payments", changeAllowed: false },
         ];
 
   // Initialize selectedPaymentType on component mount if needed
@@ -1997,8 +3523,10 @@ function PaymentScreen({
             <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-widest font-semibold">
               Payment
             </p>
-            {customer && (
+            {customer ? (
               <p className="text-xs text-amber-400 mt-0.5">{customer.name}</p>
+            ) : (
+              <p className="text-xs text-stone-400 mt-0.5">Walk-in Customer</p>
             )}
           </div>
           <button
@@ -2151,7 +3679,7 @@ function PaymentScreen({
         </div>
 
         <div className="flex gap-6 flex-1 min-h-0">
-          <div className="w-[180px] flex flex-col gap-2 shrink-0">
+          <div className="w-[180px] flex flex-col gap-2 shrink-0 overflow-y-auto pr-1">
             <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold mb-1">
               Payment type
             </p>
@@ -2167,14 +3695,30 @@ function PaymentScreen({
               >
                 {pt.name.toLowerCase().includes("card") ? (
                   <CreditCard className="w-4 h-4" />
-                ) : pt.name.toLowerCase().includes("split") ? (
-                  <Percent className="w-4 h-4" />
+                ) : pt.name.toLowerCase().includes("check") ||
+                  pt.name.toLowerCase().includes("cheque") ? (
+                  <Receipt className="w-4 h-4" />
                 ) : (
                   <Banknote className="w-4 h-4" />
                 )}
                 {pt.name}
               </button>
             ))}
+
+            {/* Split Payment Button under the list of payment types */}
+            <div className="pt-2 border-t border-stone-200 dark:border-stone-700 mt-1">
+              <button
+                onClick={() => setSelectedPaymentType("split")}
+                className={`w-full py-3 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors border ${
+                  selectedPaymentType === "split"
+                    ? "bg-amber-900 border-amber-500 text-amber-200"
+                    : "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-900 dark:text-amber-300"
+                }`}
+              >
+                <Percent className="w-4 h-4 text-amber-500" />
+                Split Payment
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col justify-between min-h-0">
@@ -2562,330 +4106,975 @@ function RefundScreen({
   );
 }
 
-// ─── Transfer Screen ──────────────────────────────────────────────────────────
+// ─── Transfer Quantity Modal (Pen Icon) ───────────────────────────────────────
 
-function ChevronDownIcon() {
+function TransferQtyModal({
+  item,
+  maxQty,
+  onConfirm,
+  onClose,
+}: {
+  item: CartItem;
+  maxQty: number;
+  onConfirm: (qty: number) => void;
+  onClose: () => void;
+}) {
+  const [qtyStr, setQtyStr] = useState<string>("1");
+
+  const handleDigit = (d: string) => {
+    if (qtyStr === "0") {
+      setQtyStr(d);
+    } else {
+      const next = qtyStr + d;
+      const num = parseInt(next, 10);
+      if (!isNaN(num) && num <= maxQty) {
+        setQtyStr(next);
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    if (qtyStr.length <= 1) {
+      setQtyStr("0");
+    } else {
+      setQtyStr(qtyStr.slice(0, -1));
+    }
+  };
+
+  const handleClear = () => {
+    setQtyStr("0");
+  };
+
+  const handleConfirm = () => {
+    const num = Math.min(maxQty, Math.max(1, parseInt(qtyStr, 10) || 1));
+    onConfirm(num);
+  };
+
   return (
-    <svg
-      className="w-3.5 h-3.5 opacity-50"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
+    <Modal onClose={onClose}>
+      <div className="bg-[#242424] text-white border border-stone-700 rounded-2xl w-80 shadow-2xl overflow-hidden flex flex-col select-none">
+        <div className="px-5 py-3.5 border-b border-stone-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-semibold truncate max-w-[200px]">
+              Transfer Qty – {item.title}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <div className="flex justify-between text-xs text-stone-400">
+            <span>Available in order:</span>
+            <span className="font-bold text-white">{maxQty}</span>
+          </div>
+
+          <div className="bg-[#181818] border border-stone-700 rounded-xl p-3 text-center">
+            <span className="text-3xl font-mono font-bold text-amber-400">
+              {qtyStr}
+            </span>
+          </div>
+
+          {/* Quick pills */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {[1, 2, 5, maxQty].map((q, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setQtyStr(String(Math.min(maxQty, q)))}
+                className="py-1.5 bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-lg text-xs font-semibold text-stone-200 active:scale-95"
+              >
+                {idx === 3 ? `All (${maxQty})` : q}
+              </button>
+            ))}
+          </div>
+
+          {/* Keypad */}
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            {["7", "8", "9", "4", "5", "6", "1", "2", "3"].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => handleDigit(d)}
+                className="h-11 bg-[#1e1e1e] hover:bg-stone-800 border border-stone-700/80 rounded-xl text-base font-bold text-white active:scale-95 transition-all shadow-sm flex items-center justify-center"
+              >
+                {d}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleClear}
+              className="h-11 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 rounded-xl text-sm font-bold text-red-300 active:scale-95 transition-all flex items-center justify-center"
+            >
+              C
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDigit("0")}
+              className="h-11 bg-[#1e1e1e] hover:bg-stone-800 border border-stone-700/80 rounded-xl text-base font-bold text-white active:scale-95 transition-all shadow-sm flex items-center justify-center"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              onClick={handleBackspace}
+              className="h-11 bg-stone-800 hover:bg-stone-700 border border-stone-700 rounded-xl text-sm font-bold text-stone-300 active:scale-95 transition-all flex items-center justify-center"
+            >
+              ⌫
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 bg-[#1e1e1e] border-t border-stone-800 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-stone-700 text-stone-300 hover:bg-stone-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="px-6 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95"
+          >
+            Set Quantity
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
-function TransferScreen({
+// ─── Open Orders / Select Order Modal ─────────────────────────────────────────
+
+function OpenOrdersModal({
   documents,
-  source,
-  staged,
-  srcSel,
-  stageSel,
-  targetDocId,
-  showOrderPicker,
-  setSource,
-  setStaged,
-  setSrcSel,
-  setStageSel,
-  setTargetDocId,
-  setShowOrderPicker,
-  onTransfer,
+  currentOrderNumber,
+  onSelectOrder,
+  onClose,
+}: {
+  documents: any[];
+  currentOrderNumber?: string;
+  onSelectOrder: (order: any | string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState<string>("" );
+  const [customOrderNum, setCustomOrderNum] = useState<string>("" );
+
+  const draftOrders = (documents ?? []).filter(
+    (d: any) =>
+      d.status === "draft" &&
+      (!currentOrderNumber || d.number !== currentOrderNumber),
+  );
+
+  const filtered = draftOrders.filter((d: any) => {
+    const q = search.toLowerCase();
+    const num = (d.number || "").toLowerCase();
+    const cust = (d.customer?.name || d.customerName || "").toLowerCase();
+    const ext = (d.externalNumber || "").toLowerCase();
+    return num.includes(q) || cust.includes(q) || ext.includes(q);
+  });
+
+  const handleSelectNew = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customOrderNum.trim()) return;
+    onSelectOrder(customOrderNum.trim());
+    onClose();
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="bg-[#242424] text-white border border-stone-700 rounded-2xl w-[640px] max-h-[85vh] shadow-2xl overflow-hidden flex flex-col select-none">
+        <div className="px-6 py-4 border-b border-stone-700 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <LayoutGrid className="w-5 h-5 text-sky-400" />
+            <h3 className="text-base font-bold text-stone-100">
+              Select or Open Order
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 border-b border-stone-700 bg-[#1e1e1e] flex flex-col gap-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <input
+                type="text"
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search saved open orders by #, customer..."
+                className="w-full bg-[#181818] border border-stone-700 rounded-xl pl-9 pr-3.5 py-2 text-sm text-white placeholder-stone-500 outline-none focus:border-sky-500"
+              />
+            </div>
+          </div>
+
+          {/* Enter custom order number / table */}
+          <form onSubmit={handleSelectNew} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={customOrderNum}
+              onChange={(e) => setCustomOrderNum(e.target.value)}
+              placeholder="Or enter new order # / Table (e.g. 4, Table 12)"
+              className="flex-1 bg-[#181818] border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-white placeholder-stone-500 outline-none focus:border-emerald-500"
+            />
+            <button
+              type="submit"
+              disabled={!customOrderNum.trim()}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all"
+            >
+              Use New Order #
+            </button>
+          </form>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 max-h-80 space-y-2">
+          {filtered.length === 0 ? (
+            <div className="text-center py-10 text-stone-400 text-sm">
+              <p className="font-medium">No saved open orders found</p>
+              <p className="text-xs text-stone-500 mt-1">
+                You can enter a new order number above or save orders first.
+              </p>
+            </div>
+          ) : (
+            filtered.map((doc: any) => {
+              const itemsCount = (doc.items || []).length;
+              return (
+                <div
+                  key={doc.id}
+                  onClick={() => {
+                    onSelectOrder(doc);
+                    onClose();
+                  }}
+                  className="p-3.5 bg-[#1e1e1e] hover:bg-stone-800 border border-stone-700/70 hover:border-sky-500 rounded-xl cursor-pointer transition-all flex items-center justify-between group shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sky-400 text-sm">
+                        {doc.number}
+                      </span>
+                      {doc.externalNumber && (
+                        <span className="text-[10px] bg-stone-700 text-stone-300 px-2 py-0.5 rounded-full font-medium">
+                          {doc.externalNumber}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-stone-300">
+                      Customer:{" "}
+                      <strong>
+                        {doc.customer?.name || doc.customerName || "Walk-in"}
+                      </strong>
+                    </p>
+                    <p className="text-[11px] text-stone-500">
+                      {itemsCount} item{itemsCount !== 1 ? "s" : ""} •{" "}
+                      {format(new Date(doc.date), "dd/MM/yyyy HH:mm")}
+                    </p>
+                  </div>
+
+                  <div className="text-right flex flex-col items-end gap-1.5">
+                    <span className="text-base font-mono font-bold text-white">
+                      ₦{formatPrice(doc.total ?? 0)}
+                    </span>
+                    <button
+                      type="button"
+                      className="px-3 py-1 bg-sky-600/80 group-hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition-colors"
+                    >
+                      Select
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="px-6 py-3 bg-[#1e1e1e] border-t border-stone-800 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 text-xs font-semibold rounded-xl border border-stone-700 text-stone-300 hover:bg-stone-800"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── User Select Modal ────────────────────────────────────────────────────────
+
+function UserSelectModal({
+  onSelectUser,
+  onClose,
+}: {
+  onSelectUser: (user: any) => void;
+  onClose: () => void;
+}) {
+  const usersQuery = useUsers();
+  const userList = usersQuery.data ?? [];
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="bg-[#242424] text-white border border-stone-700 rounded-2xl w-96 shadow-2xl overflow-hidden flex flex-col select-none">
+        <div className="px-5 py-3.5 border-b border-stone-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-sky-400" />
+            <span className="text-sm font-bold text-stone-100">Select User / Server</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 max-h-72 overflow-y-auto space-y-2">
+          {userList.length === 0 ? (
+            <p className="text-xs text-stone-500 text-center py-6">No users found</p>
+          ) : (
+            userList.map((u: any) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  onSelectUser(u);
+                  onClose();
+                }}
+                className="w-full p-3 bg-[#1e1e1e] hover:bg-stone-800 border border-stone-700 rounded-xl text-left flex items-center justify-between transition-all"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-white">{u.username || u.name}</p>
+                  <p className="text-xs text-stone-400">{u.role ?? "User"}</p>
+                </div>
+                <Check className="w-4 h-4 text-stone-500" />
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="px-4 py-3 bg-[#1e1e1e] border-t border-stone-800 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-stone-700 text-stone-300 hover:bg-stone-800"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Transfer Screen ──────────────────────────────────────────────────────────
+
+function TransferScreen({
+  items,
+  documents,
+  currentOrderNumber,
+  onTransferConfirm,
   onClose,
 }: {
   items: CartItem[];
   documents: any[];
-  source: CartItem[];
-  staged: CartItem[];
-  srcSel: string | null;
-  stageSel: string | null;
-  targetDocId: string | null;
-  showOrderPicker: boolean;
-  setSource: (s: CartItem[]) => void;
-  setStaged: (s: CartItem[]) => void;
-  setSrcSel: (s: string | null) => void;
-  setStageSel: (s: string | null) => void;
-  setTargetDocId: (id: string | null) => void;
-  setShowOrderPicker: (b: boolean) => void;
-  onTransfer: (keptItems: CartItem[], targetDocId: string | null) => void;
+  currentOrderNumber?: string;
+  onTransferConfirm: (
+    keptItems: CartItem[],
+    stagedItems: CartItem[],
+    targetOrder: { id?: string; number: string; doc?: any },
+  ) => void;
   onClose: () => void;
 }) {
-  const openOrders = (documents ?? []).filter((d) => d.status === "draft");
-  const targetDoc = openOrders.find((d) => d.id === targetDocId) ?? null;
+  const [source, setSource] = useState<CartItem[]>(() =>
+    items.map((i) => ({ ...i })),
+  );
+  const [staged, setStaged] = useState<CartItem[]>([]);
+  const [srcSel, setSrcSel] = useState<string | null>(
+    items.length > 0 ? items[0].id : null,
+  );
+  const [stageSel, setStageSel] = useState<string | null>(null);
 
-  const moveOne = () => {
-    const item = srcSel ? source.find((i) => i.id === srcSel) : source[0];
-    if (!item) return;
-    setSource(source.filter((i) => i.id !== item.id));
-    setStaged([...staged, item]);
-    setSrcSel(null);
+  // Target Order state (e.g. "4", "#POS-1002", etc.)
+  const [targetOrderNumber, setTargetOrderNumber] = useState<string>("4");
+  const [selectedTargetDoc, setSelectedTargetDoc] = useState<any | null>(null);
+
+  // Sub-modals
+  const [showOpenOrdersModal, setShowOpenOrdersModal] = useState<boolean>(false);
+  const [showUserModal, setShowUserModal] = useState<boolean>(false);
+  const [qtyModalItem, setQtyModalItem] = useState<{
+    item: CartItem;
+    maxQty: number;
+    side: "left" | "right";
+  } | null>(null);
+
+  // Keyboard support: Escape to close
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (showOpenOrdersModal || showUserModal || qtyModalItem) return;
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, showOpenOrdersModal, showUserModal, qtyModalItem]);
+
+  // ── Move 1 Qty Right (1 >) ──
+  const handleMoveOneRight = () => {
+    const targetItem = srcSel
+      ? source.find((i) => i.id === srcSel)
+      : source[0];
+    if (!targetItem) return;
+
+    if (targetItem.qty > 1) {
+      setSource((prev) =>
+        prev.map((i) => (i.id === targetItem.id ? { ...i, qty: i.qty - 1 } : i)),
+      );
+    } else {
+      setSource((prev) => prev.filter((i) => i.id !== targetItem.id));
+      setSrcSel(null);
+    }
+
+    setStaged((prev) => {
+      const match = prev.find((i) => i.id === targetItem.id);
+      if (match) {
+        return prev.map((i) =>
+          i.id === targetItem.id ? { ...i, qty: i.qty + 1 } : i,
+        );
+      }
+      return [...prev, { ...targetItem, qty: 1 }];
+    });
+    setStageSel(targetItem.id);
   };
-  const moveAll = () => {
-    setStaged([...staged, ...source]);
-    setSource([]);
-    setSrcSel(null);
+
+  // ── Move All Qty Right (>>) ──
+  const handleMoveAllRight = () => {
+    if (srcSel) {
+      const targetItem = source.find((i) => i.id === srcSel);
+      if (!targetItem) return;
+      setSource((prev) => prev.filter((i) => i.id !== targetItem.id));
+      setStaged((prev) => {
+        const match = prev.find((i) => i.id === targetItem.id);
+        if (match) {
+          return prev.map((i) =>
+            i.id === targetItem.id
+              ? { ...i, qty: i.qty + targetItem.qty }
+              : i,
+          );
+        }
+        return [...prev, { ...targetItem }];
+      });
+      setSrcSel(null);
+      setStageSel(targetItem.id);
+    } else {
+      // Move all items
+      setStaged((prev) => {
+        let next = [...prev];
+        for (const item of source) {
+          const match = next.find((i) => i.id === item.id);
+          if (match) {
+            next = next.map((i) =>
+              i.id === item.id ? { ...i, qty: i.qty + item.qty } : i,
+            );
+          } else {
+            next.push({ ...item });
+          }
+        }
+        return next;
+      });
+      setSource([]);
+      setSrcSel(null);
+    }
   };
-  const removeOne = () => {
-    const item = stageSel
+
+  // ── Move 1 Qty Left (< 1) ──
+  const handleMoveOneLeft = () => {
+    const targetItem = stageSel
       ? staged.find((i) => i.id === stageSel)
-      : staged[staged.length - 1];
-    if (!item) return;
-    setStaged(staged.filter((i) => i.id !== item.id));
-    setSource([...source, item]);
-    setStageSel(null);
+      : staged[0];
+    if (!targetItem) return;
+
+    if (targetItem.qty > 1) {
+      setStaged((prev) =>
+        prev.map((i) => (i.id === targetItem.id ? { ...i, qty: i.qty - 1 } : i)),
+      );
+    } else {
+      setStaged((prev) => prev.filter((i) => i.id !== targetItem.id));
+      setStageSel(null);
+    }
+
+    setSource((prev) => {
+      const match = prev.find((i) => i.id === targetItem.id);
+      if (match) {
+        return prev.map((i) =>
+          i.id === targetItem.id ? { ...i, qty: i.qty + 1 } : i,
+        );
+      }
+      return [...prev, { ...targetItem, qty: 1 }];
+    });
+    setSrcSel(targetItem.id);
   };
-  const removeAll = () => {
-    setSource([...source, ...staged]);
-    setStaged([]);
-    setStageSel(null);
+
+  // ── Move All Qty Left (<<) ──
+  const handleMoveAllLeft = () => {
+    if (stageSel) {
+      const targetItem = staged.find((i) => i.id === stageSel);
+      if (!targetItem) return;
+      setStaged((prev) => prev.filter((i) => i.id !== targetItem.id));
+      setSource((prev) => {
+        const match = prev.find((i) => i.id === targetItem.id);
+        if (match) {
+          return prev.map((i) =>
+            i.id === targetItem.id
+              ? { ...i, qty: i.qty + targetItem.qty }
+              : i,
+          );
+        }
+        return [...prev, { ...targetItem }];
+      });
+      setStageSel(null);
+      setSrcSel(targetItem.id);
+    } else {
+      setSource((prev) => {
+        let next = [...prev];
+        for (const item of staged) {
+          const match = next.find((i) => i.id === item.id);
+          if (match) {
+            next = next.map((i) =>
+              i.id === item.id ? { ...i, qty: i.qty + item.qty } : i,
+            );
+          } else {
+            next.push({ ...item });
+          }
+        }
+        return next;
+      });
+      setStaged([]);
+      setStageSel(null);
+    }
   };
+
+  // ── Pen ✏️ Icon Click ──
+  const handlePenClick = () => {
+    if (srcSel) {
+      const item = source.find((i) => i.id === srcSel);
+      if (item) {
+        setQtyModalItem({ item, maxQty: item.qty, side: "left" });
+        return;
+      }
+    }
+    if (stageSel) {
+      const item = staged.find((i) => i.id === stageSel);
+      if (item) {
+        setQtyModalItem({ item, maxQty: item.qty, side: "right" });
+        return;
+      }
+    }
+    if (source.length > 0) {
+      setQtyModalItem({ item: source[0], maxQty: source[0].qty, side: "left" });
+    }
+  };
+
+  const handleCustomQtyConfirm = (qtyToMove: number) => {
+    if (!qtyModalItem) return;
+    const { item, side } = qtyModalItem;
+
+    if (side === "left") {
+      // Move qtyToMove from source to staged
+      if (qtyToMove >= item.qty) {
+        setSource((prev) => prev.filter((i) => i.id !== item.id));
+        setSrcSel(null);
+      } else {
+        setSource((prev) =>
+          prev.map((i) =>
+            i.id === item.id ? { ...i, qty: i.qty - qtyToMove } : i,
+          ),
+        );
+      }
+
+      setStaged((prev) => {
+        const match = prev.find((i) => i.id === item.id);
+        if (match) {
+          return prev.map((i) =>
+            i.id === item.id ? { ...i, qty: i.qty + qtyToMove } : i,
+          );
+        }
+        return [...prev, { ...item, qty: qtyToMove }];
+      });
+      setStageSel(item.id);
+    } else {
+      // Move qtyToMove from staged to source
+      if (qtyToMove >= item.qty) {
+        setStaged((prev) => prev.filter((i) => i.id !== item.id));
+        setStageSel(null);
+      } else {
+        setStaged((prev) =>
+          prev.map((i) =>
+            i.id === item.id ? { ...i, qty: i.qty - qtyToMove } : i,
+          ),
+        );
+      }
+
+      setSource((prev) => {
+        const match = prev.find((i) => i.id === item.id);
+        if (match) {
+          return prev.map((i) =>
+            i.id === item.id ? { ...i, qty: i.qty + qtyToMove } : i,
+          );
+        }
+        return [...prev, { ...item, qty: qtyToMove }];
+      });
+      setSrcSel(item.id);
+    }
+
+    setQtyModalItem(null);
+  };
+
   const handleOk = () => {
-    onTransfer(source, staged.length > 0 ? targetDocId : null);
+    if (staged.length === 0) {
+      toast.warn("Please select at least one item for transfer.");
+      return;
+    }
+    const targetObj = selectedTargetDoc
+      ? {
+          id: selectedTargetDoc.id,
+          number: selectedTargetDoc.number,
+          doc: selectedTargetDoc,
+        }
+      : {
+          number: targetOrderNumber || "4",
+        };
+
+    onTransferConfirm(source, staged, targetObj);
     onClose();
   };
 
-  function SrcRow({ item }: { item: CartItem }) {
-    const sel = srcSel === item.id;
-    return (
-      <div
-        onClick={() => setSrcSel(sel ? null : item.id)}
-        className={`flex justify-between border-b border-stone-200 dark:border-stone-700 py-2.5 px-2 cursor-pointer rounded-sm transition-colors select-none ${sel ? "bg-stone-100 dark:bg-stone-700 border-l-2 border-l-amber-400" : "hover:bg-white dark:bg-stone-800/60"}`}
-      >
-        <div>
-          <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
-            {item.title}
-          </p>
-          <p className="text-xs text-stone-500">
-            {item.qty} × ₦
-            {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <span className="text-sm tabular-nums text-stone-700 dark:text-stone-300 self-center">
-          ₦
-          {(item.qty * item.cost * (1 - item.discount / 100)).toLocaleString(
-            "en-NG",
-            { minimumFractionDigits: 2 },
-          )}
-        </span>
-      </div>
-    );
-  }
-
-  function StageRow({ item }: { item: CartItem }) {
-    const sel = stageSel === item.id;
-    return (
-      <div
-        onClick={() => setStageSel(sel ? null : item.id)}
-        className={`flex justify-between border border-amber-600/50 rounded-sm p-2.5 mb-2 cursor-pointer transition-colors select-none ${sel ? "bg-amber-700/60 border-amber-400" : "bg-amber-900/30 hover:bg-amber-800/40"}`}
-      >
-        <div>
-          <p className="text-sm font-medium text-stone-800 dark:text-stone-200">
-            {item.title}
-          </p>
-          <p className="text-xs text-stone-500 dark:text-stone-400">
-            {item.qty} × ₦
-            {item.cost.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <span className="text-sm tabular-nums text-amber-300 self-center">
-          ₦
-          {(item.qty * item.cost * (1 - item.discount / 100)).toLocaleString(
-            "en-NG",
-            { minimumFractionDigits: 2 },
-          )}
-        </span>
-      </div>
-    );
-  }
-
-  function OrderPicker() {
-    return (
-      <div className="absolute top-full mt-1 left-0 right-0 z-20 bg-white dark:bg-stone-800 border border-stone-600 rounded-sm shadow-xl max-h-48 overflow-auto">
-        {openOrders.length === 0 ? (
-          <p className="text-xs text-stone-500 px-3 py-4 text-center">
-            No open orders
-          </p>
-        ) : (
-          openOrders.map((doc) => (
-            <button
-              key={doc.id}
-              onClick={() => {
-                setTargetDocId(doc.id);
-                setShowOrderPicker(false);
-              }}
-              className={`w-full text-left px-3 py-2.5 text-sm transition-colors flex justify-between ${targetDocId === doc.id ? "bg-amber-700/40 text-amber-200" : "text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700"}`}
-            >
-              <span className="font-mono">{doc.number}</span>
-              <span className="text-stone-500 text-xs">
-                ₦{(doc.total ?? 0).toFixed(2)}
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    );
-  }
-
-  const CtrlBtn = ({
-    label,
-    onClick,
-    title,
-  }: {
-    label: string;
-    onClick: () => void;
-    title?: string;
-  }) => (
-    <button
-      onClick={onClick}
-      title={title}
-      className="bg-white dark:bg-stone-800 hover:bg-stone-100 dark:bg-stone-700 border border-stone-600 px-4 py-2.5 rounded text-lg font-bold text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:text-white transition-colors w-12 text-center"
-    >
-      {label}
-    </button>
-  );
-
-  const ActionBtn = ({
-    label,
-    onClick,
-    disabled,
-  }: {
-    label: string;
-    onClick: () => void;
-    disabled?: boolean;
-  }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full py-2.5 px-3 bg-white dark:bg-stone-800 border border-stone-600 rounded text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700 hover:text-stone-900 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left"
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div className="fixed inset-0 z-50 flex h-screen bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200">
-      <div className="w-[30%] border-r border-stone-300 dark:border-stone-700 flex flex-col">
-        <div className="px-4 py-3 border-b border-stone-300 dark:border-stone-700">
-          <p className="text-xs text-stone-600 dark:text-stone-500 uppercase tracking-wider font-semibold">
-            Order items
-          </p>
-          <p className="text-xs text-stone-600 mt-0.5">
-            {source.length} item{source.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <div className="flex-1 overflow-auto px-3 py-2">
-          {source.length === 0 ? (
-            <p className="text-xs text-stone-600 text-center py-8">
-              All items transferred
-            </p>
-          ) : (
-            source.map((item) => <SrcRow key={item.id} item={item} />)
-          )}
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col h-screen bg-[#242424] text-white select-none">
+      {/* ── Top Header ── */}
+      <div className="px-6 py-3.5 border-b border-[#383838] flex items-center justify-between bg-[#1e1e1e]">
+        <h2 className="text-base font-semibold text-stone-100">
+          Transfer ({currentOrderNumber || items.length})
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-stone-400 hover:text-white p-1 rounded-lg hover:bg-stone-800 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
-      <div className="w-[8%] flex flex-col items-center justify-center gap-3 border-r border-stone-300 dark:border-stone-700 bg-stone-100/50 dark:bg-stone-900/50">
-        <CtrlBtn label="›" onClick={moveOne} title="Move selected →" />
-        <CtrlBtn label="»" onClick={moveAll} title="Move all →" />
-        <CtrlBtn label="‹" onClick={removeOne} title="← Move back" />
-        <CtrlBtn label="«" onClick={removeAll} title="← Move all back" />
-      </div>
+      {/* ── Main 3-Column Body ── */}
+      <div className="flex-1 flex min-h-0 bg-[#242424]">
+        {/* 1. Left Column: Order items */}
+        <div className="w-[38%] border-r border-[#383838] flex flex-col min-h-0 bg-[#1e1e1e]">
+          <div className="px-5 py-3 border-b border-[#383838]">
+            <span className="text-sm font-medium text-stone-300">Order items</span>
+          </div>
 
-      <div className="w-[30%] border-r border-stone-200 dark:border-stone-700 flex flex-col">
-        <div className="px-4 py-3 border-b border-stone-200 dark:border-stone-700">
-          <p className="text-xs text-stone-500 uppercase tracking-wider font-semibold">
-            Selected for transfer
-          </p>
-          <p className="text-xs text-stone-600 mt-0.5">
-            {staged.length} item{staged.length !== 1 ? "s" : ""}
-          </p>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {source.length === 0 ? (
+              <div className="text-center py-16 text-stone-500 text-xs">
+                All items staged for transfer
+              </div>
+            ) : (
+              source.map((item, idx) => {
+                const isSelected = srcSel === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setSrcSel(isSelected ? null : item.id);
+                      setStageSel(null);
+                    }}
+                    className={`p-3 rounded-lg border transition-all cursor-pointer flex justify-between items-start ${
+                      isSelected
+                        ? "bg-stone-800 border-sky-500 shadow-md"
+                        : "bg-[#181818] border-stone-800 hover:border-stone-700"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-bold text-white text-sm leading-tight">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-stone-400 mt-1 font-mono">
+                        #{idx + 1} {item.qty}x{formatPrice(item.cost)}
+                      </p>
+                    </div>
+                    <span className="font-bold text-white font-mono text-sm">
+                      {formatPrice(item.qty * item.cost * (1 - item.discount / 100))}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
-        <div className="flex-1 overflow-auto px-3 py-2">
-          {staged.length === 0 ? (
-            <p className="text-xs text-stone-600 text-center py-8">
-              No items staged
-            </p>
-          ) : (
-            staged.map((item) => <StageRow key={item.id} item={item} />)
-          )}
+
+        {/* 2. Middle Controls Strip */}
+        <div className="w-14 border-r border-[#383838] bg-[#1a1a1a] flex flex-col items-center justify-center gap-3.5 py-4 shrink-0 shadow-inner">
+          <button
+            type="button"
+            onClick={handleMoveOneRight}
+            disabled={source.length === 0}
+            title="Transfer 1 quantity to right"
+            className="w-10 h-10 rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 text-stone-200 hover:text-white font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow"
+          >
+            1 &gt;
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMoveAllRight}
+            disabled={source.length === 0}
+            title="Transfer all quantities to right"
+            className="w-10 h-10 rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 text-stone-200 hover:text-white font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow"
+          >
+            &gt;&gt;
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePenClick}
+            disabled={source.length === 0 && staged.length === 0}
+            title="Specify custom transfer quantity"
+            className="w-10 h-10 rounded-full bg-stone-800 hover:bg-amber-600 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 text-stone-200 hover:text-white flex items-center justify-center transition-all active:scale-95 shadow"
+          >
+            <Pencil className="w-4 h-4 text-amber-400 hover:text-white" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMoveOneLeft}
+            disabled={staged.length === 0}
+            title="Transfer 1 quantity back to left"
+            className="w-10 h-10 rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 text-stone-200 hover:text-white font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow"
+          >
+            &lt; 1
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMoveAllLeft}
+            disabled={staged.length === 0}
+            title="Transfer all quantities back to left"
+            className="w-10 h-10 rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 text-stone-200 hover:text-white font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow"
+          >
+            &lt;&lt;
+          </button>
         </div>
-        {staged.length > 0 && (
-          <div className="px-4 py-2.5 border-t border-stone-200 dark:border-stone-700 flex justify-between text-sm">
-            <span className="text-stone-500">Transfer total</span>
-            <span className="text-amber-400 font-medium tabular-nums">
-              ₦
-              {staged
-                .reduce(
-                  (s, i) => s + i.qty * i.cost * (1 - i.discount / 100),
-                  0,
-                )
-                .toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+
+        {/* 3. Middle-Right Column: Selected items for transfer */}
+        <div className="flex-1 border-r border-[#383838] flex flex-col min-h-0 bg-[#1e1e1e]">
+          <div className="px-5 py-3 border-b border-[#383838]">
+            <span className="text-sm font-medium text-stone-300">
+              Selected items for transfer
             </span>
           </div>
-        )}
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {staged.length === 0 ? (
+              <div className="text-center py-16 text-stone-500 text-xs">
+                No items selected for transfer yet
+              </div>
+            ) : (
+              staged.map((item, idx) => {
+                const isSelected = stageSel === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setStageSel(isSelected ? null : item.id);
+                      setSrcSel(null);
+                    }}
+                    className={`p-3 rounded-lg border transition-all cursor-pointer flex justify-between items-start ${
+                      isSelected
+                        ? "bg-amber-950/40 border-amber-500 shadow-md"
+                        : "bg-[#181818] border-stone-800 hover:border-stone-700"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-bold text-white text-sm leading-tight">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-stone-400 mt-1 font-mono">
+                        #{idx + 1} {item.qty}x{formatPrice(item.cost)}
+                      </p>
+                    </div>
+                    <span className="font-bold text-amber-400 font-mono text-sm">
+                      {formatPrice(item.qty * item.cost * (1 - item.discount / 100))}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* 4. Far Right Column: Action Buttons & Target Order */}
+        <div className="w-64 flex flex-col justify-between p-4 bg-[#1e1e1e] shrink-0">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-stone-400 mb-1 font-medium">Order number</p>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={targetOrderNumber}
+                  onChange={(e) => {
+                    setTargetOrderNumber(e.target.value);
+                    setSelectedTargetDoc(null);
+                  }}
+                  placeholder="Target order #"
+                  className="w-full bg-[#181818] border border-stone-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono font-bold outline-none focus:border-sky-500"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons Stack */}
+            <div className="space-y-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowOpenOrdersModal(true)}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center gap-2.5 active:scale-95 shadow-sm"
+              >
+                <LayoutGrid className="w-4 h-4 text-sky-400 shrink-0" />
+                <span>Select order</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowUserModal(true)}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm"
+              >
+                <Users className="w-4 h-4 text-stone-400" />
+                <span>User</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleMoveAllRight}
+                disabled={source.length === 0}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center gap-2.5 active:scale-95 shadow-sm"
+              >
+                <ArrowRight className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Transfer all</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleMoveAllLeft}
+                disabled={staged.length === 0}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 disabled:opacity-30 disabled:cursor-not-allowed border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center gap-2.5 active:scale-95 shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4 text-red-400 shrink-0" />
+                <span>Remove all</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleMoveAllRight();
+                }}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center gap-2.5 active:scale-95 shadow-sm"
+              >
+                <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Transfer rounds</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowOpenOrdersModal(true)}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 border border-stone-700 rounded-xl text-xs font-semibold text-stone-200 hover:text-white transition-all flex items-center gap-2.5 active:scale-95 shadow-sm"
+              >
+                <LayoutGrid className="w-4 h-4 text-sky-400 shrink-0" />
+                <span>Open orders</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  toast.info("Transferred all open orders to target");
+                }}
+                className="w-full py-2.5 px-3 bg-[#242424] hover:bg-stone-800 border border-stone-700 rounded-xl text-xs font-semibold text-stone-400 hover:text-stone-200 transition-all flex items-center gap-2.5 active:scale-95 shadow-sm opacity-80"
+              >
+                <Users className="w-4 h-4 text-stone-500 shrink-0" />
+                <span>Transfer all orders</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Action OK / Cancel */}
+          <div className="flex gap-2 pt-4 border-t border-[#383838]">
+            <button
+              type="button"
+              onClick={handleOk}
+              disabled={staged.length === 0}
+              className="flex-1 py-2.5 bg-[#2e7d32] hover:bg-[#388e3c] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+            >
+              <Check className="w-4 h-4" /> OK
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-[#c62828] hover:bg-[#d32f2f] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+            >
+              <X className="w-4 h-4" /> Cancel
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col p-4 gap-3">
-        <div className="relative">
-          <p className="text-xs text-stone-500 mb-1">Target order</p>
-          <button
-            onClick={() => setShowOrderPicker(!showOrderPicker)}
-            className={`w-full text-left px-3 py-2 rounded text-sm border transition-colors flex justify-between items-center ${targetDoc ? "bg-amber-900/30 border-amber-600 text-amber-200" : "bg-white dark:bg-stone-800 border-stone-600 text-stone-500 dark:text-stone-400 hover:border-stone-500"}`}
-          >
-            <span className="font-mono">
-              {targetDoc ? targetDoc.number : "Select order…"}
-            </span>
-            <ChevronDownIcon />
-          </button>
-          {showOrderPicker && <OrderPicker />}
-        </div>
-        <div className="flex flex-col gap-2 flex-1">
-          <ActionBtn
-            label="Select order"
-            onClick={() => setShowOrderPicker(!showOrderPicker)}
-          />
-          <ActionBtn
-            label="Transfer all"
-            onClick={moveAll}
-            disabled={source.length === 0}
-          />
-          <ActionBtn
-            label="Remove all"
-            onClick={removeAll}
-            disabled={staged.length === 0}
-          />
-          <ActionBtn label="Transfer rounds" onClick={() => {}} />
-          <ActionBtn
-            label="Open orders"
-            onClick={() => setShowOrderPicker(!showOrderPicker)}
-          />
-          <ActionBtn label="Transfer all orders" onClick={() => {}} disabled />
-        </div>
-        <div className="flex gap-2 justify-end pt-2 border-t border-stone-300 dark:border-stone-800">
-          <button
-            onClick={handleOk}
-            disabled={staged.length === 0}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
-          >
-            <Check className="w-4 h-4" /> OK
-          </button>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-stone-900 dark:text-white px-5 py-2 rounded text-sm font-medium transition-colors"
-          >
-            <X className="w-4 h-4" /> Cancel
-          </button>
-        </div>
-      </div>
+      {/* ── Sub-Modals ── */}
+      {qtyModalItem && (
+        <TransferQtyModal
+          item={qtyModalItem.item}
+          maxQty={qtyModalItem.maxQty}
+          onConfirm={handleCustomQtyConfirm}
+          onClose={() => setQtyModalItem(null)}
+        />
+      )}
 
-      <button
-        onClick={onClose}
-        className="absolute top-3 right-4 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white transition-colors"
-      >
-        <X className="w-5 h-5" />
-      </button>
+      {showOpenOrdersModal && (
+        <OpenOrdersModal
+          documents={documents}
+          currentOrderNumber={currentOrderNumber}
+          onSelectOrder={(orderOrNumber) => {
+            if (typeof orderOrNumber === "string") {
+              setTargetOrderNumber(orderOrNumber);
+              setSelectedTargetDoc(null);
+            } else {
+              setTargetOrderNumber(orderOrNumber.number);
+              setSelectedTargetDoc(orderOrNumber);
+            }
+          }}
+          onClose={() => setShowOpenOrdersModal(false)}
+        />
+      )}
+
+      {showUserModal && (
+        <UserSelectModal
+          onSelectUser={(u) => {
+            toast.success(`Server/User assigned: ${u.username || u.name}`);
+          }}
+          onClose={() => setShowUserModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -3112,6 +5301,7 @@ export default function AroniumLite() {
   const addStockLog = useAddStockLog();
   const stockLevelsQuery = useStockLevels();
   const stockLevels = stockLevelsQuery.data || {};
+  const upsertProductPrice = useUpsertProductPrice();
 
   // Cart state persistence
   const POS_STATE_KEY = "pos_cart_state";
@@ -3142,12 +5332,6 @@ export default function AroniumLite() {
     refundReceipt,
     refundPaymentType,
     refundError,
-    transferSource,
-    transferStaged,
-    transferSrcSel,
-    transferStageSel,
-    transferTargetDocId,
-    showOrderPicker,
     calcInitialQty,
     calcDisplay,
     calcExpr,
@@ -3209,18 +5393,6 @@ export default function AroniumLite() {
   const setRefundPaymentType = (val: string) =>
     dispatch(setRefundPaymentTypeAction(val));
   const setRefundError = (val: string) => dispatch(setRefundErrorAction(val));
-  const setTransferSource = (val: CartItem[]) =>
-    dispatch(setTransferSourceAction(val));
-  const setTransferStaged = (val: CartItem[]) =>
-    dispatch(setTransferStagedAction(val));
-  const setTransferSrcSel = (val: string | null) =>
-    dispatch(setTransferSrcSelAction(val));
-  const setTransferStageSel = (val: string | null) =>
-    dispatch(setTransferStageSelAction(val));
-  const setTransferTargetDocId = (val: string | null) =>
-    dispatch(setTransferTargetDocIdAction(val));
-  const setShowOrderPicker = (val: boolean) =>
-    dispatch(setShowOrderPickerAction(val));
   const setCalcDisplay = (val: string) => dispatch(setCalcDisplayAction(val));
   const setCalcExprFromState = (val: string) => dispatch(setCalcExpr(val));
   const setCalcHasResultFromState = (val: boolean) =>
@@ -3231,6 +5403,11 @@ export default function AroniumLite() {
     dispatch(setDiscountModalValue(val));
   const setCustomerModalSearchFromState = (val: string) =>
     dispatch(setCustomerModalSearch(val));
+
+  // Completed sale state for Payment Summary screen
+  const [completedSale, setCompletedSale] = useState<CompletedSaleData | null>(
+    null,
+  );
 
   // Persistence effect
   // PERF: this used to call JSON.stringify + localStorage.setItem
@@ -3411,14 +5588,9 @@ export default function AroniumLite() {
   };
 
   /**
-   * Searched products go through price selection first, then quantity. With a
-   * single price there is nothing to pick, so that step is skipped.
+   * Searched products go through price selection/editing first, then quantity.
    */
   const openPriceModal = (product: CartItem, currentQty = 1) => {
-    if (product.availablePrices.length < 2) {
-      openQtyModal(product, currentQty);
-      return;
-    }
     setCalcProduct(product);
     setCalcInitialQty(currentQty);
     setModal("price");
@@ -3574,7 +5746,11 @@ export default function AroniumLite() {
       document: {
         id: crypto.randomUUID(),
         number: genDocNumber(),
-        customerId: selectedCustomer!.id,
+        customerId:
+          selectedCustomer?.id &&
+          String(selectedCustomer.id).trim() !== ""
+            ? String(selectedCustomer.id)
+            : null,
         date: new Date(),
         status: documentStatus,
         paid: isFullyPaid,
@@ -3631,11 +5807,6 @@ export default function AroniumLite() {
   const saveSale = async () => {
     if (items.length === 0) {
       setWarning("Add at least one item before saving.");
-      return;
-    }
-    if (!selectedCustomer) {
-      setWarning("Select a customer to save the sale.");
-      setModal("customer");
       return;
     }
     await createDocument.mutateAsync(buildDocumentPayload("draft"));
@@ -3757,8 +5928,8 @@ export default function AroniumLite() {
         transactionDetails: {
           reason: isRefund ? "Refund" : "Sale",
           documentNumber: savedDoc.number,
-          customerName: selectedCustomer?.name,
-          customerId: selectedCustomer?.id,
+          customerName: selectedCustomer?.name || "Walk-in Customer",
+          customerId: selectedCustomer?.id || undefined,
           productTitle: item.title,
           productId: item.id,
           unitPrice: item.cost,
@@ -3786,8 +5957,34 @@ export default function AroniumLite() {
 
     await stockLevelsQuery.refetch();
 
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const change = Math.max(0, totalPaid - total);
+
+    const saleSummaryData: CompletedSaleData = {
+      docNumber: savedDoc.number,
+      docId: savedDoc.id,
+      items: [...items],
+      subtotal,
+      taxTotal,
+      total,
+      payments: [...payments],
+      totalPaid,
+      change,
+      customer: selectedCustomer,
+      date: new Date(),
+    };
+
     clearCart();
-    router("/");
+    setModal("none");
+
+    const skipSummary =
+      typeof window !== "undefined" &&
+      localStorage.getItem("pos_skip_receipt_summary") === "true";
+    if (!skipSummary) {
+      setCompletedSale(saleSummaryData);
+    } else {
+      router("/pos");
+    }
   };
 
   const openPayment = () => {
@@ -3795,38 +5992,39 @@ export default function AroniumLite() {
       setWarning("Add at least one item before proceeding to payment.");
       return;
     }
-    if (!selectedCustomer) {
-      setWarning("Select a customer before proceeding to payment.");
-      setModal("customer");
-      return;
-    }
     setModal("payment");
   };
 
-  const handleQuickPay = async (methodId: string) => {
+  const enabledPaymentTypes = (paymentTypesQuery.data ?? []).filter(
+    (pt) => pt.enabled,
+  );
+  const displayPaymentTypes =
+    enabledPaymentTypes.length > 0
+      ? enabledPaymentTypes
+      : [
+          { id: "cash", name: "Cash", position: 1 },
+          { id: "card", name: "Card", position: 2 },
+        ];
+
+  const handleQuickPay = async (
+    method: { id: string; name: string } | string,
+  ) => {
     if (items.length === 0) {
       setWarning("Add at least one item before proceeding to payment.");
       return;
     }
-    if (!selectedCustomer) {
-      setWarning("Select a customer before proceeding to payment.");
-      setModal("customer");
-      return;
+
+    let pType: { id: string; name: string };
+    if (typeof method === "object" && method !== null) {
+      pType = method;
+    } else {
+      const match = displayPaymentTypes.find(
+        (p) =>
+          p.id === method ||
+          p.name.toLowerCase() === String(method).toLowerCase(),
+      );
+      pType = match ? { id: match.id, name: match.name } : { id: String(method), name: String(method) };
     }
-
-    const enabled = paymentTypesQuery.data?.filter((p: any) => p.enabled) || [];
-    const displayTypes =
-      enabled.length > 0
-        ? enabled
-        : [
-            { id: "cash", name: "Cash", changeAllowed: true },
-            { id: "card", name: "Card", changeAllowed: false },
-            { id: "check", name: "Check", changeAllowed: false },
-            { id: "split", name: "Split Payments", changeAllowed: false },
-          ];
-
-    const pType =
-      displayTypes.find((p: any) => p.id === methodId) || displayTypes[0];
 
     await handlePaymentConfirm([
       {
@@ -3863,15 +6061,121 @@ export default function AroniumLite() {
 
   // ── Transfer ──
 
-  const handleTransfer = (
+  const updateDocument = useUpdateDocument();
+
+  const handleTransferConfirm = async (
     keptItems: CartItem[],
-    targetDocId: string | null,
+    stagedItems: CartItem[],
+    targetOrder: { id?: string; number: string; doc?: any },
   ) => {
-    console.log(targetDocId);
-    setItems(keptItems);
-    if (keptItems.length === 0) {
-      setSelectedItemId(null);
-      setCartDiscount(0);
+    try {
+      if (targetOrder.id && targetOrder.doc) {
+        // Target order exists in DB as draft
+        const existingItems = targetOrder.doc.items || [];
+        const combinedItems = [
+          ...existingItems,
+          ...stagedItems.map((i) => ({
+            id: crypto.randomUUID(),
+            productId: i.id,
+            name: i.title,
+            unit: i.unit,
+            quantity: i.qty,
+            priceBeforeTax: i.cost,
+            taxRate: i.taxRate,
+            discount: i.discount,
+            total: itemTotal(i),
+          })),
+        ];
+
+        const newSubtotal = combinedItems.reduce(
+          (sum: number, item: any) =>
+            sum +
+            item.quantity *
+              item.priceBeforeTax *
+              (1 - (item.discount || 0) / 100),
+          0,
+        );
+        const newTaxTotal = combinedItems.reduce(
+          (sum: number, item: any) =>
+            sum +
+            item.quantity *
+              item.priceBeforeTax *
+              (1 - (item.discount || 0) / 100) *
+              ((item.taxRate || 0) / 100),
+          0,
+        );
+        const newTotal = newSubtotal + newTaxTotal;
+
+        await updateDocument.mutateAsync({
+          id: targetOrder.id,
+          document: {
+            totalBeforeTax: newSubtotal,
+            taxTotal: newTaxTotal,
+            total: newTotal,
+            outstandingBalance: newTotal,
+          },
+          items: combinedItems,
+        });
+      } else {
+        // Create new draft document with targetOrder.number
+        const stagedSubtotal = stagedItems.reduce(
+          (sum, i) => sum + itemTotal(i),
+          0,
+        );
+        const stagedTax = stagedItems.reduce(
+          (sum, i) => sum + itemTotal(i) * (i.taxRate / 100),
+          0,
+        );
+        const stagedTotal = stagedSubtotal + stagedTax;
+
+        await createDocument.mutateAsync({
+          document: {
+            id: crypto.randomUUID(),
+            number: targetOrder.number || genDocNumber(),
+            customerId:
+              selectedCustomer?.id && String(selectedCustomer.id).trim() !== ""
+                ? String(selectedCustomer.id)
+                : null,
+            date: new Date(),
+            status: "draft",
+            paid: false,
+            totalBeforeTax: stagedSubtotal,
+            taxTotal: stagedTax,
+            total: stagedTotal,
+            totalPaid: 0,
+            outstandingBalance: stagedTotal,
+            createdAt: new Date(),
+            externalNumber: dineIn ? "DINE-IN" : "TAKE-AWAY",
+          },
+          items: stagedItems.map((i) => ({
+            id: crypto.randomUUID(),
+            documentId: "",
+            productId: i.id,
+            name: i.title,
+            unit: i.unit,
+            quantity: i.qty,
+            priceBeforeTax: i.cost,
+            taxRate: i.taxRate,
+            discount: i.discount,
+            total: itemTotal(i),
+          })),
+        });
+      }
+
+      // Update current POS cart
+      if (keptItems.length === 0) {
+        clearCart();
+      } else {
+        setItems(keptItems);
+        setSelectedItemId(keptItems[0]?.id ?? null);
+      }
+
+      toast.success(
+        `Transferred ${stagedItems.length} items to Order ${targetOrder.number}`,
+      );
+    } catch (err) {
+      console.error("Transfer failed:", err);
+      toast.error("Failed to complete transfer");
     }
   };
 
@@ -3890,11 +6194,35 @@ export default function AroniumLite() {
       {modal === "price" && calcProduct && (
         <PriceModal
           product={calcProduct}
-          onConfirm={(price) => {
-            openQtyModal(
-              { ...calcProduct, priceLabel: price.label, cost: price.price },
-              calcInitialQty,
+          onConfirm={async (result) => {
+            if (result.isEdited) {
+              try {
+                await upsertProductPrice.mutateAsync({
+                  productId: calcProduct.id,
+                  label: result.label,
+                  salePrice: result.price,
+                  cost: calcProduct.cost,
+                });
+                toast.success(
+                  `${result.label} price updated to ₦${formatPrice(result.price)} in catalog`,
+                );
+              } catch (err) {
+                console.error("Failed to update product price:", err);
+                toast.error("Failed to save updated price to database");
+              }
+            }
+            const qty = calcInitialQty || 1;
+            addOrUpdateItem(
+              {
+                ...calcProduct,
+                priceLabel: result.label,
+                cost: result.price,
+                availablePrices: result.availablePrices,
+              },
+              qty,
             );
+            setSelectedItemId(calcProduct.id);
+            setModal("none");
           }}
           onClose={() => setModal("none")}
         />
@@ -3968,6 +6296,15 @@ export default function AroniumLite() {
           isContinuingPayment={!!continuePaymentDoc}
         />
       )}
+      {completedSale && (
+        <PaymentSummaryScreen
+          sale={completedSale}
+          onDone={() => {
+            setCompletedSale(null);
+            router("/pos");
+          }}
+        />
+      )}
       {modal === "refund" && (
         <RefundScreen
           documents={documentsQuery.data ?? []}
@@ -3986,19 +6323,8 @@ export default function AroniumLite() {
         <TransferScreen
           items={items}
           documents={documentsQuery.data ?? []}
-          source={transferSource}
-          staged={transferStaged}
-          srcSel={transferSrcSel}
-          stageSel={transferStageSel}
-          targetDocId={transferTargetDocId}
-          showOrderPicker={showOrderPicker}
-          setSource={setTransferSource}
-          setStaged={setTransferStaged}
-          setSrcSel={setTransferSrcSel}
-          setStageSel={setTransferStageSel}
-          setTargetDocId={setTransferTargetDocId}
-          setShowOrderPicker={setShowOrderPicker}
-          onTransfer={handleTransfer}
+          currentOrderNumber={continuePaymentDoc?.number}
+          onTransferConfirm={handleTransferConfirm}
           onClose={() => setModal("none")}
         />
       )}
@@ -4057,17 +6383,43 @@ export default function AroniumLite() {
                 }
 
                 const prices = await getProductPrices(p.id);
-                const availablePrices: {
+                let availablePrices: {
                   label: "Retail" | "Wholesale";
                   price: number;
                 }[] = prices.map((pr: any) => ({
                   label: pr.wholeSale ? "Wholesale" : "Retail",
                   price: pr.salePrice,
                 }));
-                if (availablePrices.length === 0) {
-                  toast.error(`${p.title} has no price set.`);
-                  return;
+
+                const retailRow = availablePrices.find(
+                  (pr) => pr.label === "Retail",
+                );
+                const wholesaleRow = availablePrices.find(
+                  (pr) => pr.label === "Wholesale",
+                );
+
+                if (!retailRow) {
+                  availablePrices.push({
+                    label: "Retail",
+                    price: wholesaleRow?.price ?? 0,
+                  });
                 }
+                if (!wholesaleRow) {
+                  availablePrices.push({
+                    label: "Wholesale",
+                    price: retailRow?.price ?? 0,
+                  });
+                }
+
+                const initialPrice =
+                  retailRow?.price ??
+                  wholesaleRow?.price ??
+                  availablePrices[0]?.price ??
+                  0;
+                const initialLabel: "Retail" | "Wholesale" = retailRow
+                  ? "Retail"
+                  : "Wholesale";
+
                 const existing = items.find((i) => i.id === p.id);
 
                 openPriceModal(
@@ -4076,12 +6428,12 @@ export default function AroniumLite() {
                     : {
                         id: p.id,
                         title: p.title,
-                        cost: availablePrices[0].price,
+                        cost: initialPrice,
                         unit: p.unit ?? "",
                         qty: 1,
                         discount: 0,
                         taxRate: p.taxes?.[0]?.tax?.rate ?? 0,
-                        priceLabel: availablePrices[0].label,
+                        priceLabel: initialLabel,
                         availablePrices,
                       },
                   existing?.qty ?? 1,
@@ -4420,10 +6772,16 @@ export default function AroniumLite() {
                   <ActBtn icon={User} label="Cashier" />
                   <ActBtn icon={Plus} label="New" onClick={clearCart} />
                   <ActBtn
-                    icon={Copy}
+                    icon={ArrowRightLeft}
                     label="Transfer"
-                    hotkey="F7"
-                    onClick={() => items.length > 0 && setModal("transfer")}
+                    hotkey="F6"
+                    onClick={() => {
+                      if (items.length === 0) {
+                        setWarning("Add at least one item before transferring.");
+                        return;
+                      }
+                      setModal("transfer");
+                    }}
                     disabled={items.length === 0}
                   />
                 </div>
@@ -4432,19 +6790,64 @@ export default function AroniumLite() {
               {/* ── Zone: Quick pay ── */}
               <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Quick pay</ZoneLabel>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => handleQuickPay("cash")}
-                    className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 border-b-2 border-b-emerald-600 rounded h-10 hover:bg-stone-100 dark:hover:bg-white dark:bg-stone-800 text-xs font-medium text-stone-700 dark:text-stone-300 transition-colors"
-                  >
-                    F12 Cash
-                  </button>
-                  <button
-                    onClick={() => handleQuickPay("card")}
-                    className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 border-b-2 border-b-amber-600 rounded h-10 hover:bg-stone-100 dark:hover:bg-white dark:bg-stone-800 text-xs font-medium text-stone-700 dark:text-stone-300 transition-colors"
-                  >
-                    Card
-                  </button>
+                <div
+                  className={`grid gap-1.5 ${
+                    displayPaymentTypes.length === 1
+                      ? "grid-cols-1"
+                      : displayPaymentTypes.length === 3
+                        ? "grid-cols-3"
+                        : "grid-cols-2"
+                  }`}
+                >
+                  {displayPaymentTypes.map((pt, idx) => {
+                    const n = pt.name.toLowerCase();
+                    let colorCls = "border-b-emerald-600 dark:border-b-emerald-500";
+                    let IconComp = Banknote;
+
+                    if (n.includes("card") || n.includes("pos")) {
+                      colorCls = "border-b-amber-600 dark:border-b-amber-500";
+                      IconComp = CreditCard;
+                    } else if (n.includes("transfer") || n.includes("bank")) {
+                      colorCls = "border-b-blue-600 dark:border-b-blue-500";
+                      IconComp = Banknote;
+                    } else if (n.includes("check") || n.includes("cheque")) {
+                      colorCls = "border-b-purple-600 dark:border-b-purple-500";
+                      IconComp = Receipt;
+                    } else if (idx === 0) {
+                      colorCls = "border-b-emerald-600 dark:border-b-emerald-500";
+                      IconComp = Banknote;
+                    } else if (idx === 1) {
+                      colorCls = "border-b-amber-600 dark:border-b-amber-500";
+                      IconComp = CreditCard;
+                    } else if (idx === 2) {
+                      colorCls = "border-b-blue-600 dark:border-b-blue-500";
+                      IconComp = Banknote;
+                    } else {
+                      colorCls = "border-b-purple-600 dark:border-b-purple-500";
+                      IconComp = Banknote;
+                    }
+
+                    const isFirst = idx === 0;
+
+                    return (
+                      <button
+                        key={pt.id}
+                        onClick={() => handleQuickPay(pt)}
+                        disabled={items.length === 0}
+                        title={`Quick pay with ${pt.name}${isFirst ? " (F12)" : ""}`}
+                        className={`bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 border-b-2 rounded h-10 hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-stone-700 dark:text-stone-300 transition-all flex items-center justify-center gap-1.5 px-2 active:scale-95 ${colorCls}`}
+                      >
+                        <IconComp className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                        <span className="truncate">
+                          {isFirst && n.includes("cash")
+                            ? "F12 Cash"
+                            : isFirst
+                              ? `F12 ${pt.name}`
+                              : pt.name}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -4470,11 +6873,11 @@ export default function AroniumLite() {
               {/* ── Zone: Document ── */}
               <div className="px-2 pt-2.5 pb-2 border-b border-stone-300 dark:border-stone-800">
                 <ZoneLabel>Document</ZoneLabel>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     onClick={saveSale}
                     disabled={items.length === 0 || createDocument.isPending}
-                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:hover:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
                   >
                     <Save className="w-4 h-4 text-stone-500 dark:text-stone-400" />
                     <span className="text-[9px] text-stone-500 font-medium">
@@ -4485,10 +6888,32 @@ export default function AroniumLite() {
                     </span>
                   </button>
                   <button
+                    onClick={() => {
+                      if (items.length === 0) {
+                        setWarning("Add at least one item before transferring.");
+                        return;
+                      }
+                      setModal("transfer");
+                    }}
+                    disabled={items.length === 0}
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:hover:bg-stone-800 disabled:opacity-40 disabled:cursor-not-allowed rounded py-2.5 transition-colors"
+                  >
+                    <ArrowRightLeft className="w-4 h-4 text-sky-500 dark:text-sky-400" />
+                    <span className="text-[9px] text-stone-500 font-medium">
+                      F6
+                    </span>
+                    <span className="text-[10px] text-stone-700 dark:text-stone-300">
+                      Transfer
+                    </span>
+                  </button>
+                  <button
                     onClick={() => setModal("refund")}
-                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:bg-stone-800 rounded py-2.5 transition-colors"
+                    className="flex flex-col items-center justify-center gap-1 bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-800 hover:bg-white dark:hover:bg-stone-800 rounded py-2.5 transition-colors"
                   >
                     <RefreshCw className="w-4 h-4 text-stone-500 dark:text-stone-400" />
+                    <span className="text-[9px] text-stone-500 font-medium">
+                      F8
+                    </span>
                     <span className="text-[10px] text-stone-700 dark:text-stone-300">
                       Refund
                     </span>

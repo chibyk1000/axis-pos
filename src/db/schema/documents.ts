@@ -15,9 +15,7 @@ export const documents = sqliteTable(
     number: text("number").notNull(),
     externalNumber: text("external_number"),
 
-    customerId: text("customer_id")
-      .notNull()
-      .references(() => customers.id),
+    customerId: text("customer_id").references(() => customers.id),
 
     userId: integer("user_id").references(() => users.id),
     companyId: text("company_id").references(() => companies.id),

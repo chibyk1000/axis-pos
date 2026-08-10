@@ -650,7 +650,9 @@ function LoginForm({
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname ?? "/";
+  const rawFrom = (location.state as any)?.from?.pathname;
+  const from =
+    rawFrom && rawFrom !== "/" && rawFrom !== "/login" ? rawFrom : "/pos";
 
   const usersQuery = useUsers();
   const [signedUp, setSignedUp] = useState(false);
