@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { X, RefreshCw, EyeOff, Info, Check, } from "lucide-react";
+import { X, RefreshCw, EyeOff, Info, Check } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { useNavigate } from "react-router";
 import { nanoid } from "nanoid";
 import { format } from "date-fns";
@@ -170,14 +171,15 @@ export default function CreditPaymentsModal() {
               </div>
 
               {/* Refresh */}
-              <button
-                onClick={handleRefreshAll}
+              <RefreshButton
+                onRefresh={handleRefreshAll}
                 disabled={!customerId}
-                className="flex items-center justify-center gap-2 w-full py-2 border border-stone-600 hover:bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 text-sm rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <RefreshCw size={13} />
-                Load unpaid documents
-              </button>
+                variant="outline"
+                showLabel
+                label="Load unpaid documents"
+                className="w-full py-2 border-stone-600 hover:bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200 text-sm rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                iconClassName="w-3.5 h-3.5"
+              />
             </div>
 
             {/* Right: summary */}

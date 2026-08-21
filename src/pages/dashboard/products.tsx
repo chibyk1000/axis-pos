@@ -25,6 +25,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ChevronDownIcon } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
@@ -74,6 +75,11 @@ import type { DrawerPriceEntry } from "@/components/products/add-product-drawer"
 import { useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  getBrandingSettings,
+  hexToRgb,
+  applyPdfWatermarks,
+} from "@/lib/pdf-branding";
 
 const PRODUCTS_CHUNK_SIZE = 50;
 
@@ -351,8 +357,14 @@ export function ProductsView() {
     data: stockLevels = {} as Record<string, any>,
     refetch: refetchStockLevels,
   } = useStockLevels();
-  // price hooks
   const upsertProductPrice = useUpsertProductPrice();
+  const handleRefreshAll = useCallback(async () => {
+    await Promise.all([
+      refetchProducts(),
+      refetchRootGroups(),
+      refetchStockLevels(),
+    ]);
+  }, [refetchProducts, refetchRootGroups, refetchStockLevels]);
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -469,7 +481,7 @@ export function ProductsView() {
                     openEditGroup(el.id);
                   }}
                   onDeleteGroup={() => deleteGroup(el.id)}
-                  onRefresh={() => {}}
+                  onRefresh={handleRefreshAll}
                 />
               </ContextMenu>
             );
@@ -726,19 +738,32 @@ export function ProductsView() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
+    const settings = getBrandingSettings();
+    const accentColor = settings.documentAccentColor || "#f59e0b";
+
     const tableHTML = `
       <html>
         <head>
-          <title>Products</title>
+          <title>Products Catalog — Axis POS</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            body { font-family: Arial, sans-serif; margin: 24px; position: relative; }
+            h1 { color: ${accentColor}; margin-bottom: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+            th, td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; font-size: 11px; }
+            th { background-color: ${accentColor}; color: #ffffff; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9fafb; }
           </style>
         </head>
         <body>
-          <h1>Products</h1>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${accentColor}; padding-bottom: 8px;">
+            <div>
+              ${settings.enableLogo && settings.logoUrl ? `<img src="${settings.logoUrl}" style="max-height: 45px; margin-bottom: 4px;" />` : `<h1>Products Catalog</h1>`}
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #6b7280;">
+              <p style="margin: 0;">Total Products: ${visibleProducts.length}</p>
+              <p style="margin: 2px 0;">Date: ${format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+            </div>
+          </div>
           <table>
             <thead>
               <tr>
@@ -750,11 +775,6 @@ export function ProductsView() {
                 .map((product) => {
                   const priceInfo = getPriceInfo(product);
                   const stock = getStockLevel(product);
-                  console.log(
-                    "Stock entries for product",
-                    product.title,
-                    stock,
-                  );
                   return `
                   <tr>
                     <td>${product.code}</td>
@@ -785,7 +805,15 @@ export function ProductsView() {
   };
 
   const handleSaveAsPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const settings = getBrandingSettings();
+    const [ar, ag, ab] = hexToRgb(settings.documentAccentColor || "#f59e0b");
+
+    doc.setFont("helvetica", "bold").setFontSize(15).setTextColor(ar, ag, ab);
+    doc.text("Products Catalog", 14, 15);
+    doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(100);
+    doc.text(`Generated: ${format(new Date(), "dd/MM/yyyy HH:mm")} • Total items: ${visibleProducts.length}`, 14, 21);
+
     const tableColumn = COLUMNS.map((c) => c.label);
     const tableRows = visibleProducts.map((product) => {
       const priceInfo = getPriceInfo(product);
@@ -809,9 +837,16 @@ export function ProductsView() {
     });
 
     autoTable(doc, {
+      startY: 25,
       head: [tableColumn],
       body: tableRows,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [ar, ag, ab], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 },
     });
+
+    applyPdfWatermarks(doc, false);
 
     doc.save(`products-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
@@ -890,15 +925,28 @@ export function ProductsView() {
         <span className="text-xs text-stone-700 dark:text-stone-300">
           Management • Products
         </span>
-        <button className="text-stone-500 dark:text-stone-400 hover:text-orange-400 transition">
-          <ChevronDownIcon className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={handleRefreshAll}
+            title="Refresh products"
+          />
+          <button className="text-stone-500 dark:text-stone-400 hover:text-orange-400 transition">
+            <ChevronDownIcon className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Toolbar */}
       <div className="bg-stone-50 dark:bg-stone-900 border-b border-stone-300 dark:border-stone-800 px-6 py-4">
         <div className="flex flex-wrap gap-3">
-          <ToolbarButton icon="↻" label="Refresh" />
+          <RefreshButton
+            onRefresh={handleRefreshAll}
+            showLabel
+            label="Refresh"
+            variant="toolbar"
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded text-[10px] text-stone-500 dark:text-stone-400 hover:text-orange-400 hover:bg-orange-500/10"
+            iconClassName="w-4 h-4"
+          />
           <ToolbarButton
             icon="📁"
             label="New group"
@@ -946,7 +994,11 @@ export function ProductsView() {
           <ToolbarButton
             icon="#️⃣"
             label="Price tags"
-            onClick={() => navigate("/price-tags")}
+            onClick={() =>
+              navigate("/price-tags", {
+                state: { productId: selectedProductId || selectedProduct?.id },
+              })
+            }
           />
           <ToolbarButton
             icon="↕"

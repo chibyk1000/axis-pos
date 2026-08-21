@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Eye,
   EyeOff,
@@ -12,36 +11,19 @@ import {
   Check,
   Radio,
   ArrowLeft,
+  ChevronRight,
+  Shield,
 } from "lucide-react";
-import { useUsers, useCreateUser } from "@/hooks/controllers/users";
-import type { NewUser } from "@/hooks/controllers/users";
-import { hashPassword, verifyPassword } from "@/lib/auth";
+import { useUsers, useCreateUser, type User } from "@/hooks/controllers/users";
+import { hashPassword } from "@/lib/auth";
+import { useAuth } from "@/providers/auth-provider";
 import { useSync } from "@/hooks/useSync";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-dayjs.extend(relativeTime);
-interface LoginPageProps {
-  onLogin?: (credentials: {
-    username: string;
-    password: string;
-  }) => Promise<void>;
-}
-const triggerChaos = () => {
-  const today = dayjs().day(); // 0 (Sun) to 6 (Sat)
-  const isChaosDay = today === 2 || today === 4 || today === 6;
+import { useQueryClient } from "@tanstack/react-query";
 
-  // 30% chance of a random failure on those days
-  if (isChaosDay && Math.random() < 0.3) {
-    const glitches = [
-      "Quantum flux detected in the database.",
-      "The server is currently contemplating its existence.",
-      "Authentication timed out (or did it?).",
-      "Network packets were intercepted by a digital poltergeist.",
-      "Error 418: I'm a teapot, and I refuse to sign you in.",
-    ];
-    throw new Error(glitches[Math.floor(Math.random() * glitches.length)]);
-  }
-};
+interface LoginPageProps {
+  onLogin?: (credentials: { username: string; password: string }) => Promise<void>;
+}
+
 // ─── Background ───────────────────────────────────────────────────────────────
 
 function DotGrid() {
@@ -125,104 +107,193 @@ function TextInput({
   );
 }
 
-// ─── Sign-up form (shown when 0 users in DB) ──────────────────────────────────
-
-function SignupForm({
-  onSignedUp,
-  onBack,
+function EyeToggle({
+  show,
+  onToggle,
 }: {
-  onSignedUp: () => void;
-  onBack?: () => void;
+  show: boolean;
+  onToggle: () => void;
 }) {
-  const createUser = useCreateUser();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      tabIndex={-1}
+      className="px-3 text-stone-600 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 transition-colors"
+    >
+      {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+    </button>
+  );
+}
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+// ─── Access Level Info ────────────────────────────────────────────────────────
+
+const ACCESS_LEVEL_MAP: Record<
+  number,
+  { label: string; bg: string }
+> = {
+  0: { label: "Locked", bg: "bg-stone-500" },
+  1: { label: "Cashier", bg: "bg-stone-600" },
+  2: { label: "Senior Cashier", bg: "bg-stone-600" },
+  3: { label: "Shift Lead", bg: "bg-blue-600" },
+  4: { label: "Assistant Manager", bg: "bg-blue-600" },
+  5: { label: "Store Manager", bg: "bg-emerald-600" },
+  6: { label: "Area Manager", bg: "bg-emerald-600" },
+  7: { label: "Auditor", bg: "bg-purple-600" },
+  8: { label: "Administrator", bg: "bg-amber-600" },
+  9: { label: "Super Admin", bg: "bg-amber-500" },
+};
+
+function getRoleMeta(accessLevel?: number | null) {
+  const lvl = accessLevel ?? 1;
+  return ACCESS_LEVEL_MAP[lvl] ?? { label: "Cashier", bg: "bg-stone-600" };
+}
+
+function getInitials(name?: string | null) {
+  if (!name) return "U";
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+// ─── User avatar tile ─────────────────────────────────────────────────────────
+
+function UserAvatar({
+  user,
+  onClick,
+}: {
+  user: User;
+  onClick: () => void;
+}) {
+  const roleMeta = getRoleMeta(user.accessLevel);
+  const initials = getInitials(user.name ?? user.email);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl hover:border-amber-500 hover:shadow-lg hover:shadow-amber-900/10 transition-all active:scale-95 group"
+    >
+      <div
+        className={`w-14 h-14 rounded-2xl ${roleMeta.bg} flex items-center justify-center text-white font-bold text-lg group-hover:scale-105 transition-transform shadow-sm`}
+      >
+        {initials}
+      </div>
+      <span className="text-xs font-semibold text-stone-800 dark:text-stone-200 text-center leading-tight max-w-[85px] truncate">
+        {user.name || user.email || "Unnamed"}
+      </span>
+      <span className="text-[10px] text-stone-500 capitalize">
+        {roleMeta.label}
+      </span>
+    </button>
+  );
+}
+
+// ─── User Selector ────────────────────────────────────────────────────────────
+
+function UserSelector({
+  users,
+  onSelect,
+}: {
+  users: User[];
+  onSelect: (user: User) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider text-center">
+        Select your account
+      </p>
+      <div className="grid grid-cols-3 gap-2.5 max-h-[340px] overflow-y-auto p-0.5">
+        {users.map((u) => (
+          <UserAvatar key={u.id} user={u} onClick={() => onSelect(u)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Password-only form ───────────────────────────────────────────────────────
+
+function PasswordForm({
+  selectedUser,
+  navigateTo,
+  onBack,
+  onLogin,
+}: {
+  selectedUser: User;
+  navigateTo: string;
+  onBack: () => void;
+  onLogin?: (credentials: { username: string; password: string }) => Promise<void>;
+}) {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const nameRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    nameRef.current?.focus();
+    inputRef.current?.focus();
   }, []);
 
-  const validate = () => {
-    if (!name.trim()) return "Full name is required.";
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      return "Enter a valid email address.";
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    if (password !== confirm) return "Passwords do not match.";
-    return null;
-  };
+  const roleMeta = getRoleMeta(selectedUser.accessLevel);
+  const initials = getInitials(selectedUser.name ?? selectedUser.email);
+  const displayName = selectedUser.name || selectedUser.email || "Account";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const err = validate();
-    if (err) {
-      setError(err);
+    if (!password.trim()) {
+      setError("Please enter your password.");
       return;
     }
     setError("");
     setLoading(true);
     try {
-      triggerChaos(); // Random failure for testing error handling
-      const passwordHash = await hashPassword(password);
-      const payload: NewUser = {
-        name: name.trim(),
-        email: email.trim() ? email.trim().toLowerCase() : null,
-        passwordHash,
-        accessLevel: 9, // first user = admin
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      await createUser.mutateAsync(payload);
-      onSignedUp();
+      const identifier = selectedUser.name || selectedUser.email || "";
+      if (onLogin) {
+        await onLogin({ username: identifier, password });
+      } else {
+        await login(identifier, password);
+      }
+      navigate(navigateTo, { replace: true });
     } catch (err: any) {
-      setError(err?.message ?? "Failed to create account. Try again.");
+      setError(err?.message ?? "Incorrect password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const eyeBtn = (
-    <button
-      type="button"
-      onClick={() => setShowPw((v) => !v)}
-      tabIndex={-1}
-      className="px-3 text-stone-600 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-700 transition-colors"
-    >
-      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-    </button>
-  );
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" /> Back to accounts
+      </button>
 
-      {/* First-run banner */}
-      <div className="flex items-start gap-3 bg-amber-950/40 border border-amber-800/50 rounded-xl px-4 py-3 mb-2">
-        <UserPlus className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-amber-300">
-            Create new organization
+      {/* Selected user badge */}
+      <div className="flex items-center gap-3 bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3">
+        <div
+          className={`w-10 h-10 rounded-xl ${roleMeta.bg} flex items-center justify-center text-white font-bold text-sm shrink-0`}
+        >
+          {initials}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
+            {displayName}
           </p>
-          <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-            This creates your admin account. Others can join this
-            organization later once you start the server in Settings → LAN
-            Sync.
+          <p className="text-[11px] text-stone-500 capitalize">
+            {roleMeta.label}
           </p>
         </div>
+        <ChevronRight className="w-4 h-4 text-stone-400 shrink-0" />
       </div>
 
       {error && (
@@ -232,73 +303,40 @@ function SignupForm({
         </div>
       )}
 
-      <Field label="Full name">
-        <TextInput
-          value={name}
-          onChange={setName}
-          placeholder="e.g. Adaeze Okonkwo"
-          autoComplete="name"
-          disabled={loading}
-          inputRef={nameRef}
-        />
-      </Field>
-
-      <Field label="Email (optional)">
-        <TextInput
-          type="email"
-          value={email}
-          onChange={setEmail}
-          placeholder="admin@yourstore.com"
-          autoComplete="email"
-          disabled={loading}
-        />
-      </Field>
-
       <Field label="Password">
         <TextInput
           type={showPw ? "text" : "password"}
           value={password}
           onChange={setPassword}
-          placeholder="Min. 6 characters"
-          autoComplete="new-password"
+          placeholder="Enter your password"
+          autoComplete="current-password"
           disabled={loading}
-          rightSlot={eyeBtn}
-        />
-      </Field>
-
-      <Field label="Confirm password">
-        <TextInput
-          type={showPw ? "text" : "password"}
-          value={confirm}
-          onChange={setConfirm}
-          placeholder="Repeat password"
-          autoComplete="new-password"
-          disabled={loading}
+          inputRef={inputRef}
+          rightSlot={
+            <EyeToggle show={showPw} onToggle={() => setShowPw((v) => !v)} />
+          }
         />
       </Field>
 
       <button
         type="submit"
-        disabled={loading || !name || !password || !confirm}
+        disabled={loading || !password}
         className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#d9770630]"
       >
         {loading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Creating account…
+            Signing in…
           </>
         ) : (
-          <>
-            <UserPlus className="w-4 h-4" />
-            Create admin account
-          </>
+          "Sign in"
         )}
       </button>
     </form>
   );
 }
 
-// ─── First-run choice: create a new organization or join an existing one ─────
+// ─── First-run choice: create or join ─────────────────────────────────────────
 
 function FirstRunChoice({
   onSelectCreate,
@@ -335,7 +373,7 @@ function FirstRunChoice({
             Create new organization
           </p>
           <p className="text-xs text-stone-500 mt-0.5">
-            Set up a new admin account and start fresh.
+            Set up a new administrator account and start fresh.
           </p>
         </div>
       </button>
@@ -353,8 +391,7 @@ function FirstRunChoice({
             Join an existing organization
           </p>
           <p className="text-xs text-stone-500 mt-0.5">
-            Connect to your admin's server using the credentials they created
-            for you.
+            Connect to your admin's server using local network sync.
           </p>
         </div>
       </button>
@@ -362,7 +399,157 @@ function FirstRunChoice({
   );
 }
 
-// ─── Join organization form ───────────────────────────────────────────────────
+// ─── First-run Signup Form (Local Admin) ──────────────────────────────────────
+
+function SignupForm({
+  onSignedUp,
+  onBack,
+}: {
+  onSignedUp: () => void;
+  onBack?: () => void;
+}) {
+  const createUser = useCreateUser();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password || !confirm) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const passwordHash = await hashPassword(password);
+      await createUser.mutateAsync({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        passwordHash,
+        accessLevel: 9, // Super Admin
+        position: 0,
+      });
+      onSignedUp();
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to create administrator account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back
+        </button>
+      )}
+
+      <div className="flex items-start gap-3 bg-amber-950/40 border border-amber-800/50 rounded-xl px-4 py-3">
+        <Shield className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-xs font-semibold text-amber-300">
+            Create administrator account
+          </p>
+          <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+            This will be the master account with full access to settings and
+            security.
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 bg-red-950/60 border border-red-900 rounded-xl px-3 py-2.5 text-sm text-red-400">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      <Field label="Full name">
+        <TextInput
+          value={name}
+          onChange={setName}
+          placeholder="e.g. John Doe"
+          autoComplete="name"
+          disabled={loading}
+        />
+      </Field>
+
+      <Field label="Email address">
+        <TextInput
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="admin@yourbusiness.com"
+          autoComplete="email"
+          disabled={loading}
+        />
+      </Field>
+
+      <Field label="Password">
+        <TextInput
+          type={showPw ? "text" : "password"}
+          value={password}
+          onChange={setPassword}
+          placeholder="Min. 6 characters"
+          autoComplete="new-password"
+          disabled={loading}
+          rightSlot={
+            <EyeToggle show={showPw} onToggle={() => setShowPw((v) => !v)} />
+          }
+        />
+      </Field>
+
+      <Field label="Confirm password">
+        <TextInput
+          type={showPw ? "text" : "password"}
+          value={confirm}
+          onChange={setConfirm}
+          placeholder="Repeat password"
+          autoComplete="new-password"
+          disabled={loading}
+        />
+      </Field>
+
+      <button
+        type="submit"
+        disabled={loading || !name || !email || !password || !confirm}
+        className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#d9770630]"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Creating account…
+          </>
+        ) : (
+          <>
+            <UserPlus className="w-4 h-4" />
+            Create administrator account
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+// ─── Join Organization form (LAN sync) ───────────────────────────────────────
 
 function JoinOrganizationForm({
   onJoined,
@@ -404,13 +591,11 @@ function JoinOrganizationForm({
         onJoined();
       } else {
         setError(
-          lastSyncError || "Could not connect to the organization server.",
+          lastSyncError || "Could not connect to the organization server."
         );
       }
     } catch (err: any) {
-      setError(
-        err?.message ?? "Could not connect to the organization server.",
-      );
+      setError(err?.message ?? "Could not connect to the organization server.");
     } finally {
       setConnectingUrl(null);
     }
@@ -421,7 +606,7 @@ function JoinOrganizationForm({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors"
+        className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-300 transition-colors"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </button>
@@ -433,8 +618,8 @@ function JoinOrganizationForm({
             Join organization
           </p>
           <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-            Your admin must have already created your account on the
-            organization server before you can join.
+            Connect to an existing POS server on your local network to sync user
+            accounts and inventory.
           </p>
         </div>
       </div>
@@ -478,7 +663,7 @@ function JoinOrganizationForm({
               >
                 <div>
                   <span className="font-semibold text-sm block text-stone-900 dark:text-stone-100">
-                    {srv.storeName}
+                    {srv.storeName || srv.name}
                   </span>
                   <span className="text-xs text-stone-500">
                     {srv.name} · {srv.ip}:{srv.port}
@@ -526,127 +711,7 @@ function JoinOrganizationForm({
   );
 }
 
-// ─── Login form ───────────────────────────────────────────────────────────────
-
-function LoginForm({
-  onLogin,
-  navigateTo,
-}: {
-  onLogin?: LoginPageProps["onLogin"];
-  navigateTo: string;
-}) {
-  const navigate = useNavigate();
-  const usersQuery = useUsers();
-
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const userRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    userRef.current?.focus();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      setError("Please enter your username and password.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      if (onLogin) {
-        await onLogin({ username, password });
-      } else {
-        // Default: find user by email and verify password hash
-        const allUsers = usersQuery.data ?? [];
-        const match = allUsers.find(
-          (u) =>
-            u.email?.toLowerCase() === username.trim().toLowerCase() ||
-            u.name?.toLowerCase() === username.trim().toLowerCase(),
-        );
-        if (!match) throw new Error("User not found.");
-        if (!match.passwordHash)
-          throw new Error("Account has no password set.");
-        const valid = await verifyPassword(password, match.passwordHash);
-        if (!valid) throw new Error("Incorrect password.");
-        await new Promise((r) => setTimeout(r, 300)); // simulate network
-      }
-      navigate(navigateTo, { replace: true });
-    } catch (err: any) {
-      setError(err?.message ?? "Invalid credentials. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 bg-red-950/60 border border-red-900 rounded-xl px-3 py-2.5 text-sm text-red-400">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      <Field label="Username or email">
-        <TextInput
-          value={username}
-          onChange={setUsername}
-          placeholder="name or email@address.com"
-          autoComplete="username"
-          disabled={loading}
-          inputRef={userRef}
-        />
-      </Field>
-
-      <Field label="Password">
-        <TextInput
-          type={showPw ? "text" : "password"}
-          value={password}
-          onChange={setPassword}
-          placeholder="••••••••"
-          autoComplete="current-password"
-          disabled={loading}
-          rightSlot={
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              tabIndex={-1}
-              className="px-3 text-stone-600 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-700 transition-colors"
-            >
-              {showPw ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
-            </button>
-          }
-        />
-      </Field>
-
-      <button
-        type="submit"
-        disabled={loading || !username || !password}
-        className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-stone-900 dark:text-white font-semibold py-3 rounded-xl text-sm transition-all active:scale-[0.98] mt-1 shadow-[0_4px_20px_#d9770630]"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Signing in…
-          </>
-        ) : (
-          "Sign in"
-        )}
-      </button>
-    </form>
-  );
-}
-
-// ─── Root component ───────────────────────────────────────────────────────────
+// ─── Root Component ───────────────────────────────────────────────────────────
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const location = useLocation();
@@ -655,16 +720,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     rawFrom && rawFrom !== "/" && rawFrom !== "/login" ? rawFrom : "/pos";
 
   const usersQuery = useUsers();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [signedUp, setSignedUp] = useState(false);
   const [joined, setJoined] = useState(false);
-  const [firstRunMode, setFirstRunMode] = useState<
-    "choice" | "create" | "join"
-  >("choice");
+  const [firstRunMode, setFirstRunMode] = useState<"choice" | "create" | "join">("choice");
 
-  // States: loading → choice (0 users) → create/join → login
-  // (≥1 user, or just signed up / just joined an organization)
   const isLoading = usersQuery.isLoading;
-  const hasUsers = (usersQuery.data ?? []).length > 0;
+  const allUsers = usersQuery.data ?? [];
+  const activeUsers = allUsers.filter(
+    (u) => !u.deleted_at || u.deleted_at === "NULL"
+  );
+  const hasUsers = activeUsers.length > 0;
   const showLogin = hasUsers || signedUp || joined;
 
   return (
@@ -672,7 +738,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       <DotGrid />
 
       <div className="relative z-10 w-full max-w-sm px-4">
-        {/* Brand */}
+        {/* Brand Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-black font-bold text-2xl mb-4 shadow-[0_0_32px_#d9770640]">
             A
@@ -682,7 +748,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </h1>
           <p className="text-sm text-stone-600 dark:text-stone-500 mt-1">
             {showLogin
-              ? "Point of Sale · Sign in to continue"
+              ? selectedUser
+                ? "Point of Sale · Enter password"
+                : "Point of Sale · Select your account"
               : firstRunMode === "join"
                 ? "Point of Sale · Join your organization"
                 : "Point of Sale · First time setup"}
@@ -706,7 +774,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 Account created!
               </p>
               <p className="text-xs text-stone-600 dark:text-stone-500">
-                Sign in with your new credentials below.
+                Loading sign-in screen…
               </p>
               <Loader2 className="w-4 h-4 animate-spin text-stone-600 mt-1" />
             </div>
@@ -720,7 +788,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 Connected!
               </p>
               <p className="text-xs text-stone-600 dark:text-stone-500">
-                Sign in with the credentials your admin created for you.
+                Loading sign-in screen…
               </p>
               <Loader2 className="w-4 h-4 animate-spin text-stone-600 mt-1" />
             </div>
@@ -741,8 +809,18 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 onBack={() => setFirstRunMode("choice")}
               />
             )
+          ) : selectedUser ? (
+            <PasswordForm
+              selectedUser={selectedUser}
+              navigateTo={from}
+              onBack={() => setSelectedUser(null)}
+              onLogin={onLogin}
+            />
           ) : (
-            <LoginForm onLogin={onLogin} navigateTo={from} />
+            <UserSelector
+              users={activeUsers}
+              onSelect={(u) => setSelectedUser(u)}
+            />
           )}
         </div>
 

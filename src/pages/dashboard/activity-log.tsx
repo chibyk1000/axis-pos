@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, History, X } from "lucide-react";
+import { Search, History, X } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import {
   useActivityLogsPage,
   useActivityLogsCount,
@@ -82,13 +83,13 @@ export default function ActivityLogScreen() {
     <div className="flex-1 flex flex-col bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-200 overflow-hidden">
       {/* Toolbar */}
       <div className="border-b border-stone-300 dark:border-stone-800 px-3 py-2 flex items-center gap-0.5 bg-white dark:bg-stone-800 shrink-0">
-        <button
-          onClick={() => refetch()}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded text-xs text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-          <span>Refresh</span>
-        </button>
+        <RefreshButton
+          onRefresh={() => refetch()}
+          isLoading={isLoading}
+          variant="toolbar"
+          showLabel
+          label="Refresh"
+        />
         <div className="flex items-center gap-1.5 ml-2 text-stone-500 dark:text-stone-400">
           <History className="w-4 h-4" />
           <span className="text-sm">

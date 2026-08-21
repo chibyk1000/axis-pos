@@ -9,7 +9,7 @@ import { users } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 import { verifyPassword } from "@/lib/auth";
 
-interface AuthUser {
+export interface AuthUser {
   id: number;
   username: string;
   accessLevel: number;
@@ -20,6 +20,7 @@ interface AuthCtx {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  updateSession: (updated: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -88,9 +89,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateSession = (updated: Partial<AuthUser>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...updated };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, logout }}
+      value={{ user, isAuthenticated: !!user, login, logout, updateSession }}
     >
       {children}
     </AuthContext.Provider>

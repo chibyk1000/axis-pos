@@ -25,6 +25,7 @@ import {
   ChevronDown,
   AlertTriangle,
 } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { useNavigate } from "react-router";
 import {
   format,
@@ -63,55 +64,45 @@ import { useInfiniteRows } from "@/hooks/useInfiniteRows";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { useDefaultCompany } from "@/hooks/controllers/company";
+import {
+  drawFullPageHeader,
+  drawFullPageFooter,
+  drawThermalReceiptHeader,
+  applyPdfWatermarks,
+  hexToRgb,
+  getBrandingSettings,
+} from "@/lib/pdf-branding";
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*                              PDF BUILDERS                                  */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function buildDocPdf(doc: DocumentRow, items: DocumentItemRow[]): jsPDF {
+function buildDocPdf(doc: DocumentRow, items: DocumentItemRow[], company?: any): jsPDF {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const W = pdf.internal.pageSize.getWidth();
-  let y = 18;
+  const settings = getBrandingSettings();
+  const [ar, ag, ab] = hexToRgb(settings.documentAccentColor || "#f59e0b");
 
-  // Title
-  pdf.setFontSize(16).setFont("helvetica", "bold").setTextColor(0);
-  pdf.text("Sales Document", W / 2, y, { align: "center" });
-  y += 9;
+  const companyAddress = [company?.buildingNumber, company?.streetName, company?.city, company?.postalCode]
+    .filter(Boolean)
+    .join(", ");
 
-  // Meta row
-  pdf.setFontSize(9).setFont("helvetica", "normal").setTextColor(80);
-  pdf.text(`Number: ${doc.number}`, 14, y);
-  pdf.text(
-    `Date: ${format(new Date(doc.date), "dd/MM/yyyy HH:mm")}`,
-    W - 14,
-    y,
-    { align: "right" },
-  );
-  y += 5;
+  const startY = drawFullPageHeader(pdf, {
+    title: (doc as any).documentType === "Refund" || doc.number?.includes("220") ? "Refund Document" : "Sales Invoice",
+    docNumber: doc.number,
+    date: doc.date,
+    customerName: doc.customerName ?? undefined,
+    externalNumber: doc.externalNumber ?? undefined,
+    status: doc.status ?? undefined,
+    paid: doc.paid ?? undefined,
+    companyName: company?.name,
+    companyAddress,
+    companyPhone: company?.phone,
+    companyTaxNumber: company?.taxNumber,
+  });
 
-  if (doc.customerName) {
-    pdf.text(`Customer: ${doc.customerName}`, 14, y);
-    y += 5;
-  }
-  if (doc.externalNumber) {
-    pdf.text(`External ref: ${doc.externalNumber}`, 14, y);
-    y += 5;
-  }
-  pdf.text(
-    `Status: ${doc.status ?? "—"}   Paid: ${doc.paid ? "Yes" : "No"}`,
-    14,
-    y,
-  );
-  y += 4;
-
-  pdf.setDrawColor(200);
-  pdf.line(14, y, W - 14, y);
-  y += 6;
-
-  // Items table
-  pdf.setTextColor(0);
   autoTable(pdf, {
-    startY: y,
+    startY,
     head: [
       ["Name", "Unit", "Qty", "Price (ex tax)", "Tax %", "Discount", "Total"],
     ],
@@ -124,64 +115,53 @@ function buildDocPdf(doc: DocumentRow, items: DocumentItemRow[]): jsPDF {
       i.discount ? i.discount.toFixed(2) : "—",
       i.total.toFixed(2),
     ]),
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [241, 245, 249] },
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: { fillColor: [ar, ag, ab], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
     margin: { left: 14, right: 14 },
   });
 
-  // Totals block
-  const afterTable = (pdf as any).lastAutoTable?.finalY ?? y + 20;
-  let ty = afterTable + 8;
-  const tx = W - 14;
+  const finalY = (pdf as any).lastAutoTable?.finalY ?? startY + 20;
 
-  pdf.setFontSize(9).setFont("helvetica", "normal").setTextColor(100);
-  pdf.text("Subtotal (ex tax):", tx - 40, ty, { align: "right" });
-  pdf.setTextColor(0);
-  pdf.text((doc.totalBeforeTax ?? 0).toFixed(2), tx, ty, { align: "right" });
-  ty += 5;
+  drawFullPageFooter(pdf, finalY, {
+    subtotal: doc.totalBeforeTax ?? undefined,
+    taxTotal: doc.taxTotal ?? undefined,
+    grandTotal: doc.total ?? undefined,
+  });
 
-  pdf.setTextColor(100);
-  pdf.text("Tax:", tx - 40, ty, { align: "right" });
-  pdf.setTextColor(0);
-  pdf.text((doc.taxTotal ?? 0).toFixed(2), tx, ty, { align: "right" });
-  ty += 5;
-
-  pdf.setFontSize(11).setFont("helvetica", "bold").setTextColor(0);
-  pdf.text("Total:", tx - 40, ty, { align: "right" });
-  pdf.text((doc.total ?? 0).toFixed(2), tx, ty, { align: "right" });
-
-  // Page footer
-  const pH = pdf.internal.pageSize.getHeight();
-  pdf.setFontSize(7).setFont("helvetica", "normal").setTextColor(160);
-  pdf.text(
-    `Generated ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
-    W / 2,
-    pH - 8,
-    { align: "center" },
-  );
+  applyPdfWatermarks(pdf, false);
 
   return pdf;
 }
 
-function buildReceiptPdf(doc: DocumentRow, items: DocumentItemRow[]): jsPDF {
+function buildReceiptPdf(doc: DocumentRow, items: DocumentItemRow[], company?: any): jsPDF {
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: [80, 220],
   });
   const W = 80;
-  let y = 8;
+  const settings = getBrandingSettings();
 
-  const center = (text: string, size = 9, bold = false) => {
-    pdf.setFontSize(size).setFont("helvetica", bold ? "bold" : "normal");
-    pdf.text(text, W / 2, y, { align: "center" });
-    y += size * 0.45;
-  };
+  const companyAddress = [company?.buildingNumber, company?.streetName, company?.city, company?.postalCode]
+    .filter(Boolean)
+    .join(", ");
+
+  let y = drawThermalReceiptHeader(pdf, {
+    docNumber: doc.number,
+    date: doc.date,
+    customerName: doc.customerName ?? undefined,
+    companyName: company?.name,
+    companyAddress,
+    companyPhone: company?.phone,
+    companyTaxNumber: company?.taxNumber,
+  });
 
   const line = () => {
     pdf.setDrawColor(180);
+    pdf.setLineDashPattern([1, 1], 0);
     pdf.line(4, y, W - 4, y);
+    pdf.setLineDashPattern([], 0);
     y += 3;
   };
 
@@ -194,14 +174,6 @@ function buildReceiptPdf(doc: DocumentRow, items: DocumentItemRow[]): jsPDF {
     pdf.text(right, W - 4, y, { align: "right" });
     y += 4;
   };
-
-  center("RECEIPT", 13, true);
-  y += 1;
-  center(doc.number, 9);
-  center(format(new Date(doc.date), "dd/MM/yyyy HH:mm"), 8);
-  if (doc.customerName) center(doc.customerName, 8);
-  y += 2;
-  line();
 
   items.forEach((item) => {
     pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(0);
@@ -218,11 +190,15 @@ function buildReceiptPdf(doc: DocumentRow, items: DocumentItemRow[]): jsPDF {
   row("Tax", (doc.taxTotal ?? 0).toFixed(2));
   row("TOTAL", (doc.total ?? 0).toFixed(2), true);
   row("Paid", doc.paid ? "Yes" : "No");
-  y += 3;
-  line();
+  y += 2;
 
-  pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(130);
-  pdf.text("Thank you!", W / 2, y + 4, { align: "center" });
+  if (settings.receiptFooterMessage && settings.applyDesignToReceipt) {
+    pdf.setFontSize(7).setFont("helvetica", "normal").setTextColor(80);
+    const splitFooter = pdf.splitTextToSize(settings.receiptFooterMessage, W - 8);
+    pdf.text(splitFooter, W / 2, y + 2, { align: "center" });
+  }
+
+  applyPdfWatermarks(pdf, true);
 
   return pdf;
 }
@@ -570,6 +546,7 @@ export default function SalesHistory() {
     refetch,
   } = useSalesDocuments(filters);
   const { data: summary = { count: 0, total: 0 } } = useSalesSummary(filters);
+  const { data: defaultCompany } = useDefaultCompany();
   const deleteMutation = useDeleteDocument();
   const refundMutation = useCreateRefundDocument();
 
@@ -610,7 +587,7 @@ export default function SalesHistory() {
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (!filePath) return;
-      const arrayBuffer = buildDocPdf(selectedDoc, items).output("arraybuffer");
+      const arrayBuffer = buildDocPdf(selectedDoc, items, defaultCompany).output("arraybuffer");
       await writeFile(filePath, new Uint8Array(arrayBuffer));
       await openPath(filePath);
       toast("Opened for printing");
@@ -628,7 +605,7 @@ export default function SalesHistory() {
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (!filePath) return;
-      const arrayBuffer = buildDocPdf(selectedDoc, items).output("arraybuffer");
+      const arrayBuffer = buildDocPdf(selectedDoc, items, defaultCompany).output("arraybuffer");
       await writeFile(filePath, new Uint8Array(arrayBuffer));
       toast("PDF saved successfully");
     } catch (e) {
@@ -645,7 +622,7 @@ export default function SalesHistory() {
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (!filePath) return;
-      const arrayBuffer = buildReceiptPdf(selectedDoc, items).output("arraybuffer");
+      const arrayBuffer = buildReceiptPdf(selectedDoc, items, defaultCompany).output("arraybuffer");
       await writeFile(filePath, new Uint8Array(arrayBuffer));
       await openPath(filePath);
       toast("Receipt opened");
@@ -871,20 +848,36 @@ export default function SalesHistory() {
 
         {/* Action buttons */}
         {toolbarButtons.map(
-          ({ icon: Icon, label, onClick, disabled, danger }) => (
-            <button
-              key={label}
-              onClick={onClick}
-              disabled={disabled}
-              title={label}
-              className={`flex flex-col items-center gap-0.5 transition-colors
-              disabled:opacity-25 disabled:cursor-not-allowed
-              ${danger ? "text-red-400 hover:text-red-300" : "text-stone-500 dark:text-stone-400 hover:text-amber-400"}`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="text-[10px]">{label}</span>
-            </button>
-          ),
+          ({ icon: Icon, label, onClick, disabled, danger }) => {
+            if (label === "Refresh") {
+              return (
+                <RefreshButton
+                  key={label}
+                  onRefresh={onClick}
+                  isLoading={loadingDocs}
+                  variant="toolbar"
+                  showLabel
+                  label={label}
+                  className="p-0 text-stone-500 dark:text-stone-400 hover:text-amber-400 hover:bg-transparent"
+                  iconClassName="w-4 h-4"
+                />
+              );
+            }
+            return (
+              <button
+                key={label}
+                onClick={onClick}
+                disabled={disabled}
+                title={label}
+                className={`flex flex-col items-center gap-0.5 transition-colors
+                disabled:opacity-25 disabled:cursor-not-allowed
+                ${danger ? "text-red-400 hover:text-red-300" : "text-stone-500 dark:text-stone-400 hover:text-amber-400"}`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-[10px]">{label}</span>
+              </button>
+            );
+          },
         )}
       </div>
 
@@ -939,7 +932,7 @@ export default function SalesHistory() {
                     </td>
                   </tr>
                 ) : (
-                  visibleDocs.map((doc) => (
+                  visibleDocs.map((doc: DocumentRow) => (
                     <tr
                       key={doc.id}
                       onClick={() =>

@@ -143,6 +143,31 @@ export interface Settings {
   customerDisplayWelcomeMessage: string;
   customerDisplayShowLineItems: boolean;
   customerDisplayShowLogo: boolean;
+
+  // Document Design & Branding
+  enableLogo: boolean;
+  logoType: "image" | "text";
+  logoText: string;
+  logoSubtitle: string;
+  logoTextFontSize: number;
+  logoUseAccentColor: boolean;
+  logoUrl: string;
+  logoPosition: "left" | "center" | "right";
+  logoWidth: number;
+  enableWatermark: boolean;
+  watermarkType: "text" | "logo";
+  watermarkText: string;
+  watermarkOpacity: number;
+  watermarkAngle: number;
+  enableBackgroundLogo: boolean;
+  backgroundLogoOpacity: number;
+  receiptHeaderMessage: string;
+  receiptFooterMessage: string;
+  invoiceNotes: string;
+  documentAccentColor: string;
+  applyDesignToInvoice: boolean;
+  applyDesignToReceipt: boolean;
+  applyDesignToRefund: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -288,6 +313,31 @@ export const DEFAULT_SETTINGS: Settings = {
   customerDisplayWelcomeMessage: "Welcome!",
   customerDisplayShowLineItems: true,
   customerDisplayShowLogo: true,
+
+  // Document Design & Branding
+  enableLogo: true,
+  logoType: "image",
+  logoText: "",
+  logoSubtitle: "",
+  logoTextFontSize: 22,
+  logoUseAccentColor: true,
+  logoUrl: "",
+  logoPosition: "center",
+  logoWidth: 120,
+  enableWatermark: false,
+  watermarkType: "text",
+  watermarkText: "PAID",
+  watermarkOpacity: 0.12,
+  watermarkAngle: -30,
+  enableBackgroundLogo: false,
+  backgroundLogoOpacity: 0.08,
+  receiptHeaderMessage: "Thank you for your business!",
+  receiptFooterMessage: "Please retain this receipt for your records.\nHave a wonderful day!",
+  invoiceNotes: "Payment is due within 14 days.\nThank you for choosing us!",
+  documentAccentColor: "#f59e0b",
+  applyDesignToInvoice: true,
+  applyDesignToReceipt: true,
+  applyDesignToRefund: true,
 };
 
 const SETTINGS_KEY = "axis_lite_settings";

@@ -8,13 +8,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from "@/components/ui/drawer";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 import { Tax } from "@/hooks/controllers/taxes";
 import { useState } from "react";
 
@@ -66,18 +60,15 @@ export default function SwitchTaxesDrawer({
             <label className="text-sm text-stone-500 dark:text-stone-400 mb-1 block">
               Old tax (remove)
             </label>
-            <Select value={oldTaxId} onValueChange={setOldTaxId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tax to replace" />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-stone-800">
-                {taxes.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name} ({t.rate}%)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AppSelect
+              value={oldTaxId}
+              onChange={(val) => setOldTaxId(val)}
+              placeholder="Select tax to replace..."
+              options={taxes.map((t) => ({
+                value: t.id,
+                label: `${t.name} (${t.rate}%)`,
+              }))}
+            />
           </div>
 
           {/* New Tax */}
@@ -85,22 +76,17 @@ export default function SwitchTaxesDrawer({
             <label className="text-sm text-stone-500 dark:text-stone-400 mb-1 block">
               New tax (apply)
             </label>
-            <Select value={newTaxId} onValueChange={setNewTaxId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select replacement tax" />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-stone-800">
-                {taxes.map((t) => (
-                  <SelectItem
-                    key={t.id}
-                    value={t.id}
-                    disabled={t.id === oldTaxId}
-                  >
-                    {t.name} ({t.rate}%)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AppSelect
+              value={newTaxId}
+              onChange={(val) => setNewTaxId(val)}
+              placeholder="Select replacement tax..."
+              options={taxes
+                .filter((t) => t.id !== oldTaxId)
+                .map((t) => ({
+                  value: t.id,
+                  label: `${t.name} (${t.rate}%)`,
+                }))}
+            />
           </div>
         </div>
 

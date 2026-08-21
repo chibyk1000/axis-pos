@@ -2,13 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 import {
   Drawer,
   DrawerContent,
@@ -162,18 +156,19 @@ useEffect(() => {
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-stone-500 dark:text-stone-400">Parent group</label>
-                <Select value={parentId} onValueChange={setParentId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="No parent (top-level)" />
-                  </SelectTrigger>
-                  <SelectContent className="top-10 bg-white dark:bg-stone-800">
-                    {data?.map((g: any) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AppSelect
+                  value={parentId}
+                  onChange={(val) => setParentId(val)}
+                  placeholder="No parent (top-level)"
+                  isClearable
+                  options={[
+                    { value: "root", label: "No parent (top-level)" },
+                    ...(data?.map((g: any) => ({
+                      value: g.id,
+                      label: g.displayName,
+                    })) || []),
+                  ]}
+                />
               </div>
             </div>
           </TabsContent>
@@ -184,31 +179,29 @@ useEffect(() => {
               {/* Color */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm text-stone-500 dark:text-stone-400">Color</label>
-                <Select value={color} onValueChange={setColor}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select color" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-stone-800">
-                    {[
-                      ["transparent", "Transparent", "bg-transparent"],
-                      ["slate", "Slate", "bg-slate-500"],
-                      ["red", "Red", "bg-red-500"],
-                      ["green", "Green", "bg-green-500"],
-                      ["blue", "Blue", "bg-blue-500"],
-                      ["yellow", "Yellow", "bg-yellow-400"],
-                      ["indigo", "Indigo", "bg-indigo-500"],
-                      ["purple", "Purple", "bg-purple-500"],
-                      ["pink", "Pink", "bg-pink-500"],
-                    ].map(([value, label, bg]) => (
-                      <SelectItem key={value} value={value}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-sm border ${bg}`} />
-                          {label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AppSelect
+                  value={color}
+                  onChange={(val) => setColor(val)}
+                  placeholder="Select color"
+                  isClearable
+                  options={[
+                    { value: "transparent", label: "Transparent", bg: "bg-transparent" },
+                    { value: "slate", label: "Slate", bg: "bg-slate-500" },
+                    { value: "red", label: "Red", bg: "bg-red-500" },
+                    { value: "green", label: "Green", bg: "bg-green-500" },
+                    { value: "blue", label: "Blue", bg: "bg-blue-500" },
+                    { value: "yellow", label: "Yellow", bg: "bg-yellow-400" },
+                    { value: "indigo", label: "Indigo", bg: "bg-indigo-500" },
+                    { value: "purple", label: "Purple", bg: "bg-purple-500" },
+                    { value: "pink", label: "Pink", bg: "bg-pink-500" },
+                  ]}
+                  formatOptionLabel={(option: any) => (
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3.5 h-3.5 rounded-sm border border-stone-600 ${option.bg}`} />
+                      <span>{option.label}</span>
+                    </div>
+                  )}
+                />
               </div>
 
               {/* Image */}

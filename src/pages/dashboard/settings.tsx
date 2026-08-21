@@ -26,7 +26,9 @@ import {
   Upload,
   Radio,
   Trash2,
+  Palette,
 } from "lucide-react";
+import DocumentDesignSettings from "@/components/settings/document-design-settings";
 import { useTheme } from "@/providers/theme-provider";
 import { useNavigate } from "react-router";
 import { useSettings } from "@/hooks/useSettings";
@@ -369,6 +371,7 @@ export default function SettingsPage() {
     { label: "Order & payment", icon: ShoppingCart },
     { label: "Products", icon: Box },
     { label: "Documents", icon: FileText },
+    { label: "Document Design", icon: Palette },
     { label: "Weighing scale", icon: Scale },
     { label: "Customer display", icon: Monitor },
     { label: "Email", icon: Mail },
@@ -886,6 +889,34 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === "Documents" && (
+          <div className="space-y-6 max-w-6xl">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-light">Documents Settings & Design</h2>
+                <p className="text-sm text-stone-500 mt-1">
+                  Configure document numbering, default document types, watermarks, logo backgrounds and receipt/invoice branding.
+                </p>
+              </div>
+            </div>
+            <DocumentDesignSettings />
+          </div>
+        )}
+
+        {activeTab === "Document Design" && (
+          <div className="space-y-6 max-w-6xl">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-2xl font-light">Document & Receipt Design</h2>
+                <p className="text-sm text-stone-500 mt-1">
+                  Customize company logos, watermark branding, accent colors, and receipt headers/footers with live interactive preview.
+                </p>
+              </div>
+            </div>
+            <DocumentDesignSettings />
+          </div>
+        )}
+
         {activeTab === "Email" && (
           <div className="space-y-6 max-w-4xl">
             <div className="flex items-center gap-3 mb-2">
@@ -1128,6 +1159,7 @@ export default function SettingsPage() {
               {[
                 "Printer selection",
                 "Customize receipt",
+                "Design & Branding",
                 "Localize receipt text",
                 "Print templates",
               ].map((tab) => (
@@ -1144,6 +1176,13 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
+
+            {/* Print -> Design & Branding */}
+            {printTab === "Design & Branding" && (
+              <div className="pt-4">
+                <DocumentDesignSettings />
+              </div>
+            )}
 
             {/* Print -> Printer selection */}
             {printTab === "Printer selection" && (

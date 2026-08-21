@@ -32,7 +32,6 @@ import {
   TrendingUp,
   Clock,
   Eye,
-  Calendar,
   CreditCard,
   Banknote,
   Receipt,
@@ -43,7 +42,75 @@ import { useNavigate } from "react-router";
 import { useDocuments, useDeleteDocument } from "@/hooks/controllers/documents";
 import { useCreateDocument } from "@/hooks/controllers/documents";
 import { useAuth } from "@/providers/auth-provider";
+import { useDefaultCompany } from "@/hooks/controllers/company";
 import { toast } from "react-toastify";
+import { AppSelect } from "@/components/ui/app-select";
+import { RefreshButton } from "@/components/ui/refresh-button";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
+  drawFullPageHeader,
+  drawFullPageFooter,
+  applyPdfWatermarks,
+  hexToRgb,
+  getBrandingSettings,
+} from "@/lib/pdf-branding";
+
+function buildDocPdf(doc: any, items: any[], company?: any): jsPDF {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const settings = getBrandingSettings();
+  const [ar, ag, ab] = hexToRgb(settings.documentAccentColor || "#f59e0b");
+
+  const companyAddress = [company?.buildingNumber, company?.streetName, company?.city, company?.postalCode]
+    .filter(Boolean)
+    .join(", ");
+
+  const startY = drawFullPageHeader(pdf, {
+    title: doc.status === "refund" || doc.total < 0 ? "Refund Document" : "Sales Invoice",
+    docNumber: doc.number,
+    date: doc.date,
+    customerName: doc.customer?.name ?? doc.customerId ?? undefined,
+    externalNumber: doc.externalNumber ?? undefined,
+    status: doc.status ?? undefined,
+    paid: doc.paid ?? undefined,
+    companyName: company?.name,
+    companyAddress,
+    companyPhone: company?.phone,
+    companyTaxNumber: company?.taxNumber,
+  });
+
+  autoTable(pdf, {
+    startY,
+    head: [
+      ["Name", "Unit", "Qty", "Price (ex tax)", "Tax %", "Discount", "Total"],
+    ],
+    body: (items || []).map((i: any) => [
+      i.name || i.title || "—",
+      i.unit ?? "—",
+      i.quantity || i.qty || 1,
+      Number(i.priceBeforeTax || i.price || 0).toFixed(2),
+      i.taxRate != null ? `${i.taxRate}%` : "—",
+      i.discount ? Number(i.discount).toFixed(2) : "—",
+      Number(i.total || ((i.price || 0) * (i.quantity || i.qty || 1)) || 0).toFixed(2),
+    ]),
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: { fillColor: [ar, ag, ab], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+  });
+
+  const finalY = (pdf as any).lastAutoTable?.finalY ?? startY + 20;
+
+  drawFullPageFooter(pdf, finalY, {
+    subtotal: doc.totalBeforeTax ?? undefined,
+    taxTotal: doc.taxTotal ?? undefined,
+    grandTotal: doc.total ?? undefined,
+  });
+
+  applyPdfWatermarks(pdf, false);
+
+  return pdf;
+}
 
 // ─── Split Payment Screen Component ───────────────────────────────────────────────
 
@@ -1183,6 +1250,7 @@ function SidePanel({
   onVoid,
   onRefund,
   onPrint,
+  onSavePdf,
   onDuplicate,
   onContinuePayment,
   onDelete,
@@ -1193,6 +1261,7 @@ function SidePanel({
   onVoid: (doc: Document) => void;
   onRefund: (doc: Document) => void;
   onPrint: (doc: Document) => void;
+  onSavePdf: (doc: Document) => void;
   onDuplicate: (doc: Document) => void;
   onContinuePayment: (doc: Document) => void;
   onDelete: (doc: Document) => void;
@@ -1399,6 +1468,13 @@ function SidePanel({
           Print
         </button>
         <button
+          onClick={() => onSavePdf(doc)}
+          className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-lg py-2 text-xs text-stone-700 dark:text-stone-300 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Save PDF
+        </button>
+        <button
           onClick={() => onDuplicate(doc)}
           className="flex items-center justify-center gap-1.5 bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-lg py-2 text-xs text-stone-700 dark:text-stone-300 transition-colors"
         >
@@ -1461,6 +1537,7 @@ const PAGE_SIZE = 12;
 export default function DocumentsPage() {
   const router = useNavigate();
   const documentsQuery = useDocuments();
+  const { data: defaultCompany } = useDefaultCompany();
 
   const createDocument = useCreateDocument();
   const deleteDocument = useDeleteDocument();
@@ -1814,9 +1891,40 @@ export default function DocumentsPage() {
 
   const handlePrint = (doc: Document) => {
     setSelectedDoc(doc);
-    setTimeout(() => {
+    try {
+      const pdf = buildDocPdf(doc, doc.items || [], defaultCompany);
+      pdf.autoPrint();
+      const blobUrl = URL.createObjectURL(pdf.output("blob"));
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = blobUrl;
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+      }, 300);
+    } catch {
       window.print();
-    }, 100);
+    }
+  };
+
+  const handleSavePdf = async (doc: Document) => {
+    try {
+      const { save } = await import("@tauri-apps/plugin-dialog");
+      const { writeFile } = await import("@tauri-apps/plugin-fs");
+      const savePath = await save({
+        defaultPath: `document-${doc.number.replace(/\//g, "-")}.pdf`,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+      if (savePath) {
+        const pdf = buildDocPdf(doc, doc.items || [], defaultCompany);
+        const bytes = new Uint8Array(pdf.output("arraybuffer"));
+        await writeFile(savePath, bytes);
+        toast.success("PDF saved successfully!");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save PDF");
+    }
   };
 
   const handleContinuePayment = (doc: Document) => {
@@ -2270,21 +2378,26 @@ export default function DocumentsPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-1.5 ml-auto">
-                <Calendar className="w-3.5 h-3.5 text-stone-500" />
-                <select
-                  value={dateRange}
-                  onChange={(e) => {
-                    setDateRange(e.target.value as DateRange);
-                    setPage(1);
-                  }}
-                  className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 rounded-lg px-3 py-1.5 text-xs text-stone-700 dark:text-stone-300 outline-none focus:border-amber-600 cursor-pointer"
-                >
-                  <option value="all">All time</option>
-                  <option value="today">Today</option>
-                  <option value="week">This week</option>
-                  <option value="month">This month</option>
-                </select>
+              <div className="flex items-center gap-2 ml-auto">
+                <RefreshButton
+                  onRefresh={() => documentsQuery.refetch?.()}
+                  isLoading={documentsQuery.isFetching}
+                />
+                <div className="flex items-center gap-1.5 w-36">
+                  <AppSelect
+                    value={dateRange}
+                    onChange={(val) => {
+                      setDateRange(val as DateRange);
+                      setPage(1);
+                    }}
+                    options={[
+                      { value: "all", label: "All time" },
+                      { value: "today", label: "Today" },
+                      { value: "week", label: "This week" },
+                      { value: "month", label: "This month" },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
 
@@ -2355,6 +2468,7 @@ export default function DocumentsPage() {
                         prev?.id === doc.id ? null : doc,
                       )
                     }
+                    onDoubleClick={() => setSelectedDoc(doc)}
                     className={`grid grid-cols-[32px_1.6fr_1.1fr_1fr_0.6fr_1fr_1fr_0.8fr_1fr_90px_72px] gap-0 px-4 py-3 border-b border-stone-300 dark:border-stone-800/60 cursor-pointer select-none transition-colors last:border-b-0 ${
                       selectedDoc?.id === doc.id
                         ? "bg-amber-950/40 border-l-2 border-l-amber-500"
@@ -2562,6 +2676,7 @@ export default function DocumentsPage() {
               onVoid={(doc) => setConfirmModal({ type: "void", doc })}
               onRefund={(doc) => setConfirmModal({ type: "refund", doc })}
               onPrint={handlePrint}
+              onSavePdf={handleSavePdf}
               onDuplicate={handleDuplicate}
               onContinuePayment={handleContinuePayment}
               onDelete={(doc) => setConfirmModal({ type: "delete", doc })}

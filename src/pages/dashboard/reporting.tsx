@@ -19,6 +19,11 @@ import autoTable from "jspdf-autotable";
 import { writeFile, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { tempDir, join } from "@tauri-apps/api/path";
+import {
+  getBrandingSettings,
+  hexToRgb,
+  applyPdfWatermarks,
+} from "@/lib/pdf-branding";
 
 /** Parse a `yyyy-mm-dd` date-input value as a local-time Date, anchored to
  * the start or end of that day so range comparisons are inclusive. */
@@ -136,6 +141,9 @@ function buildReportPrintHtml(
       ? `Period: ${meta.from || "…"} – ${meta.to || "…"}`
       : "Period: all time";
 
+  const settings = getBrandingSettings();
+  const accentColor = settings.documentAccentColor || "#2563eb";
+
   return `<!doctype html>
 <html>
 <head>
@@ -144,28 +152,31 @@ function buildReportPrintHtml(
 <style>
   @page { margin: 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: "Segoe UI", Arial, sans-serif; color: #1c1917; margin: 0; }
-  .head { display: flex; justify-content: space-between; align-items: baseline;
-          border-bottom: 2px solid #1c1917; padding-bottom: 8px; margin-bottom: 4px; }
-  h1 { font-size: 18px; margin: 0; }
-  .brand { font-size: 12px; color: #78716c; }
-  .meta { font-size: 11px; color: #57534e; margin-bottom: 12px; display: flex; gap: 16px; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1c1917; margin: 0; position: relative; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end;
+          border-bottom: 2px solid ${accentColor}; padding-bottom: 8px; margin-bottom: 8px; }
+  h1 { font-size: 20px; margin: 0; color: ${accentColor}; font-weight: 700; }
+  .brand { font-size: 13px; color: #78716c; font-weight: 600; }
+  .meta { font-size: 11px; color: #57534e; margin-bottom: 14px; display: flex; gap: 16px; }
   table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
   thead { display: table-header-group; }
-  th { text-align: left; background: #f5f5f4; border-bottom: 1.5px solid #a8a29e;
-       padding: 5px 6px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; }
-  td { padding: 4px 6px; border-bottom: 0.5px solid #e7e5e4; vertical-align: top; }
+  th { text-align: left; background: ${accentColor}; color: #ffffff;
+       padding: 6px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 5px 8px; border-bottom: 0.5px solid #e7e5e4; vertical-align: top; }
   tr { page-break-inside: avoid; }
   tbody tr:nth-child(even) { background: #fafaf9; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
-  tfoot td { border-top: 2px solid #1c1917; border-bottom: none; font-weight: 600; padding-top: 6px; }
+  tfoot td { border-top: 2px solid ${accentColor}; border-bottom: none; font-weight: 600; padding-top: 6px; }
   .footer { margin-top: 14px; font-size: 10px; color: #a8a29e; text-align: center; }
 </style>
 </head>
 <body>
   <div class="head">
-    <h1>${escapeHtml(reportName)}</h1>
-    <span class="brand">Axis POS</span>
+    <div>
+      ${settings.enableLogo && settings.logoUrl ? `<img src="${settings.logoUrl}" style="max-height: 45px; margin-bottom: 4px;" />` : ""}
+      <h1>${escapeHtml(reportName)}</h1>
+    </div>
+    <span class="brand">${escapeHtml(settings.storeName || "Axis POS")}</span>
   </div>
   <div class="meta">
     <span>Generated: ${escapeHtml(new Date().toLocaleString())}</span>
@@ -228,20 +239,31 @@ const Reporting = () => {
 
   const buildReportPdf = (): jsPDF | null => {
     if (!reportQuery.data || reportQuery.data.length === 0) return null;
-    const pdf = new jsPDF();
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const settings = getBrandingSettings();
+    const [ar, ag, ab] = hexToRgb(settings.documentAccentColor || "#2563eb");
+
+    pdf.setFont("helvetica", "bold").setFontSize(14).setTextColor(ar, ag, ab);
+    pdf.text(`${selectedReport}`, 14, 15);
+    pdf.setFont("helvetica", "normal").setFontSize(8).setTextColor(100);
+    pdf.text(`Generated: ${new Date().toLocaleString()} • Axis POS`, 14, 21);
+
     const columns = Object.keys(reportQuery.data[0] || {});
     const rows = reportQuery.data.map((item: any) =>
       columns.map((col) => item[col] ?? "—"),
     );
     autoTable(pdf, {
+      startY: 25,
       head: [columns],
       body: rows,
-      headStyles: { fillColor: [52, 73, 94] },
-      margin: { top: 10 },
-      didDrawPage: () => {
-        pdf.text(`${selectedReport}`, 14, 15);
-      },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [ar, ag, ab], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: 14, right: 14 },
     });
+
+    applyPdfWatermarks(pdf, false);
+
     return pdf;
   };
 

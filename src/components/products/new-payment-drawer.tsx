@@ -13,13 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -111,19 +105,15 @@ export default function PaymentDrawer({
               Payment type
             </Label>
 
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white">
-                <SelectValue placeholder="Select payment type" />
-              </SelectTrigger>
-
-              <SelectContent className="bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white top-10">
-                {paymentTypes.map((p) => (
-                  <SelectItem key={p.id} value={p.name}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AppSelect
+              value={type}
+              onChange={(val) => setType(val)}
+              placeholder="Select payment type..."
+              options={paymentTypes.map((p) => ({
+                value: p.name,
+                label: p.name,
+              }))}
+            />
           </div>
 
           {/* Date */}

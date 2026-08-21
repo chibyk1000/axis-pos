@@ -13,13 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AppSelect } from "@/components/ui/app-select";
 
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -59,17 +53,15 @@ export default function PaymentDrawer({
             </Label>
 
             <div className="flex items-center gap-2">
-              <Select defaultValue="cash">
-                <SelectTrigger className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white">
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent className="bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-white">
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                </SelectContent>
-              </Select>
+              <AppSelect
+                defaultValue="cash"
+                options={[
+                  { value: "cash", label: "Cash" },
+                  { value: "card", label: "Card" },
+                  { value: "transfer", label: "Transfer" },
+                ]}
+                className="flex-1"
+              />
 
               <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600">
                 <Check size={14} className="text-stone-900 dark:text-white" />

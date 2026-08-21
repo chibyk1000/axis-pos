@@ -10,11 +10,11 @@ import {
   Plus,
   Pencil,
   Trash2,
-  RefreshCw,
   HelpCircle,
   Check,
   X,
 } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 
 import {
   usePaymentTypes,
@@ -96,8 +96,11 @@ export default function PaymentTypesClient() {
 
       {/* Toolbar */}
       <div className="border-b border-stone-300 dark:border-stone-800 px-6 py-4 flex items-center gap-2 bg-stone-50 dark:bg-stone-900">
-        <button
-          onClick={() => refetch()}
+        <RefreshButton
+          onRefresh={() => refetch()}
+          isLoading={isFetching}
+          showLabel
+          label="Refresh"
           className="
             flex items-center gap-2 px-3 py-2 rounded-md
             text-stone-500 dark:text-stone-400
@@ -105,12 +108,7 @@ export default function PaymentTypesClient() {
             active:bg-stone-100 dark:bg-stone-700
             transition-colors
           "
-        >
-          <RefreshCw
-            className={`w-5 h-5 ${isFetching ? "animate-spin" : ""}`}
-          />
-          <span className="text-sm">Refresh</span>
-        </button>
+        />
 
         <button
           onClick={handleNew}

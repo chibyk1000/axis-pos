@@ -180,3 +180,25 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a29e; /* stone-500 */
 }
+
+/* Smooth refresh rotation animations */
+@keyframes smooth-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-refresh {
+  animation: smooth-spin 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active svg.lucide-refresh-cw,
+button:active svg.lucide-refresh-ccw,
+button:active svg.lucide-rotate-cw {
+  transform: rotate(180deg);
+  transition: transform 0.25s ease-out;
+}
+

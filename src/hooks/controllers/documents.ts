@@ -5,6 +5,7 @@ import {
   documentItems,
   documentPayments,
   customers,
+  stockEntries,
   stockLogs,
 } from "@/db/schema";
 import { and, or, like, gte, lte, eq, desc, count } from "drizzle-orm";
@@ -16,6 +17,171 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type DocumentItem = typeof documentItems.$inferInsert;
 export type DocumentPayment = typeof documentPayments.$inferInsert;
+
+/**
+ * Generates the next sequential document number following Aronium convention:
+ * Format: YY-TTT-SSSSSS (e.g. 26-100-000001)
+ * - YY: 2-digit current year (e.g. 26 for 2026)
+ * - TTT: document type code (e.g. 100 for Purchase, 200 for Sales, etc.)
+ * - SSSSSS: 6-digit zero-padded sequential number
+ */
+export async function getNextDocumentNumber(
+  documentType: number = 200,
+  docDate: Date = new Date(),
+): Promise<string> {
+  const d = docDate ? new Date(docDate) : new Date();
+  const year2Digit = isNaN(d.getTime())
+    ? new Date().getFullYear().toString().slice(-2)
+    : d.getFullYear().toString().slice(-2);
+  const typeCode = String(documentType ?? 200);
+  const prefix = `${year2Digit}-${typeCode}-`;
+
+  const rows = await db
+    .select({ number: documents.number })
+    .from(documents)
+    .where(like(documents.number, `${prefix}%`));
+
+  let maxSerial = 0;
+  const regex = new RegExp(`^${year2Digit}-${typeCode}-(\\d+)$`);
+
+  for (const row of rows) {
+    if (!row.number) continue;
+    const match = row.number.match(regex);
+    if (match && match[1]) {
+      const serial = parseInt(match[1], 10);
+      if (!isNaN(serial) && serial > maxSerial) {
+        maxSerial = serial;
+      }
+    }
+  }
+
+  const nextSerial = maxSerial + 1;
+  return `${prefix}${String(nextSerial).padStart(6, "0")}`;
+}
+
+/**
+ * Applies stock movement for document items according to Aronium standard document types:
+ * - 100 (Purchase): stock IN (+quantity)
+ * - 120 (Stock Return to Supplier): stock OUT (-quantity)
+ * - 200 (Sales / Receipt): stock OUT (-quantity) [or IN if negative quantity]
+ * - 220 (Refund from Customer): stock IN (+quantity)
+ * - 230 (Proforma): no stock change
+ * - 300 (Inventory count): stock adjustment (=quantity)
+ * - 400 (Loss & Damage): stock OUT (-quantity)
+ * - isRevert: if true, inverts the change (when updating or deleting a document)
+ */
+async function applyDocumentStock(
+  docId: string,
+  docNumber: string,
+  docType: number | null | undefined,
+  items: Array<{ productId: string; quantity: number }>,
+  isRevert: boolean = false,
+  customNote?: string,
+) {
+  if (!items || items.length === 0) return;
+  const typeCode = docType ?? 200;
+
+  // Proforma does not affect stock
+  if (typeCode === 230) return;
+
+  for (const item of items) {
+    if (!item.productId || typeof item.quantity !== "number") continue;
+
+    let movementType: "in" | "out" | "adjustment";
+    let changeQty: number;
+
+    if (typeCode === 100) {
+      // Purchase: IN
+      movementType = isRevert ? "out" : "in";
+      changeQty = isRevert ? -Math.abs(item.quantity) : Math.abs(item.quantity);
+    } else if (typeCode === 120) {
+      // Stock Return: OUT
+      movementType = isRevert ? "in" : "out";
+      changeQty = isRevert ? Math.abs(item.quantity) : -Math.abs(item.quantity);
+    } else if (typeCode === 200) {
+      // Sales: OUT (or IN if negative quantity)
+      if (item.quantity >= 0) {
+        movementType = isRevert ? "in" : "out";
+        changeQty = isRevert ? Math.abs(item.quantity) : -Math.abs(item.quantity);
+      } else {
+        movementType = isRevert ? "out" : "in";
+        changeQty = isRevert ? -Math.abs(item.quantity) : Math.abs(item.quantity);
+      }
+    } else if (typeCode === 220) {
+      // Refund: IN
+      movementType = isRevert ? "out" : "in";
+      changeQty = isRevert ? -Math.abs(item.quantity) : Math.abs(item.quantity);
+    } else if (typeCode === 300) {
+      // Inventory Count: sets exact quantity
+      movementType = "adjustment";
+      changeQty = item.quantity;
+    } else if (typeCode === 400) {
+      // Loss & Damage: OUT
+      movementType = isRevert ? "in" : "out";
+      changeQty = isRevert ? Math.abs(item.quantity) : -Math.abs(item.quantity);
+    } else {
+      if (typeCode < 200) {
+        movementType = isRevert ? "out" : "in";
+        changeQty = isRevert ? -Math.abs(item.quantity) : Math.abs(item.quantity);
+      } else {
+        movementType = isRevert ? "in" : "out";
+        changeQty = isRevert ? Math.abs(item.quantity) : -Math.abs(item.quantity);
+      }
+    }
+
+    const existing = await db.query.stockEntries.findFirst({
+      where: eq(stockEntries.productId, item.productId),
+    });
+
+    const currentQty = existing?.quantity ?? 0;
+    let newQuantity: number;
+    if (movementType === "adjustment") {
+      newQuantity = isRevert ? currentQty : changeQty;
+    } else {
+      newQuantity = currentQty + changeQty;
+    }
+
+    const note =
+      customNote ||
+      (isRevert
+        ? `Reverted Doc #${docNumber || docId}`
+        : `Doc #${docNumber || docId}`);
+
+    const id = existing?.id ?? crypto.randomUUID();
+
+    await db
+      .insert(stockEntries)
+      .values({
+        id,
+        productId: item.productId,
+        type: movementType,
+        quantity: newQuantity,
+        note,
+        createdAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: stockEntries.productId,
+        set: {
+          type: movementType,
+          quantity: newQuantity,
+          note,
+          createdAt: new Date(),
+        },
+      });
+
+    if (!isRevert) {
+      await db.insert(stockLogs).values({
+        id: crypto.randomUUID(),
+        productId: item.productId,
+        documentId: docId,
+        type: movementType,
+        quantity: Math.abs(item.quantity),
+        note,
+        createdAt: new Date(),
+      });
+    }
+  }
+}
 
 // Enhanced document type with computed properties
 export type DocumentWithComputed = ReturnType<
@@ -53,11 +219,6 @@ export function useDocuments() {
         db.select().from(customers),
       ]);
 
-      // PERF: group children by documentId in one O(n) pass. This used to
-      // run items.filter(...) + payments.filter(...) INSIDE the per-document
-      // map — O(docs × (items + payments)), i.e. ~20 billion comparisons on
-      // a 70k-doc / 215k-item imported database — plus a console.log per
-      // document. That froze the entire machine every time this query ran.
       const customerMap = new Map(custs.map((c) => [c.id, c]));
       const itemsByDoc = new Map<string, (typeof items)[number][]>();
       for (const item of items) {
@@ -84,25 +245,12 @@ export function useDocuments() {
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/*                     DB-LEVEL PAGINATED DOCUMENT LIST                       */
-/*                                                                            */
-/*  The dashboard Documents page works against tens of thousands of rows     */
-/*  after an Aronium import — filtering and paging must happen in SQL, not   */
-/*  by loading everything into JS (useDocuments above does that and is kept  */
-/*  only for the POS documents screen).                                      */
-/* -------------------------------------------------------------------------- */
-
 export type DocumentListFilters = {
-  /** users.id to restrict to, or null/undefined for all users */
   userId?: number | null;
   customerId?: string | null;
-  /** app document type code (100/120/200/220/230/300/400) */
   type?: number | null;
   paid?: boolean | null;
-  /** matches number, external number, or customer name */
   search?: string;
-  /** date range as epoch ms (primitives keep the query key stable) */
   fromMs?: number | null;
   toMs?: number | null;
 };
@@ -196,33 +344,42 @@ export function useDocumentsCount(filters: DocumentListFilters) {
   });
 }
 
-export function useDocument(id: string) {
+export function useDocumentById(id: string) {
   return useQuery({
     queryKey: ["documents", id],
     enabled: !!id,
     queryFn: async () => {
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, id))
-        .get();
+      const [doc, docItems, docPayments] = await Promise.all([
+        db.select().from(documents).where(eq(documents.id, id)).get(),
+        db.select().from(documentItems).where(eq(documentItems.documentId, id)),
+        db
+          .select()
+          .from(documentPayments)
+          .where(eq(documentPayments.documentId, id)),
+      ]);
 
-      if (!doc) return null;
+      if (!doc) throw new Error("Document not found");
 
-      const items = await db
-        .select()
-        .from(documentItems)
-        .where(eq(documentItems.documentId, id));
+      let customer = null;
+      if (doc.customerId) {
+        customer = await db
+          .select()
+          .from(customers)
+          .where(eq(customers.id, doc.customerId))
+          .get();
+      }
 
-      const docPayments = await db
-        .select()
-        .from(documentPayments)
-        .where(eq(documentPayments.documentId, id));
-
-      return createDocumentWithComputed(doc, docPayments, null, items);
+      return createDocumentWithComputed(
+        doc,
+        docPayments,
+        customer,
+        docItems,
+      );
     },
   });
 }
+
+export const useDocument = useDocumentById;
 
 export function useCreateDocument() {
   const qc = useQueryClient();
@@ -230,38 +387,17 @@ export function useCreateDocument() {
   return useMutation({
     mutationFn: async (data: {
       document: NewDocument;
-      items: DocumentItem[];
+      items?: DocumentItem[];
       payments?: DocumentPayment[];
+      skipStockUpdate?: boolean;
     }) => {
       try {
         const docId = data.document.id ?? crypto.randomUUID();
 
-        console.log("useCreateDocument - START: Payload received:", {
-          docId,
-          document: {
-            number: data.document.number,
-            total: data.document.total,
-            totalPaid: data.document.totalPaid,
-            outstandingBalance: data.document.outstandingBalance,
-          },
-          paymentsInput: data.payments?.map((p) => ({
-            amount: p.amount,
-            paymentType: p.paymentType,
-          })),
-        });
-
-        // Calculate totalPaid and paid status based on actual payments
         const totalPaid =
           data.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
         const docTotal = data.document.total ?? 0;
         const isPaid = totalPaid >= docTotal;
-
-        console.log("useCreateDocument - Calculated values:", {
-          totalPaid,
-          docTotal,
-          isPaid,
-          outstandingBalance: Math.max(0, docTotal - totalPaid),
-        });
 
         let customerId =
           data.document.customerId &&
@@ -274,100 +410,89 @@ export function useCreateDocument() {
           customerId = walkIn.id;
         }
 
+        let docNumber = data.document.number;
+        if (
+          !docNumber ||
+          docNumber.trim() === "" ||
+          docNumber === "New Document" ||
+          docNumber.startsWith("Doc #")
+        ) {
+          docNumber = await getNextDocumentNumber(
+            data.document.type ?? 200,
+            data.document.date ?? new Date(),
+          );
+        }
+
         const insertPayload = {
           ...data.document,
+          number: docNumber,
           id: docId,
           customerId,
-          // Attribute the sale to whoever is logged in when it isn't
-          // explicitly set by the caller (e.g. an Aronium import).
           userId: data.document.userId ?? getCurrentUser()?.id ?? null,
-          totalPaid, // Always use calculated value
-          outstandingBalance: Math.max(0, docTotal - totalPaid), // Always recalculate
-          paid: isPaid, // Update paid status based on totalPaid
+          totalPaid,
+          outstandingBalance: Math.max(0, docTotal - totalPaid),
+          paid: isPaid,
           createdAt: data.document.createdAt ?? new Date(),
         };
 
-        console.log("useCreateDocument - Inserting document:", {
-          number: insertPayload.number,
-          total: insertPayload.total,
-          totalPaid: insertPayload.totalPaid,
-          outstandingBalance: insertPayload.outstandingBalance,
-          paid: insertPayload.paid,
-        });
-
         await db.insert(documents).values(insertPayload);
-        console.log("useCreateDocument - Document inserted successfully");
-
-        console.log("useCreateDocument - About to insert items and payments:", {
-          itemsLength: data.items?.length,
-          paymentsLength: data.payments?.length,
-          paymentsArray: data.payments,
-        });
 
         if (data.items?.length) {
-          console.log(
-            "useCreateDocument - Inserting",
-            data.items.length,
-            "items",
-          );
           await db.insert(documentItems).values(
             data.items.map((item) => ({
               ...item,
-              id: crypto.randomUUID(),
+              id: item.id ?? crypto.randomUUID(),
               documentId: docId,
             })),
           );
-          console.log("useCreateDocument - Items inserted successfully");
+
+          if (!data.skipStockUpdate) {
+            await applyDocumentStock(
+              docId,
+              insertPayload.number,
+              insertPayload.type,
+              data.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
+              false,
+            );
+          }
         }
 
         if (data.payments?.length) {
-          const paymentsToInsert = data.payments.map((p) => ({
-            ...p,
-            id: crypto.randomUUID(),
-            documentId: docId,
-          }));
-
-          console.log("useCreateDocument - Inserting payments:", {
-            count: data.payments.length,
-            payments: paymentsToInsert.map((p) => ({
-              amount: p.amount,
-              paymentType: p.paymentType,
-              date: p.date,
-              status: p.status,
+          await db.insert(documentPayments).values(
+            data.payments.map((p) => ({
+              ...p,
+              id: p.id ?? crypto.randomUUID(),
+              documentId: docId,
             })),
-          });
-
-          await db.insert(documentPayments).values(paymentsToInsert);
-          console.log("useCreateDocument - Payments inserted successfully");
-        } else {
-          console.log(
-            "useCreateDocument - No payments to insert. data.payments =",
-            data.payments,
           );
         }
-
-        console.log("useCreateDocument - COMPLETE: All inserts finished");
 
         logActivity({
           action: "document.create",
           entityType: "document",
           entityId: docId,
           description: `Created document ${insertPayload.number} (total ${docTotal.toFixed(2)})`,
-          metadata: { status: insertPayload.status, total: docTotal, userId: insertPayload.userId },
+          metadata: {
+            status: insertPayload.status,
+            total: docTotal,
+            userId: insertPayload.userId,
+            type: insertPayload.type,
+          },
         });
       } catch (err) {
-        console.error("useCreateDocument - CAUGHT ERROR:", err);
+        console.error("useCreateDocument - error:", err);
         throw err;
       }
     },
     onSuccess: () => {
-      console.log(
-        "useCreateDocument - onSuccess: Invalidating documents query",
-      );
       qc.invalidateQueries({ queryKey: ["documents"] });
-    },
-    onError: (err) => {
-      console.error("useCreateDocument - Mutation onError:", err);
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["stockLogs"] });
+      qc.refetchQueries({ queryKey: ["stock"] });
     },
   });
 }
@@ -381,8 +506,8 @@ export function useUpdateDocument() {
       document: Partial<NewDocument>;
       items: DocumentItem[];
       payments?: DocumentPayment[];
+      skipStockUpdate?: boolean;
     }) => {
-      // Get the current document to calculate totalPaid properly
       const currentDoc = await db
         .select()
         .from(documents)
@@ -391,7 +516,26 @@ export function useUpdateDocument() {
 
       if (!currentDoc) throw new Error("Document not found");
 
-      // Calculate totalPaid and paid status based on actual payments
+      if (!data.skipStockUpdate) {
+        const oldItems = await db
+          .select()
+          .from(documentItems)
+          .where(eq(documentItems.documentId, data.id));
+
+        if (oldItems.length > 0) {
+          await applyDocumentStock(
+            data.id,
+            currentDoc.number,
+            currentDoc.type,
+            oldItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
+            true,
+          );
+        }
+      }
+
       const totalPaid =
         data.payments?.reduce((sum, p) => sum + p.amount, 0) ?? 0;
       const docTotal = data.document.total ?? currentDoc.total ?? 0;
@@ -401,13 +545,12 @@ export function useUpdateDocument() {
         .update(documents)
         .set({
           ...data.document,
-          totalPaid, // Always use calculated value
-          outstandingBalance: Math.max(0, docTotal - totalPaid), // Always recalculate
-          paid: isPaid, // Update paid status based on totalPaid
+          totalPaid,
+          outstandingBalance: Math.max(0, docTotal - totalPaid),
+          paid: isPaid,
         })
         .where(eq(documents.id, data.id));
 
-      // remove old children
       await db
         .delete(documentItems)
         .where(eq(documentItems.documentId, data.id));
@@ -415,22 +558,34 @@ export function useUpdateDocument() {
         .delete(documentPayments)
         .where(eq(documentPayments.documentId, data.id));
 
-      // insert new children
       if (data.items?.length) {
         await db.insert(documentItems).values(
           data.items.map((item) => ({
             ...item,
-            id: crypto.randomUUID(),
+            id: item.id ?? crypto.randomUUID(),
             documentId: data.id,
           })),
         );
+
+        if (!data.skipStockUpdate) {
+          await applyDocumentStock(
+            data.id,
+            data.document.number ?? currentDoc.number,
+            data.document.type ?? currentDoc.type,
+            data.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
+            false,
+          );
+        }
       }
 
       if (data.payments?.length) {
         await db.insert(documentPayments).values(
           data.payments.map((p) => ({
             ...p,
-            id: crypto.randomUUID(),
+            id: p.id ?? crypto.randomUUID(),
             documentId: data.id,
           })),
         );
@@ -446,6 +601,10 @@ export function useUpdateDocument() {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["documents"] });
       qc.invalidateQueries({ queryKey: ["documents", variables.id] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["stockLogs"] });
+      qc.refetchQueries({ queryKey: ["stock"] });
     },
   });
 }
@@ -461,19 +620,31 @@ export function useDeleteDocument() {
         .where(eq(documents.id, id))
         .get();
 
-      // `stock_logs.document_id` was added in migration 0002 as a plain
-      // `REFERENCES documents(id)` — no ON DELETE action — so with
-      // `PRAGMA foreign_keys = ON` (see db/database.ts) deleting a document
-      // that moved stock fails with SQLITE_CONSTRAINT_FOREIGNKEY. The schema
-      // declares `set null`, so do that explicitly here: the stock movement
-      // still happened and its note records the document number, so the log
-      // is kept and only the link is dropped.
+      if (existing) {
+        const oldItems = await db
+          .select()
+          .from(documentItems)
+          .where(eq(documentItems.documentId, id));
+
+        if (oldItems.length > 0) {
+          await applyDocumentStock(
+            id,
+            existing.number,
+            existing.type,
+            oldItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
+            true,
+          );
+        }
+      }
+
       await db
         .update(stockLogs)
         .set({ documentId: null })
         .where(eq(stockLogs.documentId, id));
 
-      // document_items and docmentPayments both cascade.
       await db.delete(documents).where(eq(documents.id, id));
       logActivity({
         action: "document.delete",
@@ -484,6 +655,10 @@ export function useDeleteDocument() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["stockLogs"] });
+      qc.refetchQueries({ queryKey: ["stock"] });
     },
   });
 }

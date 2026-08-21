@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { AppSelect } from "./app-select";
 
 interface DataTablePaginationProps {
   page: number;
@@ -38,20 +39,21 @@ export function DataTablePagination({
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5">
             <span className="text-stone-500">Rows</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                onPageSizeChange(Number(e.target.value));
-                onPageChange(1);
-              }}
-              className="bg-stone-100 dark:bg-stone-700 border border-stone-300 dark:border-stone-600 text-stone-800 dark:text-stone-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-amber-500"
-            >
-              {pageSizeOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            <div className="w-20">
+              <AppSelect
+                value={pageSize}
+                onChange={(val) => {
+                  onPageSizeChange(Number(val));
+                  onPageChange(1);
+                }}
+                size="xs"
+                isSearchable={false}
+                options={pageSizeOptions.map((s) => ({
+                  value: s,
+                  label: String(s),
+                }))}
+              />
+            </div>
           </div>
         )}
 

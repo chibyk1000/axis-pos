@@ -22,6 +22,7 @@ import {
 import { useNavigate } from "react-router";
 import { format } from "date-fns";
 import { useEodSummary } from "@/hooks/controllers/pos";
+import { RefreshButton } from "@/components/ui/refresh-button";
 
 /* -------------------------------------------------------------------------- */
 /*                            SUMMARY CARD                                    */
@@ -87,12 +88,11 @@ export default function EndOfDayModal() {
             End of day
           </h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => refetch()}
-              className="text-stone-600 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-700 dark:text-stone-300 transition-colors"
-            >
-              <RefreshCw size={15} />
-            </button>
+            <RefreshButton
+              onRefresh={() => refetch()}
+              isLoading={isLoading}
+              title="Refresh End of Day"
+            />
             <button
               className="text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white transition-colors"
               onClick={() => navigate(-1)}

@@ -1,6 +1,5 @@
 import {
   X,
-  RefreshCw,
   ChevronLeftIcon,
   Search,
   Trash2,
@@ -50,38 +49,58 @@ import {
   useDocumentsCount,
   type DocumentListFilters,
 } from "@/hooks/controllers/documents";
+import { db } from "@/db/database";
+import { documentItems } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { AppSelect } from "@/components/ui/app-select";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { useDefaultCompany } from "@/hooks/controllers/company";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { writeFile, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { tempDir, join } from "@tauri-apps/api/path";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import {
+  drawFullPageHeader,
+  drawFullPageFooter,
+  applyPdfWatermarks,
+  hexToRgb,
+  getBrandingSettings,
+} from "@/lib/pdf-branding";
 
-// ─── PDF builder (Fix #1, #2, #3) ───────────────────────────────────────────
-function buildDocPdf(doc: any, items: any[]): jsPDF {
-  const pdf = new jsPDF();
+// ─── PDF builder ─────────────────────────────────────────────────────────────
+function buildDocPdf(doc: any, items: any[], company?: any): jsPDF {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const settings = getBrandingSettings();
+  const [ar, ag, ab] = hexToRgb(settings.documentAccentColor || "#f59e0b");
 
-  // Header
-  pdf.setFontSize(16);
-  pdf.text("Document", 14, 18);
+  const companyAddress = [company?.buildingNumber, company?.streetName, company?.city, company?.postalCode]
+    .filter(Boolean)
+    .join(", ");
 
-  pdf.setFontSize(10);
-  pdf.text(`Number: ${doc.number ?? "-"}`, 14, 28);
-  pdf.text(
-    `Date: ${doc.date ? format(new Date(doc.date), "MM/dd/yyyy") : "-"}`,
-    14,
-    34,
-  );
-  pdf.text(`Customer: ${doc.customerName ?? doc.customerId ?? "-"}`, 14, 40);
-  pdf.text(`Paid: ${doc.paid ? "Yes" : "No"}`, 14, 46);
-  if (doc.externalNumber) {
-    pdf.text(`External #: ${doc.externalNumber}`, 14, 52);
-  }
+  const startY = drawFullPageHeader(pdf, {
+    title: doc.documentType ? `${doc.documentType} Document` : "Document",
+    docNumber: doc.number,
+    date: doc.date,
+    customerName: doc.customerName ?? doc.customerId,
+    externalNumber: doc.externalNumber,
+    status: doc.status,
+    paid: doc.paid,
+    companyName: company?.name,
+    companyAddress,
+    companyPhone: company?.phone,
+    companyTaxNumber: company?.taxNumber,
+  });
 
-  // Items table
+  const grandTotal = items.reduce((sum, i) => sum + Number(i.total ?? 0), 0);
+  const subtotal = items.reduce((sum, i) => sum + Number(i.totalBeforeTax ?? (i.priceBeforeTax * i.quantity) ?? 0), 0);
+  const taxTotal = items.reduce((sum, i) => sum + Number(i.taxTotal ?? 0), 0);
+  const discountTotal = items.reduce((sum, i) => sum + Number(i.discount ?? 0), 0);
+
   autoTable(pdf, {
-    startY: 60,
+    startY,
     head: [
       [
         "Name",
@@ -95,27 +114,35 @@ function buildDocPdf(doc: any, items: any[]): jsPDF {
       ],
     ],
     body: items.map((item) => {
-      const price = item.priceBeforeTax * (1 + item.taxRate / 100);
+      const price = item.priceBeforeTax * (1 + (item.taxRate || 0) / 100);
       return [
         item.name ?? "-",
         item.unit ?? "-",
         item.quantity,
-        Number(item.priceBeforeTax).toFixed(2),
-        `${item.taxRate}%`,
+        Number(item.priceBeforeTax || 0).toFixed(2),
+        `${item.taxRate || 0}%`,
         price.toFixed(2),
-        item.discount ?? 0,
-        Number(item.total).toFixed(2),
+        item.discount ? Number(item.discount).toFixed(2) : "—",
+        Number(item.total || 0).toFixed(2),
       ];
     }),
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [79, 70, 229] },
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: { fillColor: [ar, ag, ab], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
   });
 
-  // Totals
-  const finalY = (pdf as any).lastAutoTable?.finalY ?? 60;
-  const grandTotal = items.reduce((sum, i) => sum + Number(i.total ?? 0), 0);
-  pdf.setFontSize(10);
-  pdf.text(`Grand Total: ${grandTotal.toFixed(2)}`, 14, finalY + 10);
+  const finalY = (pdf as any).lastAutoTable?.finalY ?? startY + 20;
+
+  drawFullPageFooter(pdf, finalY, {
+    subtotal,
+    taxTotal,
+    discountTotal,
+    grandTotal,
+    notes: doc.note || undefined,
+  });
+
+  applyPdfWatermarks(pdf, false);
 
   return pdf;
 }
@@ -263,6 +290,7 @@ export function DocumentsView() {
     dispatch(setConfirmDeleteOpenAction(val));
 
   const deleteDocument = useDeleteDocument();
+  const { data: defaultCompany } = useDefaultCompany();
 
   const currentUser = useMemo(() => {
     if (!auth.user) return undefined;
@@ -355,13 +383,13 @@ export function DocumentsView() {
 
   const handlePrint = async () => {
     if (!selectedSavedDocument) return alert("Select a document first");
-    const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
+    const pdf = buildDocPdf(selectedSavedDocument, selectedItems, defaultCompany);
     await openPdfInTauri(pdf, `print-${selectedSavedDocument.id}.pdf`, true);
   };
 
   const handlePreview = async () => {
     if (!selectedSavedDocument) return alert("Select a document first");
-    const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
+    const pdf = buildDocPdf(selectedSavedDocument, selectedItems, defaultCompany);
     await openPdfInTauri(pdf, `preview-${selectedSavedDocument.id}.pdf`, false);
   };
 
@@ -374,7 +402,7 @@ export function DocumentsView() {
         filters: [{ name: "PDF", extensions: ["pdf"] }],
       });
       if (savePath) {
-        const pdf = buildDocPdf(selectedSavedDocument, selectedItems);
+        const pdf = buildDocPdf(selectedSavedDocument, selectedItems, defaultCompany);
         const bytes = new Uint8Array(pdf.output("arraybuffer"));
         await writeFile(savePath, bytes);
       }
@@ -404,23 +432,35 @@ export function DocumentsView() {
     refetch();
   };
 
-  // Fix #3: Edit — properly open an existing doc in the NewDocument editor
-  const handleEdit = () => {
-    if (!selectedSavedDocument) return;
+  // Edit — properly open an existing doc in the NewDocument editor
+  const handleEdit = async (docParam?: any) => {
+    const targetDoc = docParam ?? selectedSavedDocument;
+    if (!targetDoc) return;
 
     // Find or create a matching DocumentType for the document's type code
     const docType = documentTypes.find(
-      (t) => t.code === selectedSavedDocument.type,
+      (t) => t.code === targetDoc.type,
     );
     const editTab: DocumentType = docType ?? {
-      code: selectedSavedDocument.type ?? 0,
+      code: targetDoc.type ?? 0,
       label: "Edit",
       category: "Edit",
     };
 
-    // Paginated list rows are slim — attach the lazily-fetched items so the
-    // editor opens with the document's lines.
-    setEditingDocument({ ...selectedSavedDocument, items: selectedItems });
+    let itemsToPass = targetDoc.items;
+    if (!itemsToPass || itemsToPass.length === 0) {
+      if (targetDoc.id === selectedSavedDocument?.id && selectedItems.length > 0) {
+        itemsToPass = selectedItems;
+      } else {
+        const fetchedItems = await db
+          .select()
+          .from(documentItems)
+          .where(eq(documentItems.documentId, targetDoc.id));
+        itemsToPass = fetchedItems;
+      }
+    }
+
+    setEditingDocument({ ...targetDoc, items: itemsToPass });
 
     // Add tab if not already open
     setDocuments((prev) => {
@@ -461,14 +501,11 @@ export function DocumentsView() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Fix #5: Refresh triggers refetch */}
-          <button
-            onClick={() => refetch()}
-            className="text-stone-500 dark:text-stone-400 hover:text-orange-400 transition"
+          {/* Refresh triggers refetch with smooth animation */}
+          <RefreshButton
+            onRefresh={() => refetch()}
             title="Refresh documents"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          />
           <button className="text-stone-500 dark:text-stone-400 hover:text-rose-400 transition">
             <X className="w-5 h-5" />
           </button>
@@ -765,7 +802,11 @@ export function DocumentsView() {
                       <tr
                         key={doc.id}
                         onClick={() => setSelectedSavedDocument(doc)}
-                        className={`cursor-pointer transition ${
+                        onDoubleClick={() => {
+                          setSelectedSavedDocument(doc);
+                          handleEdit(doc);
+                        }}
+                        className={`cursor-pointer transition select-none ${
                           isSelected
                             ? "bg-orange-50 dark:bg-orange-500/10"
                             : "hover:bg-white dark:hover:bg-stone-800"
@@ -934,17 +975,15 @@ function FilterSelect({
       <label className="text-xs text-stone-500 dark:text-stone-400 mb-1">
         {label}
       </label>
-      <select
+      <AppSelect
         value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        className="bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"
-      >
-        {items.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.value}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => onChange?.(v)}
+        size="sm"
+        options={items.map((item) => ({
+          value: item.id,
+          label: item.value,
+        }))}
+      />
     </div>
   );
 }

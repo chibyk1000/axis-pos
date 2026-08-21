@@ -103,6 +103,11 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { useNavigate } from "react-router";
 import {
+  drawThermalReceiptHeader,
+  applyPdfWatermarks,
+  getBrandingSettings,
+} from "@/lib/pdf-branding";
+import {
   getProductPrices,
   useAllPrices,
   useUpsertProductPrice,
@@ -1803,24 +1808,34 @@ export interface CompletedSaleData {
   date: Date;
 }
 
-function buildSaleReceiptPdf(sale: CompletedSaleData): jsPDF {
+function buildSaleReceiptPdf(sale: CompletedSaleData, company?: any): jsPDF {
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: [80, 220],
   });
   const W = 80;
-  let y = 8;
+  const settings = getBrandingSettings();
 
-  const center = (text: string, size = 9, bold = false) => {
-    pdf.setFontSize(size).setFont("helvetica", bold ? "bold" : "normal");
-    pdf.text(text, W / 2, y, { align: "center" });
-    y += size * 0.45;
-  };
+  const companyAddress = [company?.streetName, company?.city, company?.stateProvince]
+    .filter(Boolean)
+    .join(", ");
+
+  let y = drawThermalReceiptHeader(pdf, {
+    docNumber: sale.docNumber,
+    date: sale.date,
+    customerName: sale.customer?.name ?? undefined,
+    companyName: company?.name,
+    companyAddress,
+    companyPhone: company?.phoneNumber,
+    companyTaxNumber: company?.taxNumber,
+  });
 
   const line = () => {
     pdf.setDrawColor(180);
+    pdf.setLineDashPattern([1, 1], 0);
     pdf.line(4, y, W - 4, y);
+    pdf.setLineDashPattern([], 0);
     y += 3;
   };
 
@@ -1833,14 +1848,6 @@ function buildSaleReceiptPdf(sale: CompletedSaleData): jsPDF {
     pdf.text(right, W - 4, y, { align: "right" });
     y += 4;
   };
-
-  center("RECEIPT", 13, true);
-  y += 1;
-  center(sale.docNumber, 9);
-  center(format(sale.date, "dd/MM/yyyy HH:mm"), 8);
-  if (sale.customer?.name) center(sale.customer.name, 8);
-  y += 2;
-  line();
 
   sale.items.forEach((item) => {
     pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(0);
@@ -1865,11 +1872,15 @@ function buildSaleReceiptPdf(sale: CompletedSaleData): jsPDF {
     row("Change", sale.change.toFixed(2));
   }
 
-  y += 3;
-  line();
+  y += 2;
 
-  pdf.setFontSize(8).setFont("helvetica", "normal").setTextColor(130);
-  pdf.text("Thank you for your purchase!", W / 2, y + 4, { align: "center" });
+  if (settings.receiptFooterMessage && settings.applyDesignToReceipt) {
+    pdf.setFontSize(7).setFont("helvetica", "normal").setTextColor(80);
+    const splitFooter = pdf.splitTextToSize(settings.receiptFooterMessage, W - 8);
+    pdf.text(splitFooter, W / 2, y + 2, { align: "center" });
+  }
+
+  applyPdfWatermarks(pdf, true);
 
   return pdf;
 }
@@ -1914,7 +1925,8 @@ function printHtmlContent(html: string) {
 }
 
 function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
-  const companyName = company?.name || "AXIS POS";
+  const settings = getBrandingSettings();
+  const companyName = company?.name || settings.storeName || "AXIS POS";
   const companyAddress = [company?.streetName, company?.city, company?.stateProvince]
     .filter(Boolean)
     .join(", ");
@@ -1961,6 +1973,7 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
           color: #000;
           font-size: 12px;
           line-height: 1.3;
+          position: relative;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -1969,19 +1982,40 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
         .divider-solid { border-top: 1px solid #000; margin: 6px 0; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0; }
         th { border-bottom: 1px solid #000; padding: 3px 0; text-align: left; font-size: 11px; }
+        .watermark {
+          position: absolute;
+          top: 40%;
+          left: 50%;
+          transform: translate(-50%, -50%) rotate(${settings.watermarkAngle || -30}deg);
+          font-size: 32px;
+          font-weight: 900;
+          color: rgba(220, 38, 38, ${settings.watermarkOpacity || 0.12});
+          border: 3px solid rgba(220, 38, 38, ${settings.watermarkOpacity || 0.12});
+          padding: 4px 12px;
+          pointer-events: none;
+          z-index: 0;
+        }
       </style>
     </head>
     <body>
-      <div class="text-center">
-        <h2 style="margin: 0; font-size: 17px; font-weight: 800; text-transform: uppercase;">${companyName}</h2>
+      ${settings.enableWatermark && settings.watermarkType === "text" ? `<div class="watermark">${settings.watermarkText || "PAID"}</div>` : ""}
+      
+      <div class="text-center" style="position: relative; z-index: 1;">
+        ${settings.enableLogo && settings.logoUrl && settings.applyDesignToReceipt ? `
+          <div style="margin-bottom: 4px;">
+            <img src="${settings.logoUrl}" style="max-height: 40px; max-width: 120px; object-contain;" />
+          </div>
+        ` : ""}
+        <h2 style="margin: 0; font-size: 16px; font-weight: 800; text-transform: uppercase;">${companyName}</h2>
         ${companyAddress ? `<p style="margin: 2px 0; font-size: 10px;">${companyAddress}</p>` : ""}
         ${companyPhone ? `<p style="margin: 2px 0; font-size: 10px;">${companyPhone}</p>` : ""}
         ${companyTax ? `<p style="margin: 2px 0; font-size: 10px;">${companyTax}</p>` : ""}
+        ${settings.receiptHeaderMessage && settings.applyDesignToReceipt ? `<p style="margin: 3px 0; font-size: 10px; font-style: italic;">"${settings.receiptHeaderMessage}"</p>` : ""}
         <div class="divider-solid"></div>
         <p style="margin: 2px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;">SALES RECEIPT</p>
       </div>
 
-      <div style="font-size: 11px; margin-top: 4px;">
+      <div style="font-size: 11px; margin-top: 4px; position: relative; z-index: 1;">
         <div style="display: flex; justify-content: space-between;">
           <span>Receipt #: <strong>${sale.docNumber}</strong></span>
           <span>${format(sale.date, "dd/MM/yyyy HH:mm")}</span>
@@ -1995,7 +2029,7 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
 
       <div class="divider"></div>
 
-      <table>
+      <table style="position: relative; z-index: 1;">
         <thead>
           <tr>
             <th style="width: 42%;">Item</th>
@@ -2011,7 +2045,7 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
 
       <div class="divider"></div>
 
-      <div style="font-size: 11px;">
+      <div style="font-size: 11px; position: relative; z-index: 1;">
         <div style="display: flex; justify-content: space-between; margin: 2px 0;">
           <span>Subtotal:</span>
           <span>₦${formatPrice(sale.subtotal)}</span>
@@ -2049,9 +2083,8 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
       </div>
 
       <div class="divider-solid"></div>
-      <div class="text-center" style="font-size: 11px; margin-top: 6px;">
-        <p style="margin: 2px 0; font-weight: 600;">Thank you for your business!</p>
-        <p style="margin: 2px 0; font-size: 9px; color: #555;">Goods sold in good condition are not returnable</p>
+      <div class="text-center" style="font-size: 11px; margin-top: 6px; position: relative; z-index: 1;">
+        <p style="margin: 2px 0; font-weight: 600; white-space: pre-line;">${settings.receiptFooterMessage || "Thank you for your business!"}</p>
       </div>
 
       <script>
@@ -2066,7 +2099,9 @@ function getThermalReceiptHtml(sale: CompletedSaleData, company?: any): string {
 }
 
 function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
-  const companyName = company?.name || "AXIS POS";
+  const settings = getBrandingSettings();
+  const accentColor = settings.documentAccentColor || "#2563eb";
+  const companyName = company?.name || settings.storeName || "AXIS POS";
   const companyAddress = [
     company?.streetName,
     company?.city,
@@ -2105,21 +2140,57 @@ function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
           color: #1f2937;
           margin: 0;
-          padding: 20px;
+          padding: 24px;
           background: #fff;
           font-size: 13px;
+          position: relative;
+          min-height: 100vh;
+          box-sizing: border-box;
         }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 16px; margin-bottom: 24px; }
-        .company-title { font-size: 24px; font-weight: 800; color: #1e3a8a; margin: 0; }
-        .invoice-badge { font-size: 28px; font-weight: 900; color: #2563eb; letter-spacing: 1px; margin: 0; text-align: right; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th { background: #f3f4f6; color: #374151; font-weight: 700; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${accentColor}; padding-bottom: 16px; margin-bottom: 24px; position: relative; z-index: 1; }
+        .company-title { font-size: 24px; font-weight: 800; color: ${accentColor}; margin: 0; }
+        .invoice-badge { font-size: 28px; font-weight: 900; color: ${accentColor}; letter-spacing: 1px; margin: 0; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; position: relative; z-index: 1; }
+        th { background: ${accentColor}; color: #ffffff; font-weight: 700; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
+        .watermark {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) rotate(${settings.watermarkAngle || -30}deg);
+          font-size: 80px;
+          font-weight: 900;
+          color: rgba(220, 38, 38, ${settings.watermarkOpacity || 0.12});
+          border: 6px solid rgba(220, 38, 38, ${settings.watermarkOpacity || 0.12});
+          padding: 8px 30px;
+          border-radius: 12px;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .bg-watermark-logo {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 320px;
+          max-height: 320px;
+          opacity: ${settings.backgroundLogoOpacity || 0.08};
+          pointer-events: none;
+          z-index: 0;
+          filter: grayscale(100%);
+        }
       </style>
     </head>
     <body>
+      ${settings.enableBackgroundLogo && settings.logoUrl ? `<img src="${settings.logoUrl}" class="bg-watermark-logo" />` : ""}
+      ${settings.enableWatermark && settings.watermarkType === "text" ? `<div class="watermark">${settings.watermarkText || "PAID"}</div>` : ""}
+
       <div class="header">
         <div>
-          <h1 class="company-title">${companyName}</h1>
+          ${settings.enableLogo && settings.logoUrl ? `
+            <div style="margin-bottom: 8px;">
+              <img src="${settings.logoUrl}" style="max-height: 55px; max-width: 180px; object-contain;" />
+            </div>
+          ` : `<h1 class="company-title">${companyName}</h1>`}
           ${companyAddress ? `<p style="margin: 4px 0; color: #4b5563;">${companyAddress}</p>` : ""}
           ${companyPhone ? `<p style="margin: 2px 0; color: #4b5563;">${companyPhone}</p>` : ""}
           ${companyEmail ? `<p style="margin: 2px 0; color: #4b5563;">${companyEmail}</p>` : ""}
@@ -2133,7 +2204,7 @@ function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
         </div>
       </div>
 
-      <div style="margin-bottom: 24px; background: #f9fafb; padding: 14px 18px; border-radius: 8px; border: 1px solid #e5e7eb;">
+      <div style="margin-bottom: 24px; background: #f9fafb; padding: 14px 18px; border-radius: 8px; border: 1px solid #e5e7eb; position: relative; z-index: 1;">
         <h3 style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 700;">Billed To:</h3>
         <p style="margin: 0; font-size: 15px; font-weight: 700; color: #111827;">${sale.customer?.name ?? "Walk-in Customer"}</p>
         ${sale.customer?.phoneNumber ? `<p style="margin: 2px 0; color: #4b5563;">Phone: ${sale.customer.phoneNumber}</p>` : ""}
@@ -2155,7 +2226,12 @@ function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
         </tbody>
       </table>
 
-      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+      <div style="display: flex; justify-content: space-between; margin-top: 20px; position: relative; z-index: 1;">
+        <div style="width: 50%; padding-right: 24px;">
+          <h4 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #6b7280;">Payment Terms & Notes:</h4>
+          <p style="margin: 0; color: #4b5563; font-size: 12px; white-space: pre-line; line-height: 1.5;">${settings.invoiceNotes || "Payment due within 14 days. Thank you for your business!"}</p>
+        </div>
+
         <div style="width: 280px; background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
             <span style="color: #6b7280;">Subtotal:</span>
@@ -2171,7 +2247,7 @@ function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
           `
               : ""
           }
-          <div style="border-top: 2px solid #d1d5db; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: #1e3a8a;">
+          <div style="border-top: 2px solid ${accentColor}; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; color: ${accentColor};">
             <span>Total:</span>
             <span>₦${formatPrice(sale.total)}</span>
           </div>
@@ -2182,8 +2258,8 @@ function getInvoiceHtml(sale: CompletedSaleData, company?: any): string {
         </div>
       </div>
 
-      <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center; color: #9ca3af; font-size: 11px;">
-        <p style="margin: 2px 0;">Thank you for your business!</p>
+      <div style="margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 16px; text-align: center; color: #9ca3af; font-size: 11px; position: relative; z-index: 1;">
+        <p style="margin: 2px 0;">${companyName} • Thank you for your business!</p>
       </div>
 
       <script>
@@ -2205,7 +2281,8 @@ function PrintReceiptOverlay({
   company?: any;
 }) {
   if (!sale) return null;
-  const companyName = company?.name || "AXIS POS";
+  const settings = getBrandingSettings();
+  const companyName = company?.name || settings.storeName || "AXIS POS";
   const companyAddress = [company?.streetName, company?.city, company?.stateProvince]
     .filter(Boolean)
     .join(", ");
@@ -2218,6 +2295,20 @@ function PrintReceiptOverlay({
       className="hidden print:block fixed inset-0 bg-white z-[99999] p-6 text-stone-950 font-sans"
     >
       <div className="max-w-[340px] mx-auto text-black text-xs leading-normal">
+        {settings.enableLogo && settings.logoUrl && settings.applyDesignToReceipt && (
+          <div className="text-center mb-2">
+            <img src={settings.logoUrl} className="max-h-12 mx-auto object-contain" />
+          </div>
+        )}
+        <div className="text-center pb-2 border-b border-stone-400">
+          <h2 className="text-base font-bold uppercase">{companyName}</h2>
+          {companyAddress && <p className="text-[11px]">{companyAddress}</p>}
+          {companyPhone && <p className="text-[11px]">{companyPhone}</p>}
+          {companyTax && <p className="text-[11px]">{companyTax}</p>}
+          {settings.receiptHeaderMessage && settings.applyDesignToReceipt && (
+            <p className="text-[10px] italic mt-1 font-semibold">"{settings.receiptHeaderMessage}"</p>
+          )}
+        </div>
         <div className="text-center mb-4">
           <h2 className="text-xl font-bold uppercase tracking-wider m-0">
             {companyName}
@@ -5874,7 +5965,10 @@ export default function AroniumLite() {
         })),
       };
 
-      await createDocument.mutateAsync(updatedPayload);
+      await createDocument.mutateAsync({
+        ...updatedPayload,
+        skipStockUpdate: true,
+      });
       savedDoc = {
         id: continuePaymentDoc.id,
         number: continuePaymentDoc.number,
@@ -5887,7 +5981,10 @@ export default function AroniumLite() {
         paymentsInPayload: payload.payments?.length,
       });
 
-      await createDocument.mutateAsync(payload);
+      await createDocument.mutateAsync({
+        ...payload,
+        skipStockUpdate: true,
+      });
       savedDoc = { id: payload.document.id, number: payload.document.number };
     }
 

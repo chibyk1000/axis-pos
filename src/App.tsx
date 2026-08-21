@@ -407,6 +407,14 @@ function App() {
                             </RequirePermission>
                           }
                         />
+                        <Route
+                          path="/user-info"
+                          element={
+                            <RequirePermission permission="user-profile">
+                              <UserInfo />
+                            </RequirePermission>
+                          }
+                        />
                         {/* Dashboard */}
                         <Route path="/dashboard" element={<Applayout />}>
                           <Route

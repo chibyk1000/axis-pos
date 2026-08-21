@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import {
   X,
   ChevronLeftIcon,
@@ -1237,18 +1238,15 @@ export default function StockView() {
               ))}
             </select>
           </div>
-          <button
-            onClick={() => {
+          <RefreshButton
+            onRefresh={() => {
               productsQuery.refetch();
               nodesQuery.refetch();
               stockLevelsQuery.refetch();
             }}
-            className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 transition-colors"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-          </button>
+            isLoading={isLoading}
+            title="Refresh stock"
+          />
           <button
             onClick={() => navigate(-1)}
             className="p-1.5 rounded hover:bg-stone-100 dark:bg-stone-700 transition-colors"
@@ -1260,27 +1258,23 @@ export default function StockView() {
 
       {/* Toolbar */}
       <div className="bg-white dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 px-3 py-2 flex items-center gap-0.5 overflow-x-auto shrink-0">
-        <button
-          onClick={() => {
+        <RefreshButton
+          onRefresh={() => {
             productsQuery.refetch();
             nodesQuery.refetch();
             stockLevelsQuery.refetch();
             stockHistoryQuery.refetch();
           }}
+          isLoading={
+            productsQuery.isLoading ||
+            stockLevelsQuery.isLoading ||
+            stockHistoryQuery.isLoading ||
+            nodesQuery.isLoading
+          }
           className={tbtn}
-        >
-          <RefreshCw
-            className={
-              productsQuery.isLoading ||
-              stockLevelsQuery.isLoading ||
-              stockHistoryQuery.isLoading ||
-              nodesQuery.isLoading
-                ? "w-3.5 h-3.5 animate-spin"
-                : "w-3.5 h-3.5"
-            }
-          />{" "}
-          Refresh
-        </button>
+          showLabel
+          label="Refresh"
+        />
         <div className="w-px h-5 bg-stone-100 dark:bg-stone-700 mx-1.5 shrink-0" />
         <button onClick={() => setShowHistory(true)} className={tbtn}>
           <Clock className="w-3.5 h-3.5" /> Stock history

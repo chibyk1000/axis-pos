@@ -10,7 +10,8 @@ import {
   setDashboardChartRange,
 } from "@/store/dashboardSlice";
 import { Switch } from "@/components/ui/switch";
-import { Calendar as CalendarIcon, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { Calendar as ShadCalendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -713,12 +714,11 @@ export default function Dashboard() {
 
               <span className="text-xs text-stone-500">All docs</span>
               <Switch checked={showAll} onCheckedChange={setShowAll} />
-              <button
-                onClick={() => refetchChart()}
-                className="p-2 rounded-lg hover:bg-stone-100 dark:bg-stone-700 transition text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:text-white"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+              <RefreshButton
+                onRefresh={() => refetchChart()}
+                isLoading={loadingChart}
+                title="Refresh chart"
+              />
             </div>
           </div>
 

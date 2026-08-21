@@ -25,20 +25,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useState } from "react";
+import { AppSelect } from "@/components/ui/app-select";
+import { useState, useEffect, useMemo } from "react";
 import { useCustomers } from "@/hooks/controllers/customers";
-
-import { useMemo } from "react";
 import {
   useCreateDocument,
   useUpdateDocument,
+  getNextDocumentNumber,
 } from "@/hooks/controllers/documents";
 import { File, Folder, Tree, TreeViewElement } from "../ui/file-tree";
 import { useRootNodes } from "@/hooks/controllers/nodes";
@@ -62,7 +55,19 @@ export default function NewDocument({
   documentType?: number;
   onClose?: () => void;
 }) {
-  const [docNumber, setDocNumber] = useState<string>(title);
+  const [docNumber, setDocNumber] = useState<string>(
+    document?.number ?? (title !== "New Document" ? title : ""),
+  );
+
+  useEffect(() => {
+    if (document?.number) {
+      setDocNumber(document.number);
+    } else {
+      getNextDocumentNumber(documentType ?? 200, date ?? new Date()).then((num) => {
+        setDocNumber(num);
+      });
+    }
+  }, [document?.id, document?.number, documentType]);
   const [date, setDate] = useState<Date | undefined>(
     document?.date ? new Date(document.date) : new Date(),
   );
@@ -338,22 +343,18 @@ export default function NewDocument({
 
             <div className="space-y-2">
               <Label className="text-stone-500 dark:text-stone-400">
-                Supplier
+                Supplier / Customer
               </Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger className="bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100 w-full">
-                  <SelectValue placeholder="Select supplier" />
-                </SelectTrigger>
-                <SelectContent className="bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100">
-                  <SelectItem value="nil" disabled>
-                    Select a customer
-                  </SelectItem>
-
-                  {customers?.map((cus) => {
-                    return <SelectItem value={cus.id}>{cus.name}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
+              <AppSelect
+                value={customerId}
+                onChange={(val) => setCustomerId(val)}
+                placeholder="Select supplier / customer..."
+                isClearable
+                options={customers?.map((cus) => ({
+                  value: cus.id,
+                  label: cus.name,
+                })) || []}
+              />
             </div>
           </div>
 
@@ -756,33 +757,29 @@ export default function NewDocument({
                 {/* DISCOUNT + TOTALS */}
                 <div className="flex flex-col lg:flex-row justify-end items-end lg:items-center gap-4 pt-3 border-t border-stone-100 dark:border-stone-800/60">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Select defaultValue="after">
-                      <SelectTrigger className="h-9 bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 w-44 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800">
-                        <SelectItem value="after" className="text-xs">
-                          Apply discount after tax
-                        </SelectItem>
-                        <SelectItem value="before" className="text-xs">
-                          Apply discount before tax
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="w-48">
+                      <AppSelect
+                        defaultValue="after"
+                        size="sm"
+                        isSearchable={false}
+                        options={[
+                          { value: "after", label: "Apply discount after tax" },
+                          { value: "before", label: "Apply discount before tax" },
+                        ]}
+                      />
+                    </div>
 
-                    <Select defaultValue="percent">
-                      <SelectTrigger className="h-9 bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 w-36 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800">
-                        <SelectItem value="percent" className="text-xs">
-                          Discount %
-                        </SelectItem>
-                        <SelectItem value="amount" className="text-xs">
-                          Discount Amt
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="w-36">
+                      <AppSelect
+                        defaultValue="percent"
+                        size="sm"
+                        isSearchable={false}
+                        options={[
+                          { value: "percent", label: "Discount %" },
+                          { value: "amount", label: "Discount Amt" },
+                        ]}
+                      />
+                    </div>
 
                     <div className="relative flex items-center">
                       <Input
