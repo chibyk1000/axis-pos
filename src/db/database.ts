@@ -37,6 +37,17 @@ await sqlite.execute("PRAGMA cache_size = -16000"); // ~16MB cache
 // queries, reporting) in memory instead of spilling to disk temp files.
 await sqlite.execute("PRAGMA temp_store = MEMORY");
 
+// Self-healing: Ensure every product has a stock_entries row so stock tracking,
+// POS sales, and quick inventory never fail with "Stock entry not found".
+await sqlite
+  .execute(
+    `INSERT OR IGNORE INTO stock_entries (id, product_id, type, quantity, low_stock_warning, low_stock_warning_quantity, created_at)
+     SELECT 'se-' || id, id, 'adjustment', 0, 0, 0, strftime('%s', 'now')
+     FROM products
+     WHERE id NOT IN (SELECT product_id FROM stock_entries WHERE product_id IS NOT NULL)`,
+  )
+  .catch((err) => console.warn("Failed to backfill missing stock_entries:", err));
+
 /**
  * The drizzle database instance.
  */

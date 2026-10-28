@@ -297,6 +297,7 @@ export default function SettingsPage() {
 
       if (result.success) {
         await queryClient.invalidateQueries();
+        await queryClient.refetchQueries();
         const hasWarnings = (result.warnings?.length ?? 0) > 0;
         toast.update(toastId, {
           render: (

@@ -1719,3 +1719,13 @@ pub async fn sync_push(
 
     Ok(changes.len())
 }
+
+#[tauri::command]
+pub async fn restore_database_triggers(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let db_path = app_data.join("data.db");
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    setup_database_triggers(&conn).map_err(|e| e.to_string())?;
+    Ok(())
+}

@@ -405,30 +405,36 @@ async function runImport(
     )
     .catch(() => [])) as { name: string; sql: string }[];
   for (const trigger of syncTriggers) {
-    await sqlite.execute(`DROP TRIGGER IF EXISTS "${trigger.name}"`);
+    await sqlite.execute(`DROP TRIGGER IF EXISTS "${trigger.name}"`).catch(() => {});
   }
   const restoreSyncTriggers = async () => {
-    for (const trigger of syncTriggers) {
-      if (trigger.sql) {
-        await sqlite
-          .execute(trigger.sql)
-          .catch((e) =>
-            console.warn(
-              `[aronium-import] failed to restore trigger ${trigger.name}:`,
-              e,
-            ),
-          );
+    try {
+      await invoke("restore_database_triggers");
+    } catch (err) {
+      console.warn("[aronium-import] invoke('restore_database_triggers') failed, falling back to SQL:", err);
+      for (const trigger of syncTriggers) {
+        if (trigger.sql) {
+          await sqlite
+            .execute(trigger.sql)
+            .catch((e) =>
+              console.warn(
+                `[aronium-import] failed to restore trigger ${trigger.name}:`,
+                e,
+              ),
+            );
+        }
       }
     }
   };
 
-  let taxCount = 0,
-    groupCount = 0,
-    productCount = 0,
-    barcodeCount = 0;
-  let productTaxCount = 0,
-    customerCount = 0,
-    documentCount = 0;
+  try {
+    let taxCount = 0,
+      groupCount = 0,
+      productCount = 0,
+      barcodeCount = 0;
+    let productTaxCount = 0,
+      customerCount = 0,
+      documentCount = 0;
   let documentItemCount = 0,
     documentPaymentCount = 0,
     stockEntryCount = 0;
@@ -747,8 +753,15 @@ async function runImport(
     if (!isNaN(scId)) stockControlMap.set(scId, sc);
   }
 
-  for (const [pId, quantity] of stockQtyMap) {
+  // Ensure every imported product gets a stock_entries row. If a product was
+  // in stockQtyMap, use its summed quantity; otherwise initialize with 0 so
+  // POS sales, inventory counts, and stock level tracking never fail with
+  // "Stock entry not found".
+  const allProductIdsToStock = new Set([...validProductIds, ...stockQtyMap.keys()]);
+
+  for (const pId of allProductIdsToStock) {
     const posProductId = `aronium-product-${pId}`;
+    const quantity = stockQtyMap.get(pId) ?? 0;
     const sc = stockControlMap.get(pId);
     // pickField (not a raw `??` chain) is required here: it falls back to a
     // case-insensitive scan of the row's actual keys, which is what catches
@@ -1176,8 +1189,6 @@ async function runImport(
     (done, total) => onProgress(`Importing payments ${done}/${total}…`),
   );
 
-  await restoreSyncTriggers();
-
   if (sourceWarnings.length > 0) {
     console.warn(
       `[aronium-import] ${sourceWarnings.length} table(s) failed to fetch from the source database ` +
@@ -1203,6 +1214,9 @@ async function runImport(
       stockEntries: stockEntryCount,
     },
   };
+  } finally {
+    await restoreSyncTriggers();
+  }
 }
 
 // ---------------------------------------------------------------------------

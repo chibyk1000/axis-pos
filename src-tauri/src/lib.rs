@@ -225,6 +225,7 @@ pub fn run() {
             sync_server::sync_fetch_snapshot,
             sync_server::sync_push_snapshot,
             sync_server::connect_sync_ws,
+            sync_server::restore_database_triggers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

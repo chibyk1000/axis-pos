@@ -234,31 +234,47 @@ export function useUpdateStockEntry() {
             where: eq(stockEntries.productId, productId),
           });
 
-      if (!existing) throw new Error("Stock entry not found");
-
-      let newQuantity = existing.quantity ?? 0;
+      let newQuantity = existing?.quantity ?? 0;
+      const effectiveType = type ?? existing?.type ?? "adjustment";
       if (type && quantity !== undefined) {
         if (type === "in") newQuantity += Math.abs(quantity);
         else if (type === "out") newQuantity -= Math.abs(quantity);
         else newQuantity = quantity; // adjustment
+      } else if (quantity !== undefined) {
+        newQuantity = quantity;
       }
 
+      const entryId = existing?.id ?? id ?? nanoid();
       const updateData = {
         ...data,
         quantity: newQuantity,
-        type: type ?? existing.type,
-        updatedAt: new Date(),
+        type: effectiveType,
       };
 
       await db
-        .update(stockEntries)
-        .set(updateData)
-        .where(eq(stockEntries.id, existing.id));
+        .insert(stockEntries)
+        .values({
+          id: entryId,
+          productId,
+          type: effectiveType,
+          quantity: newQuantity,
+          note: data?.note,
+          supplierId: data?.supplierId,
+          reorderPoint: data?.reorderPoint,
+          preferredQuantity: data?.preferredQuantity,
+          lowStockWarning: data?.lowStockWarning ?? false,
+          lowStockWarningQuantity: data?.lowStockWarningQuantity ?? 0,
+          createdAt: existing?.createdAt ?? new Date(),
+        })
+        .onConflictDoUpdate({
+          target: stockEntries.productId,
+          set: updateData,
+        });
 
       if (type && quantity !== undefined) {
         await db.insert(stockLogs).values({
           id: nanoid(),
-          productId: existing.productId,
+          productId: productId,
           type: type,
           quantity: quantity,
           note: data?.note,
@@ -267,14 +283,14 @@ export function useUpdateStockEntry() {
         logActivity({
           action: `stock.${type}` as ActivityAction,
           entityType: "stock",
-          entityId: existing.productId,
-          description: `Stock ${type} of ${quantity} for product ${existing.productId}`,
+          entityId: productId,
+          description: `Stock ${type} of ${quantity} for product ${productId}`,
           metadata: { note: data?.note, newQuantity },
         });
       }
 
       const updated = await db.query.stockEntries.findFirst({
-        where: eq(stockEntries.id, existing.id),
+        where: eq(stockEntries.productId, productId),
       });
       return updated as StockEntry;
     },
